@@ -144,7 +144,10 @@ class OnlineSearcher:
                 where={"belong": {"$eq": contract_name}}
             )
             contract = self.contract_collection.get(ids=contract_name)
-            address = contract['metadatas'][0]['address']
+            if len(contract.get('documents')) == 0:
+                address = ''
+            else:
+                address = contract['metadatas'][0]['address']
             if len(function_list.get('documents')) == 0:
                 continue
             ids = function_list.get('ids')

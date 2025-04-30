@@ -76,177 +76,7 @@
 4. 监控异常LP代币销毁/铸造事件，防止虚假流动性操作。
 
 函数切片列表如下（包括函数切片ID、函数切片所属的合约地址、元数据、函数切片）：
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-constructor-0
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_factory', 'type': 'address'}, {'name': '_bar', 'type': 'address'}, {'name': '_sushi', 'type': 'address'}, {'name': '_weth', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory', 'bar', 'sushi', 'weth'], 'written': []}, 'src': '43#48'}"}
-函数切片:
-    constructor (address _factory, address _bar, address _sushi, address _weth) public {
-       factory = IUniswapV2Factory(_factory);
-       bar = _bar;
-       sushi = _sushi;
-       weth = _weth;
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-bridgeFor-1
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': True, 'message': "{'name': 'bridgeFor', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'token', 'type': 'address'}], 'returns': [{'name': 'bridge', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['_bridges', 'weth'], 'written': []}, 'src': '52#57'}"}
-函数切片:
-    function bridgeFor(address token) public view returns (address bridge) {
-        bridge = _bridges[token];
-        if (bridge == address(0)) {
-            bridge = weth;
-        }
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-setBridge-2
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'setBridge', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'bridge', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogBridgeSet'], 'errors': ['SushiMaker: Invalid bridge'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'weth', '_bridges'], 'written': []}, 'src': '61#68'}"}
-函数切片:
-    function setBridge(address token, address bridge) external onlyOwner {
-        // Checks
-        require(token != sushi && token != weth && token != bridge, "SushiMaker: Invalid bridge");
 
-        // Effects
-        _bridges[token] = bridge;
-        emit LogBridgeSet(token, bridge);
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-onlyEOA-3
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'onlyEOA', 'type': 'modifier', 'contract': 'SushiSwap-SushiMaker.sol', 'src': '73#77'}"}
-函数切片:
-    modifier onlyEOA() {
-        // Try to make flash-loan exploit harder to do.
-        require(msg.sender == tx.origin, "SushiMaker: must use EOA");
-        _;
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-convert-4
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'convert', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '85#87'}"}
-函数切片:
-    function convert(address token0, address token1) external onlyEOA() {
-        _convert(token0, token1);
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-convertMultiple-5
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'convertMultiple', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address[]'}, {'name': 'token1', 'type': 'address[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '92#98'}"}
-函数切片:
-    function convertMultiple(address[] calldata token0, address[] calldata token1) external onlyEOA() {
-        // TODO: This can be optimized a fair bit, but this is safer and simpler for now
-        uint256 len = token0.length;
-        for(uint256 i=0; i < len; i++) {
-            _convert(token0[i], token1[i]);
-        }
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-_convert-6
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_convert', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogConvert'], 'errors': ['SushiMaker: Invalid pair'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory'], 'written': []}, 'src': '102#116'}"}
-函数切片:
-    function _convert(address token0, address token1) internal {
-        // Interactions
-        // S1 - S4: OK
-        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(token0, token1));
-        require(address(pair) != address(0), "SushiMaker: Invalid pair");
-        // balanceOf: S1 - S4: OK
-        // transfer: X1 - X5: OK
-        IERC20(address(pair)).safeTransfer(address(pair), pair.balanceOf(address(this)));
-        // X1 - X5: OK
-        (uint256 amount0, uint256 amount1) = pair.burn(address(this));
-        if (token0 != pair.token0()) {
-            (amount0, amount1) = (amount1, amount0);
-        }
-        emit LogConvert(msg.sender, token0, token1, amount0, amount1, _convertStep(token0, token1, amount0, amount1));
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-_convertStep-7
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_convertStep', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}, {'name': 'amount0', 'type': 'uint256'}, {'name': 'amount1', 'type': 'uint256'}], 'returns': [{'name': 'sushiOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'sushi', 'weth', 'weth', 'weth', 'weth', 'weth', 'weth', 'bar', 'sushi', 'bar', 'sushi', 'sushi', 'weth', 'weth', 'bar', 'sushi'], 'written': []}, 'src': '121#165'}"}
-函数切片:
-    function _convertStep(address token0, address token1, uint256 amount0, uint256 amount1) internal returns(uint256 sushiOut) {
-        // Interactions
-        if (token0 == token1) {
-            uint256 amount = amount0.add(amount1);
-            if (token0 == sushi) {
-                IERC20(sushi).safeTransfer(bar, amount);
-                sushiOut = amount;
-            } else if (token0 == weth) {
-                sushiOut = _toSUSHI(weth, amount);
-            } else {
-                address bridge = bridgeFor(token0);
-                amount = _swap(token0, bridge, amount, address(this));
-                sushiOut = _convertStep(bridge, bridge, amount, 0);
-            }
-        } else if (token0 == sushi) { // eg. SUSHI - ETH
-            IERC20(sushi).safeTransfer(bar, amount0);
-            sushiOut = _toSUSHI(token1, amount1).add(amount0);
-        } else if (token1 == sushi) { // eg. USDT - SUSHI
-            IERC20(sushi).safeTransfer(bar, amount1);
-            sushiOut = _toSUSHI(token0, amount0).add(amount1);
-        } else if (token0 == weth) { // eg. ETH - USDC
-            sushiOut = _toSUSHI(weth, _swap(token1, weth, amount1, address(this)).add(amount0));
-        } else if (token1 == weth) { // eg. USDT - ETH
-            sushiOut = _toSUSHI(weth, _swap(token0, weth, amount0, address(this)).add(amount1));
-        } else { // eg. MIC - USDT
-            address bridge0 = bridgeFor(token0);
-            address bridge1 = bridgeFor(token1);
-            if (bridge0 == token1) { // eg. MIC - USDT - and bridgeFor(MIC) = USDT
-                sushiOut = _convertStep(bridge0, token1,
-                    _swap(token0, bridge0, amount0, address(this)),
-                    amount1
-                );
-            } else if (bridge1 == token0) { // eg. WBTC - DSD - and bridgeFor(DSD) = WBTC
-                sushiOut = _convertStep(token0, bridge1,
-                    amount0,
-                    _swap(token1, bridge1, amount1, address(this))
-                );
-            } else {
-                sushiOut = _convertStep(bridge0, bridge1, // eg. USDT - DSD - and bridgeFor(DSD) = WBTC
-                    _swap(token0, bridge0, amount0, address(this)),
-                    _swap(token1, bridge1, amount1, address(this))
-                );
-            }
-        }
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-_swap-8
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_swap', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'fromToken', 'type': 'address'}, {'name': 'toToken', 'type': 'address'}, {'name': 'amountIn', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SushiMaker: Cannot convert'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory'], 'written': []}, 'src': '170#191'}"}
-函数切片:
-    function _swap(address fromToken, address toToken, uint256 amountIn, address to) internal returns (uint256 amountOut) {
-        // Checks
-        // X1 - X5: OK
-        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(fromToken, toToken));
-        require(address(pair) != address(0), "SushiMaker: Cannot convert");
-
-        // Interactions
-        // X1 - X5: OK
-        (uint256 reserve0, uint256 reserve1,) = pair.getReserves();
-        uint256 amountInWithFee = amountIn.mul(997);
-        if (fromToken == pair.token0()) {
-            amountOut = amountIn.mul(997).mul(reserve1) / reserve0.mul(1000).add(amountInWithFee);
-            IERC20(fromToken).safeTransfer(address(pair), amountIn);
-            pair.swap(0, amountOut, to, new bytes(0));
-            // TODO: Add maximum slippage?
-        } else {
-            amountOut = amountIn.mul(997).mul(reserve0) / reserve1.mul(1000).add(amountInWithFee);
-            IERC20(fromToken).safeTransfer(address(pair), amountIn);
-            pair.swap(amountOut, 0, to, new bytes(0));
-            // TODO: Add maximum slippage?
-        }
-    }
-------------------------------------------------
-函数切片ID: SushiSwap-SushiMaker.sol-_toSUSHI-9
-所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
-元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_toSUSHI', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'amountIn', 'type': 'uint256'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'bar'], 'written': []}, 'src': '195#198'}"}
-函数切片:
-    function _toSUSHI(address token, uint256 amountIn) internal returns(uint256 amountOut) {
-        // X1 - X5: OK
-        amountOut = _swap(token, sushi, amountIn, bar);
-    }
 ------------------------------------------------
 函数切片ID: SushiSwap-SushiMakerExploitMock.sol-constructor-0
 所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
@@ -1983,3 +1813,174 @@
 函数切片:
     constructor(address _feeToSetter) public UniswapV2Factory(_feeToSetter) {}
 ------------------------------------------------
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-constructor-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_factory', 'type': 'address'}, {'name': '_bar', 'type': 'address'}, {'name': '_sushi', 'type': 'address'}, {'name': '_weth', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory', 'bar', 'sushi', 'weth'], 'written': []}, 'src': '43#48'}"}
+函数切片:
+    constructor (address _factory, address _bar, address _sushi, address _weth) public {
+       factory = IUniswapV2Factory(_factory);
+       bar = _bar;
+       sushi = _sushi;
+       weth = _weth;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-bridgeFor-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': True, 'message': "{'name': 'bridgeFor', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'token', 'type': 'address'}], 'returns': [{'name': 'bridge', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['_bridges', 'weth'], 'written': []}, 'src': '52#57'}"}
+函数切片:
+    function bridgeFor(address token) public view returns (address bridge) {
+        bridge = _bridges[token];
+        if (bridge == address(0)) {
+            bridge = weth;
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-setBridge-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'setBridge', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'bridge', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogBridgeSet'], 'errors': ['SushiMaker: Invalid bridge'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'weth', '_bridges'], 'written': []}, 'src': '61#68'}"}
+函数切片:
+    function setBridge(address token, address bridge) external onlyOwner {
+        // Checks
+        require(token != sushi && token != weth && token != bridge, "SushiMaker: Invalid bridge");
+
+        // Effects
+        _bridges[token] = bridge;
+        emit LogBridgeSet(token, bridge);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-onlyEOA-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'onlyEOA', 'type': 'modifier', 'contract': 'SushiSwap-SushiMaker.sol', 'src': '73#77'}"}
+函数切片:
+    modifier onlyEOA() {
+        // Try to make flash-loan exploit harder to do.
+        require(msg.sender == tx.origin, "SushiMaker: must use EOA");
+        _;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-convert-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'convert', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '85#87'}"}
+函数切片:
+    function convert(address token0, address token1) external onlyEOA() {
+        _convert(token0, token1);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-convertMultiple-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'convertMultiple', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address[]'}, {'name': 'token1', 'type': 'address[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '92#98'}"}
+函数切片:
+    function convertMultiple(address[] calldata token0, address[] calldata token1) external onlyEOA() {
+        // TODO: This can be optimized a fair bit, but this is safer and simpler for now
+        uint256 len = token0.length;
+        for(uint256 i=0; i < len; i++) {
+            _convert(token0[i], token1[i]);
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_convert-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_convert', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogConvert'], 'errors': ['SushiMaker: Invalid pair'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory'], 'written': []}, 'src': '102#116'}"}
+函数切片:
+    function _convert(address token0, address token1) internal {
+        // Interactions
+        // S1 - S4: OK
+        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(token0, token1));
+        require(address(pair) != address(0), "SushiMaker: Invalid pair");
+        // balanceOf: S1 - S4: OK
+        // transfer: X1 - X5: OK
+        IERC20(address(pair)).safeTransfer(address(pair), pair.balanceOf(address(this)));
+        // X1 - X5: OK
+        (uint256 amount0, uint256 amount1) = pair.burn(address(this));
+        if (token0 != pair.token0()) {
+            (amount0, amount1) = (amount1, amount0);
+        }
+        emit LogConvert(msg.sender, token0, token1, amount0, amount1, _convertStep(token0, token1, amount0, amount1));
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_convertStep-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_convertStep', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}, {'name': 'amount0', 'type': 'uint256'}, {'name': 'amount1', 'type': 'uint256'}], 'returns': [{'name': 'sushiOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'sushi', 'weth', 'weth', 'weth', 'weth', 'weth', 'weth', 'bar', 'sushi', 'bar', 'sushi', 'sushi', 'weth', 'weth', 'bar', 'sushi'], 'written': []}, 'src': '121#165'}"}
+函数切片:
+    function _convertStep(address token0, address token1, uint256 amount0, uint256 amount1) internal returns(uint256 sushiOut) {
+        // Interactions
+        if (token0 == token1) {
+            uint256 amount = amount0.add(amount1);
+            if (token0 == sushi) {
+                IERC20(sushi).safeTransfer(bar, amount);
+                sushiOut = amount;
+            } else if (token0 == weth) {
+                sushiOut = _toSUSHI(weth, amount);
+            } else {
+                address bridge = bridgeFor(token0);
+                amount = _swap(token0, bridge, amount, address(this));
+                sushiOut = _convertStep(bridge, bridge, amount, 0);
+            }
+        } else if (token0 == sushi) { // eg. SUSHI - ETH
+            IERC20(sushi).safeTransfer(bar, amount0);
+            sushiOut = _toSUSHI(token1, amount1).add(amount0);
+        } else if (token1 == sushi) { // eg. USDT - SUSHI
+            IERC20(sushi).safeTransfer(bar, amount1);
+            sushiOut = _toSUSHI(token0, amount0).add(amount1);
+        } else if (token0 == weth) { // eg. ETH - USDC
+            sushiOut = _toSUSHI(weth, _swap(token1, weth, amount1, address(this)).add(amount0));
+        } else if (token1 == weth) { // eg. USDT - ETH
+            sushiOut = _toSUSHI(weth, _swap(token0, weth, amount0, address(this)).add(amount1));
+        } else { // eg. MIC - USDT
+            address bridge0 = bridgeFor(token0);
+            address bridge1 = bridgeFor(token1);
+            if (bridge0 == token1) { // eg. MIC - USDT - and bridgeFor(MIC) = USDT
+                sushiOut = _convertStep(bridge0, token1,
+                    _swap(token0, bridge0, amount0, address(this)),
+                    amount1
+                );
+            } else if (bridge1 == token0) { // eg. WBTC - DSD - and bridgeFor(DSD) = WBTC
+                sushiOut = _convertStep(token0, bridge1,
+                    amount0,
+                    _swap(token1, bridge1, amount1, address(this))
+                );
+            } else {
+                sushiOut = _convertStep(bridge0, bridge1, // eg. USDT - DSD - and bridgeFor(DSD) = WBTC
+                    _swap(token0, bridge0, amount0, address(this)),
+                    _swap(token1, bridge1, amount1, address(this))
+                );
+            }
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_swap-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_swap', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'fromToken', 'type': 'address'}, {'name': 'toToken', 'type': 'address'}, {'name': 'amountIn', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SushiMaker: Cannot convert'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory'], 'written': []}, 'src': '170#191'}"}
+函数切片:
+    function _swap(address fromToken, address toToken, uint256 amountIn, address to) internal returns (uint256 amountOut) {
+        // Checks
+        // X1 - X5: OK
+        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(fromToken, toToken));
+        require(address(pair) != address(0), "SushiMaker: Cannot convert");
+
+        // Interactions
+        // X1 - X5: OK
+        (uint256 reserve0, uint256 reserve1,) = pair.getReserves();
+        uint256 amountInWithFee = amountIn.mul(997);
+        if (fromToken == pair.token0()) {
+            amountOut = amountIn.mul(997).mul(reserve1) / reserve0.mul(1000).add(amountInWithFee);
+            IERC20(fromToken).safeTransfer(address(pair), amountIn);
+            pair.swap(0, amountOut, to, new bytes(0));
+            // TODO: Add maximum slippage?
+        } else {
+            amountOut = amountIn.mul(997).mul(reserve0) / reserve1.mul(1000).add(amountInWithFee);
+            IERC20(fromToken).safeTransfer(address(pair), amountIn);
+            pair.swap(amountOut, 0, to, new bytes(0));
+            // TODO: Add maximum slippage?
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_toSUSHI-9
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_toSUSHI', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'amountIn', 'type': 'uint256'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'bar'], 'written': []}, 'src': '195#198'}"}
+函数切片:
+    function _toSUSHI(address token, uint256 amountIn) internal returns(uint256 amountOut) {
+        // X1 - X5: OK
+        amountOut = _swap(token, sushi, amountIn, bar);
+    }
