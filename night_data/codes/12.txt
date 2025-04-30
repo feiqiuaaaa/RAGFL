@@ -1,0 +1,89 @@
+
+-----------------------------------------
+正在处理dapp：FormationFi.json~
+address list = {'0xd02c260f54997146c9028b2ac7144b11ce4c20a6', '0xc356ef8082ea212f4db7e57f5aa845b69688cbba', '0xcb6afdc84e8949ddf49ab00b5b351a5b0f65a723'}
+0xd02c260f54997146c9028b2ac7144b11ce4c20a6获取的源代码为空！
+
+故障函数！
+
+-----------------------------------------
+FormationFi.json已经处理完成！
+
+['JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：LiFi.json~
+
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 711, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 1007, in _prepare_proxy
+    conn.connect()
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connection.py", line 419, in connect
+    self.sock = ssl_wrap_socket(
+                ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 449, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 493, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 517, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1075, in _create
+    self.do_handshake()
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1346, in do_handshake
+    self._sslobj.do_handshake()
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 798, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0x0c7689a9a9e264373b9e58dc48b994e83402d626adf36501ff2b6a41eefbafc1&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 164, in <module>
+    asyncio.run(handler.process(file))
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 67, in process
+    address = get_contract_address_from_tx(_hash, _platform)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\get_source_code.py", line 27, in get_contract_address_from_tx
+    response = requests.get(url)
+               ^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 513, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0x0c7689a9a9e264373b9e58dc48b994e83402d626adf36501ff2b6a41eefbafc1&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))

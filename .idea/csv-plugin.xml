@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CsvFileAttributes">
+    <option name="attributeMap">
+      <map>
+        <entry key="\BlockchainSpider\data\0x51841D9AFe10fE55571bDB8f4Af1060415003528.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\0xeb31973e0febf3e3d7058234a5ebbae1ab4b8c23.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\Token20TransferItem.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\TokenPropertyItem.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\TraceItem.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\importance\0x51841D9AFe10fE55571bDB8f4Af1060415003528.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\importance\0xE11fc0B43ab98Eb91e9836129d1ee7c3Bc95df50.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\importance\0xE5350E927B904FdB4d2AF55C566E269BB3df1941.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\importance\0xe2Bb94210B41Ce4c01B9B97f3Ac62E728E472f9C.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\importance\0xeb31973e0febf3e3d7058234a5ebbae1ab4b8c23.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-arccos.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-arccosh.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-arcsin.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-arcsinh.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-arctan.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-arctanh.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-cos.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-cosh.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-exp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-exp2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-expm1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-log.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-log10.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-log1p.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-log2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-sin.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-sinh.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\_core\tests\data\umath-validation-set-tan.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\mt19937-testset-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\mt19937-testset-2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\pcg64-testset-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\pcg64-testset-2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\pcg64dxsm-testset-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\pcg64dxsm-testset-2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\philox-testset-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\philox-testset-2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\sfc64-testset-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\sfc64-testset-2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\subgraph_nodes.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

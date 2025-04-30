@@ -1,0 +1,3022 @@
+------------------------------------------------
+交易故障分析：
+问题/异常点分析：故障交易（0x90fb0c...）与正常交易相比存在异常的大额代币转移和流动性池操控。具体表现为：1）通过流动性池合约0x9a13867...转移344.89 WBTC和1.53亿DIGG代币；2）在Swap操作中产生21.095 WETH的异常输出；3）最终兑换的SUSHI代币量（1,123,456.789）远超正常交易（约2,413-21.8万）。  
+
+原因分析：攻击者可能利用SushiSwap路由合约的流动性池价格计算漏洞进行套利。根本原因为：1）价格操纵攻击：攻击者通过0x9a13867...（WBTC/DIGG低流动性池）注入大额代币，人为抬高DIGG相对WBTC的价格；2）跨池套利：随后通过WETH/SUSHI高流动性池将虚高的DIGG价值转化为SUSHI；3）合约交互漏洞：trace显示关键操作通过DELEGATECALL调用0xfabec03...（未经验证的代理合约），可能存在权限绕过问题。被利用的漏洞可能包括：a）流动性池的瞬时价格依赖未结合时间加权平均价格（TWAP）验证；b）路由合约未检测跨池交易的价差保护机制。  
+
+trace调用链完整路径：  
+0xe11fc0b...（路由合约）  
+→ 0x9a13867...（WBTC/DIGG池）  
+→ 0x2260fac...（WBTC合约）  
+→ 0xceff517...（WETH/WBTC池）  
+→ 0x798d1be...（DIGG合约）  
+→ 0xf41e354...（DIGG/WETH池）  
+→ 0x795065d...（SUSHI/WETH池）  
+→ 0x6b35950...（SUSHI合约）
+------------------------------------------------
+向量库匹配结果：
+{'ids': [['SushiSwap.sol-SushiMaker.sol', 'Saddle Finance.sol-ISwap.sol', 'MonoX.sol-IERC1155.sol', 'SushiSwap.sol-UniswapV2ERC20.sol', 'Nmbplatform.sol-SafeERC20.sol', 'SushiSwap.sol-SushiRoll.sol', 'MonoX.sol-Monoswap.sol', 'MonoX.sol-IERC1155Receiver.sol', 'Alchemix.sol-IDetailedERC20.sol', 'Qubit Finance.sol-QBridgeToken.sol', 'Qubit Finance.sol-BEP20Upgradeable.sol', 'Li.Fi.sol-ICBridge.sol', 'Li.Fi.sol-AnyswapFacet.sol', 'SushiSwap.sol-SushiSwapPairMock.sol', 'SushiSwap.sol-SushiToken.sol', 'Visor Finance.sol-vVISR.sol', 'Saddle Finance.sol-MetaSwapUtils.sol', 'Punk Protocol-2.sol-SafeMath.sol', 'CreamFinance-1.sol-EIP20Interface.sol', 'Indexed Finance.sol-IUniswapV2Pair.sol', 'SushiSwap.sol-BoringERC20.sol', 'Indexed Finance.sol-MarketCapSortedTokenCategories.sol', 'Uranium Finance-1.sol-IUraniumPair.sol', 'SushiSwap.sol-IUniswapV2Pair.sol', 'SushiSwap.sol-IUniswapV2Router02.sol', 'Li.Fi.sol-SafeERC20.sol', 'Beanstalk.sol-LibIncentive.sol', 'SushiSwap.sol-UniswapV2Factory.sol', 'Beanstalk.sol-Decimal.sol', 'Uranium Finance-4.sol-IUraniumPair.sol', 'MonoX.sol-IMonoXPool.sol', 'SushiSwap.sol-IUniswapV2Factory.sol', 'Uranium Finance-3.sol-IUraniumPair.sol', 'Nmbplatform.sol-StakingRewardsFixedAPY.sol', 'MonoX.sol-SafeERC20.sol', 'Indexed Finance.sol-IIndexPool.sol', 'Li.Fi.sol-IERC20Metadata.sol', 'Revest Finance.sol-IERC20.sol', 'Formation.Fi.sol-ERC20.sol', 'MonoX.sol-IERC1155MetadataURI.sol']], 'distances': [[0.2231999635696411, 0.2385106086730957, 0.23886162042617798, 0.2537521719932556, 0.26553255319595337, 0.2731322646141052, 0.2879002094268799, 0.28823423385620117, 0.2916792631149292, 0.29826200008392334, 0.29953181743621826, 0.30019330978393555, 0.30416542291641235, 0.3054424524307251, 0.30702465772628784, 0.30725175639494884, 0.3074296712875366, 0.31116998195648193, 0.31485360860824585, 0.31622737646102905, 0.3174562454223633, 0.3248826265335083, 0.3262173533439636, 0.3268918991088867, 0.32840293645858765, 0.3290185332298279, 0.3293546438217163, 0.3294016718864441, 0.33274614810943604, 0.33278051026284106, 0.33354300260543823, 0.33361607789993286, 0.33423692737690736, 0.33484286069869995, 0.3366861343383789, 0.3370269536972046, 0.33706367015838623, 0.3386210799217224, 0.33867502212524414, 0.34001976251602173]], 'embeddings': None, 'metadatas': None, 'documents': [['总结：该智能合约名为SushiMaker，核心功能是通过兑换流动性池中的代币为SUSHI代币，并将收益分配给xSushi持有者。合约通过销毁Uniswap V2 LP代币获取基础代币，再经过多步兑换逻辑将代币转换为SUSHI并发送至SushiBar合约。合约采用桥接代币机制处理非直接兑换路径，仅允许外部账户（EOA）调用关键函数以防止闪电贷攻击。主要流程包括获取LP代币、销毁LP代币获得基础资产、根据代币类型选择兑换路径（包括直接处理SUSHI/WETH、桥接代币兑换等），最终通过Uniswap V2交易对完成兑换。合约包含权限管理功能，仅允许所有者设置桥接代币地址。\n\n函数列表：\n1. bridgeFor(address token)：查询指定代币的桥接代币地址，默认返回WETH。\n2. setBridge(address token, address bridge)：所有者设置代币的桥接代币地址。\n3. convert(address token0, address token1)：外部EOA调用，处理单个交易对的代币转换。\n4. convertMultiple(address[] token0, address[] token1)：外部EOA调用，批量处理多个交易对的转换。\n5. _convert(address token0, address token1)：内部函数，执行LP代币销毁和基础代币提取。\n6. _convertStep(address token0, address token1, uint256 amount0, uint256 amount1)：内部函数，处理多路径代币兑换逻辑。\n7. _swap(address fromToken, address toToken, uint256 amountIn, address to)：内部函数，执行Uniswap V2交易对的实际兑换操作。\n8. _toSUSHI(address token, uint256 amountIn)：内部函数，将任意代币兑换为SUSHI并发送至Bar合约。', '该智能合约可命名为"Swap流动性池管理合约"，主要实现多代币流动性池的创建、代币兑换及流动性管理功能。合约基于自动化做市商(AMC)机制，包含代币兑换、流动性添加/移除、资金池参数管理等核心功能，支持多代币池配置与白名单机制。关键功能包含：1）通过恒定乘积算法实现代币兑换 2）支持灵活添加/移除流动性的多种模式 3）内置手续费机制（常规费率和管理员费率）4）LP代币的铸造与销毁管理 5）提供多种资金池数据查询接口。\n\n函数列表：\ngetA：获取资金池放大系数\ngetAllowlist：读取白名单合约地址\ngetToken：根据索引获取对应代币\ngetTokenIndex：通过代币地址查询索引号\ngetTokenBalance：查询指定代币的池内余额\ngetVirtualPrice：获取LP代币的虚拟价格\nisGuarded：检查防护状态\ncalculateSwap：计算兑换预期获得量\ncalculateTokenAmount：计算添加流动性对应LP数量\ncalculateRemoveLiquidity：计算全额移除流动性所得代币\ncalculateRemoveLiquidityOneToken：计算单币种移除流动性可得数量\ninitialize：初始化资金池参数\nswap：执行代币兑换交易\naddLiquidity：添加流动性并铸造LP代币\nremoveLiquidity：移除流动性并销毁LP代币\nremoveLiquidityOneToken：单币种移除流动性\nremoveLiquidityImbalance：非对称移除流动性。', '该智能合约被命名为 IERC1155（ERC1155 标准接口），是基于 EIP-1155 标准定义的多代币管理接口合约，继承自 IERC165 接口。其主要功能为实现非同质化代币（NFT）和同质化代币（FT）的统一管理标准，支持批量转账、余额查询及操作员授权机制。合约通过事件记录代币转账、授权状态变更及元数据 URI 更新，要求实现代币接收方的安全验证回调。核心特性包括允许单次/批量转账、批量余额查询、操作员全局授权控制，并强制要求接收合约实现安全转账回调逻辑。\n\n函数列表如下：\n1. balanceOf：查询指定地址中特定代币 ID 的余额数量\n2. balanceOfBatch：批量查询多个地址对应多个代币 ID 的余额（原子性操作，全部成功或回滚）\n3. setApprovalForAll：授权或撤销某操作员对调用者所有代币的管理权限\n4. isApprovedForAll：检查指定操作员是否被授权管理某账户的全部代币\n5. safeTransferFrom：安全转账单个代币类型，需验证接收方合约的回调\n6. safeBatchTransferFrom：批量安全转账多个代币类型，需验证接收方合约的批量回调', '该智能合约是 SushiSwap 的流动性池代币（LP Token）实现，基于 ERC20 标准并扩展了离线授权功能。合约代币名称为"SushiSwap LP Token"(SLP)，提供基础代币转账、授权功能，同时通过 EIP-712 标准实现了 Permit 离线签名授权机制，允许用户通过数字签名完成代币授权操作，无需提前发送链上交易。合约包含代币铸造/销毁功能，但相关方法设为内部函数，需通过继承机制由外部合约调用，体现其作为流动性池代币的设计特性。\n\n函数列表：\n1. 构造函数：初始化代币基础信息并创建 EIP-712 域分隔符\n2. _mint（内部）：向指定地址增发代币并更新总供应量\n3. _burn（内部）：销毁指定地址的代币并减少总供应量\n4. _approve（私有）：处理代币授权逻辑并触发 Approval 事件\n5. _transfer（私有）：执行代币转账逻辑并触发 Transfer 事件\n6. approve（外部）：公开的授权接口，允许第三方操作指定数量的代币\n7. transfer（外部）：标准代币转账功能\n8. transferFrom（外部）：允许被授权方转移代币，支持无限授权优化\n9. permit（外部）：通过验证 EIP-712 签名实现离线授权，规避单独授权交易', 'SafeERC20 库总结：该智能合约是 OpenZeppelin 提供的 SafeERC20 安全操作库，主要用于增强 ERC20 代币操作的安全性。其核心功能是通过封装标准的 ERC20 操作（如转账、授权等），统一处理可能出现的调用失败情况，并对兼容 EIP-2612 的 ERC20Permit 代币提供许可签名验证功能。关键特性包括：1. 对所有 ERC20 操作添加返回值验证，防止忽略返回 false 的失败情况；2. 提供安全的授权额度调整方法，避免常见的前后授权竞争问题；3. 集成 permit 签名验证功能，支持免转账手续费授权操作；4. 通过低级调用实现兼容性处理，支持无返回值类型的代币合约。该库通过引入安全封装方法（如 safeTransfer、safeIncreaseAllowance 等），显著降低开发者直接调用 ERC20 接口时的潜在风险。\n\n函数列表：  \n- safeTransfer(IERC20,address,uint256)：安全转账函数，验证 ERC20 转账操作结果  \n- safeTransferFrom(IERC20,address,address,uint256)：安全跨账户转账，验证 transferFrom 结果  \n- safeApprove(IERC20,address,uint256)：授权操作（已弃用），强制要求从零地址开始授权  \n- safeIncreaseAllowance(IERC20,address,uint256)：安全增加授权额度，采用增量方式避免竞争条件  \n- safeDecreaseAllowance(IERC20,address,uint256)：安全减少授权额度，防止额度减至负数  \n- safePermit(IERC20Permit,address,address,uint256,uint256,uint8,bytes32,bytes32)：执行 EIP-2612 许可签名验证，包含 nonce 校验  \n- _callOptionalReturn(IERC20,bytes)：内部基础方法，执行低级调用并验证返回数据', '该智能合约名为SushiRoll，核心功能是帮助用户将Uniswap V2的流动性池（LP）代币迁移至SushiSwap。合约通过移除用户在Uniswap的流动性，并将代币重新注入SushiSwap的新流动性池中，完成LP代币的转换。迁移过程支持两种方式：带许可签名（permit）的授权迁移和常规授权迁移。合约关键点包括：1. 移除旧路由器的流动性时，需满足最小代币数量（amountAMin/amountBMin）和截止时间（deadline）；2. 添加流动性到新路由器时，自动计算最优代币比例，确保符合SushiSwap池的储备要求；3. 迁移后剩余代币会返还用户。合约通过UniswapV2Library进行地址排序、储备量查询等操作，并采用CREATE2方式计算旧路由器的Pair合约地址，避免外部调用。\n\n函数列表：\n1. 构造函数：初始化新旧路由器的地址（oldRouter和router）\n2. migrateWithPermit：通过许可签名授权后执行迁移，参数包含tokenA/B、流动性数量、最小代币量、截止时间及签名v/r/s\n3. migrate：核心迁移函数，处理流动性移除、添加及剩余代币返还\n4. removeLiquidity（internal）：从旧路由器移除流动性，返回实际获得的代币数量\n5. pairForOldRouter（internal view）：计算旧路由器中指定代币对的Pair合约地址\n6. addLiquidity（internal）：向新路由器添加流动性并铸造LP代币给用户\n7. _addLiquidity（internal）：计算添加流动性的最优代币量，必要时创建新Pair合约', 'Monoswap 智能合约总结：该合约是基于 ERC1155 标准实现的去中心化交易所核心合约，采用单边流动性模型并支持多种代币交易。核心功能包括流动性池管理、代币兑换、动态价格调整和手续费机制。合约通过 vCash 虚拟代币实现流动性管理，支持 ETH/WETH 交易对，并包含官方池、合成池等多种池状态管理。关键特性包含：1. 支持创建/移除流动性池 2. 实现基于价格滑点的自动做市算法 3. 可调节的交易手续费和开发者费用 4. 池状态锁定机制防止重入攻击 5. 提供多种兑换路径处理 ETH 与代币交易。\n\n函数列表：\n- initialize：初始化合约基础配置\n- setFeeTo：设置手续费接收地址\n- setFees：设置交易手续费率\n- setDevFee：设置开发者费用率\n- setPoolSizeMinLimit：设置最小池规模限制\n- setTokenInsurance：设置代币保险金额\n- setTokenStatus：设置代币锁定状态\n- updatePoolStatus：更新池状态（仅管理员）\n- updatePoolPrice：更新池价格（需冷却期）\n- updatePriceAdjuster：设置价格调节权限\n- setSynthPoolPrice：设置合成池价格\n- rebalancePool：执行池再平衡\n- addSpecialToken：创建特殊状态池\n- listNewToken：创建新代币池\n- addLiquidityPair：添加双向流动性\n- addLiquidity：添加单边流动性\n- addLiquidityETH：添加 ETH 流动性\n- removeLiquidity：移除流动性\n- removeLiquidityETH：移除 ETH 流动性\n- swapExactETHForToken：ETH 兑换代币\n- swapExactTokenForETH：代币兑换 ETH\n- swapETHForExactToken：指定数量 ETH 兑换\n- swapTokenForExactETH：指定数量代币兑换\n- swapExactTokenForToken：代币间兑换\n- swapTokenForExactToken：指定数量代币兑换\n- getPool：获取池信息\n- getAmountIn：计算输入金额\n- getAmountOut：计算输出金额\n- getConfig：获取系统配置参数', '该智能合约命名为IERC1155Receiver合约，是一个符合ERC-1155标准的接收器接口合约，主要用于处理ERC1155代币的接收验证逻辑。合约继承自IERC165接口，通过定义两个核心回调函数实现代币转账的合规性检查。当外部合约通过safeTransferFrom或safeBatchTransferFrom方法进行代币转账时，目标合约必须实现这些回调函数并返回指定魔法值，才能完成转账操作。合约通过强制返回固定函数选择器的机制，确保接收方合约已正确实现代币接收逻辑。\n\n函数列表如下：\n1. onERC1155Received函数：处理单个ERC1155代币类型的接收回调。参数包括操作者地址、发送方地址、代币ID、转账数量及附加数据。必须返回0xf23a6e61表示接受转账。\n2. onERC1155BatchReceived函数：处理多个ERC1155代币类型的批量接收回调。参数包含操作者地址、发送方地址、代币ID数组、数量数组及附加数据。必须返回0xbc197c81表示接受批量转账。', '该智能合约定义了一个名为 IDetailedERC20 的接口，用于扩展 ERC20 代币标准功能。作为 ERC20 的增强接口，它在标准代币转账/余额功能基础上增加了代币元数据查询能力，要求实现该接口的代币必须提供名称(name)、代号(symbol)和小数位精度(decimals)三个元数据字段。该接口通过继承 OpenZeppelin 的 IERC20 标准接口，构建了兼容 ERC20 基础功能并附加元数据查询功能的扩展规范，通常用于需要前端展示代币详细信息或与其他 DeFi 协议进行元数据交互的场景。\n\n函数列表：\n1. name()：外部函数，返回代币全称的字符串\n2. symbol()：外部函数，返回代币简称/代号的字符串\n3. decimals()：外部函数，返回代币使用的小数位精度数值（uint8 类型）', 'QBridgeToken 智能合约总结：该合约是基于 BEP20 标准构建的可升级代币合约，主要用于实现跨链桥接场景中的代币铸造和销毁功能。合约核心功能包含权限管理机制，通过维护铸币者白名单实现代币操作权限控制。合约所有者可通过 setMinter 函数动态管理具有铸币权限的地址，授权后的铸币者地址可执行代币铸造 mint 和带授权销毁 burnFrom 操作。合约继承自 BEP20Upgradeable 实现代币基础功能，并采用初始化函数 initialize 支持可升级合约模式，允许在部署后设置代币名称、符号和小数位。销毁功能采用从指定账户扣除授权额度的安全机制，通过校验用户对铸币者的授权额度防止超额燃烧代币。\n\n函数列表：\n1. initialize - 初始化函数，设置代币名称、符号和小数位\n2. setMinter - 设置/取消地址的铸币者权限（仅合约所有者可调用）\n3. mint - 向指定地址铸造代币（仅铸币者可调用）\n4. burnFrom - 从指定账户销毁代币并更新授权额度（仅铸币者可调用）\n5. isMinter - 查询指定地址是否具有铸币者权限', '智能合约命名：BEP20Upgradeable。该合约是基于 PancakeSwap 的 BEP20 标准和 OpenZeppelin 可升级合约框架实现的代币基础合约，支持代币升级功能。合约核心功能包括代币转账、余额查询、授权管理、供应量铸造/销毁等标准 BEP20 操作，同时通过 OwnableUpgradeable 实现所有权控制。关键特性包含可初始化参数设置（名称/符号/小数位）、安全数学运算防止溢出、支持代币燃烧功能，并通过预留 50 位存储间隙实现可扩展性。合约通过抽象化设计为后续具体代币合约提供基础模板，采用代理模式兼容合约升级需求。\n\n函数列表：\n1. __BEP20__init：初始化代币基础参数（名称/符号/小数位）\n2. getOwner：获取合约所有者地址\n3. decimals：查询代币小数位数\n4. symbol：查询代币符号\n5. name：查询代币名称\n6. totalSupply：获取代币总供应量\n7. balanceOf：查询指定地址余额\n8. transfer：执行代币转账\n9. allowance：查询授权额度\n10. approve：设置代币操作授权\n11. transferFrom：从授权账户执行转账\n12. increaseAllowance：增加授权额度\n13. decreaseAllowance：减少授权额度\n14. burn：销毁指定数量代币', '智能合约名称：ICBridge（跨链桥接接口合约）。该合约为跨链资产转移定义了标准接口，主要用于不同区块链网络间的代币转移和交易验证。合约包含三个核心功能：1. 支持ERC20代币的跨链转账 2. 支持原生代币(如ETH)的跨链转账 3. 提供多方签名的交易验证中继机制。关键实现包括目标链ID参数指定跨链目的地、nonce防止重复交易、maxSlippage控制交易滑点，以及通过多签验证保障跨链交易安全性。\n\n函数列表：\n1. send：发送ERC20代币到指定跨链网络，需要传入接收地址、代币合约地址、转账金额、目标链ID、交易序号和最大滑点值\n2. sendNative：发送原生代币到指定跨链网络，参数去除了代币合约地址，其他与send函数保持一致\n3. relay：验证并执行跨链中继交易，需提供中继请求数据、签名数组、签名者地址数组和权限数组，实现多方签名验证机制', 'AnyswapFacet 智能合约总结：该合约是一个基于 LiFi 协议的跨链桥接模块，专门集成 Anyswap 协议实现多链资产转移功能。合约支持两种主要操作模式：1) 直接桥接用户资产到目标链；2) 先执行资产兑换再完成跨链桥接。核心逻辑通过 Anyswap 路由合约实现资产跨链，同时结合 LibSwap 库处理链上兑换操作。合约严格校验转账金额与链 ID，采用底层代币处理机制确保 Anyswap 兼容性，并通过事件日志记录完整的跨链交易信息。主要特征包括原生代币/ERC20 双模式支持、多步兑换组合操作、安全余额验证机制以及防止同链转账校验。\n\n函数列表：\n1. startBridgeTokensViaAnyswap：直接桥接资产函数，处理用户资产转移后调用 Anyswap 跨链，支持 ERC20 代币和原生代币两种模式。\n2. swapAndStartBridgeTokensViaAnyswap：先兑换后桥接组合函数，允许在执行多步资产兑换操作后自动进行跨链转账。\n3. _startBridge：内部桥接执行函数，包含 Anyswap 路由调用逻辑，处理 ERC20 代币授权及原生代币跨链转账。\n4. 继承自 ILiFi 接口的 LiFiTransferStarted 事件：记录跨链交易开始时的核心参数，包括交易 ID、资产信息、接收方地址等。', '总结：该 SushiSwapPairMock 智能合约是一个模拟实现的流动性池合约，继承自 UniswapV2Pair 合约核心逻辑。其核心功能是作为去中心化交易所中的交易对池，处理代币兑换、流动性添加/移除等基础操作。代码未对父合约功能进行任何修改或扩展，仅通过构造函数调用父类初始化，属于基础逻辑复用型合约。其核心机制包括自动做市商算法、流动性代币铸造/销毁、交易手续费积累等原生 Uniswap V2 特性。\n\n函数列表：包含 UniswapV2Pair 全部函数：mint（铸造流动性代币给提供者）、burn（销毁流动性代币并返还代币）、swap（执行代币兑换）、sync（强制更新储备量）、skim（提取多余代币）、initialize（初始化交易对代币）、getReserves（获取当前储备量）、_update（内部储备量更新）、_mintFee（手续费铸造计算）、transfer（ERC20代币转账）、approve（授权额度）、transferFrom（授权转账）、permit（元交易许可）。具体函数实现细节需参考 UniswapV2Pair 源合约。', '该智能合约是一个兼具代币功能和治理机制的SUSHI代币合约，基于ERC20标准并继承Ownable权限控制。核心功能包括代币铸造和委托投票治理系统。合约通过检查点机制记录每个地址在不同区块的投票权重，并支持通过签名进行委托授权。关键特性如下：1. 仅合约所有者可调用mint函数进行代币铸造，铸造时自动更新委托人的投票权重。2. 实现链上治理功能，允许用户委托投票权，采用类似Compound的投票委托机制。3. 使用检查点(Checkpoint)结构记录历史投票数据，支持查询任意历史区块的投票余额。4. 集成EIP-712标准签名验证，允许离线签署委托授权。5. 通过事件监控委托关系变更和投票权重变化。\n\n函数列表：\nmint：所有者铸造新代币并更新委托投票\ndelegates：查询指定地址的委托对象\ndelegate：将调用者的投票权委托给指定地址\ndelegateBySig：通过签名验证实现委托授权\ngetCurrentVotes：获取指定地址的当前投票余额\ngetPriorVotes：查询指定地址在历史区块的投票余额\n_delegate：内部处理委托逻辑\n_moveDelegates：内部转移委托投票权重\n_writeCheckpoint：内部写入检查点数据\nsafe32：安全转换为32位无符号整数\ngetChainId：获取当前链ID', 'vVISR 代币合约是基于 ERC20 标准的增强型代币合约，融合了 ERC20Permit（支持离线签名授权）和 ERC20Snapshot（代币快照）功能。该合约通过权限控制实现中心化管理，仅合约所有者可执行核心操作。合约特点包括：1. 代币基础功能支持铸造/销毁；2. 集成代币持有量快照功能；3. 实现所有权可转移机制；4. 兼容 ERC20 扩展标准。合约通过继承 OpenZeppelin 标准合约实现行业规范，并通过 onlyOwner 修饰器确保关键操作的安全性。\n\n函数列表：\n1. constructor：初始化代币名称、符号和小数位，设定初始所有者\n2. mint：所有者给指定地址铸造代币\n3. burn：所有者销毁指定地址的代币\n4. snapshot：所有者创建代币余额快照\n5. transferOwnership：所有者转移合约控制权\n6. _beforeTokenTransfer：内部钩子函数，在转账前触发快照机制\n7. owner：状态变量获取当前所有者地址\n8. 继承自 ERC20 的标准函数：transfer/approve 等基础 ERC20 功能未显式定义但可用', 'MetaSwapUtils库是一个用于支持MetaSwap合约的智能合约工具库，旨在实现跨池流动性管理与代币交换功能。其核心功能是通过扩展基础Swap池的LP代币用途，允许用户在MetaSwap池中将基础池的LP代币与其他代币（如稳定币）进行组合，实现跨层交易。例如，用户可在MetaSwap池中交易基础池的LP代币与sUSD，同时支持底层代币的间接兑换。该库通过缓存机制优化基础池虚拟价格查询，降低Gas消耗，并提供流动性添加/移除、代币交换（包括底层代币）、手续费计算等关键功能。其算法基于Stableswap模型，处理多币种池的平衡计算，并通过动态更新基础池数据确保价格准确性。\n\n函数列表如下：\n1. _getBaseVirtualPrice：获取基础Swap池的虚拟价格，若缓存过期则实时更新。\n2. calculateWithdrawOneToken：计算用户单币种提取时应得的代币数量。\n3. calculateSwap：计算普通代币交换的预期输出量。\n4. calculateSwapUnderlying：计算跨基础池与MetaSwap池的代币交换结果。\n5. calculateTokenAmount：估算存入/提取流动性对LP代币数量的影响。\n6. getVirtualPrice：返回MetaSwap池的虚拟价格，用于收益计算。\n7. swap：执行MetaSwap池内代币的交换操作。\n8. swapUnderlying：执行跨基础池与MetaSwap池的代币交换，支持底层代币路径。\n9. addLiquidity：添加流动性到池中并铸造LP代币。\n10. removeLiquidityOneToken：移除单币种流动性并销毁LP代币。\n11. removeLiquidityImbalance：按非比例提取多种代币的流动性。\n12. _updateBaseVirtualPrice：更新基础池虚拟价格缓存，确保数据时效性。', 'SafeMath 智能合约总结：该合约是名为 SafeMath 的安全数学运算库，主要用于解决 Solidity 0.8 之前版本无算术溢出检查的问题。其核心功能是通过封装加减乘除和取模运算，提供两种类型的错误处理机制：1）返回布尔状态标志的 tryXXX 系列函数，2）直接触发异常回滚的标准运算函数。该库特别标注适用于 Solidity 0.8 及更高版本，主要作为旧版本项目的兼容方案，因为新版编译器已原生支持溢出检查。关键特性包含带错误信息的重载函数、防止除零异常机制，以及通过 unchecked 代码块实现 Gas 优化的运算处理。\n\n函数列表：\n- tryAdd：安全加法运算，返回成功状态和结果\n- trySub：安全减法运算，返回成功状态和结果\n- tryMul：安全乘法运算，返回成功状态和结果\n- tryDiv：安全除法运算，返回成功状态和结果\n- tryMod：安全取模运算，返回成功状态和结果\n- add：直接执行加法，溢出时回滚\n- sub：直接执行减法，结果为负时回滚\n- mul：直接执行乘法，溢出时回滚\n- div：直接执行除法，除零时回滚\n- mod：直接执行取模，除零时回滚\n- sub(uint256,uint256,string)：带自定义错误信息的减法重载\n- div(uint256,uint256,string)：带自定义错误信息的除法重载\n- mod(uint256,uint256,string)：带自定义错误信息的取模重载', '该智能合约被命名为EIP20Interface，是基于ERC-20代币标准的接口定义合约。它定义了代币合约必须实现的核心功能函数及事件，用于规范代币的基本信息查询、转账操作和授权机制，为其他ERC-20兼容代币提供标准化交互模板。合约包含代币名称、符号、小数位数的元数据查询，支持查看总供应量与地址余额，实现代币转账（包括直接转账和代理转账）及授权额度管理功能。通过Transfer和Approval事件记录代币转移与授权变更行为，但不包含具体逻辑实现代码，仅作为接口规范存在。\n\n函数列表如下：\n1. name()：查询代币名称，返回字符串类型\n2. symbol()：查询代币符号，返回字符串类型\n3. decimals()：查询代币小数位数，返回uint8类型\n4. totalSupply()：获取代币总发行量，返回uint256类型\n5. balanceOf(address owner)：查询指定地址的代币余额，参数为地址，返回uint256\n6. transfer(address dst, uint256 amount)：向目标地址转账指定数量代币，返回操作是否成功\n7. transferFrom(address src, address dst, uint256 amount)：从源地址向目标地址转账代币，返回操作是否成功\n8. approve(address spender, uint256 amount)：授权其他地址使用指定数量的代币，返回操作是否成功\n9. allowance(address owner, address spender)：查询所有者对操作者的剩余授权额度，返回uint256类型\n\n事件列表：\n1. Transfer：当代币转移时触发，记录转出地址、接收地址和转账数量\n2. Approval：当授权额度变更时触发，记录代币所有者、被授权者及授权数量', 'UniswapV2Pair 智能合约接口总结：该智能合约定义了 Uniswap V2 去中心化交易所中流动性池的核心功能，作为 ERC20 标准代币实现交易对池化资产管理。合约通过自动化做市商机制实现代币兑换，包含流动性铸造/销毁、代币交换、储备金同步等核心功能，并集成 ERC2612 签名授权特性。关键功能包括通过 mint/burn 函数进行流动性增减管理，swap 函数执行代币兑换，以及通过 getReserves 获取实时资金池状态。合约通过事件流记录资金变动，维护价格累积变量实现链上价格追踪。\n\n函数列表如下：\n1. name() - 获取流动性代币名称\n2. symbol() - 获取代币符号\n3. decimals() - 返回代币精度\n4. totalSupply() - 查询代币总供应量\n5. balanceOf() - 查询指定地址余额\n6. allowance() - 查询授权额度\n7. approve() - 设置代币操作权限\n8. transfer() - 转账代币\n9. transferFrom() - 从指定地址转账\n10. DOMAIN_SEPARATOR() - 获取 EIP712 域分隔符\n11. PERMIT_TYPEHASH() - 返回许可类型哈希\n12. nonces() - 查询地址的许可随机数\n13. permit() - 通过签名执行授权\n14. MINIMUM_LIQUIDITY() - 获取最小流动性限制\n15. factory() - 查询所属工厂地址\n16. token0() - 获取第一个代币地址\n17. token1() - 获取第二个代币地址\n18. getReserves() - 返回当前储备量及时间戳\n19. price0CumulativeLast() - 获取代币0价格累积值\n20. price1CumulativeLast() - 获取代币1价格累积值\n21. kLast() - 查询最后储备乘积值\n22. mint() - 铸造流动性代币\n23. burn() - 销毁流动性代币并提取基础资产\n24. swap() - 执行代币兑换交易\n25. skim() - 调整储备与余额的差异\n26. sync() - 强制同步储备数据\n27. initialize() - 初始化交易对代币地址', '该智能合约是一个名为BoringERC20的工具库，旨在增强与ERC20代币交互的安全性，通过封装底层调用并添加错误处理机制来防止常见问题。其核心功能包括安全获取代币信息（符号、名称、小数位数）以及执行安全的转账操作。关键点在于处理外部调用失败时提供默认返回值或触发交易回滚，例如在查询代币符号时返回"???"替代错误，转账失败时抛出明确错误信息。该库不依赖具体代币实现，而是通过低级调用动态适配不同ERC20合约，适用于需要兼容多种代币的场景。\n\n函数列表如下：\n1. safeSymbol：内部视图函数，安全查询代币符号，失败返回"???"\n2. safeName：内部视图函数，安全查询代币名称，失败返回"???"\n3. safeDecimals：公开视图函数，安全查询代币小数位，失败默认返回18\n4. safeTransfer：内部函数，执行代币转账并验证结果，失败回滚交易\n5. safeTransferFrom：内部函数，执行代币授权转账并验证结果，失败回滚交易', 'MarketCapSortedTokenCategories 智能合约总结：该合约用于管理基于完全稀释市值排序的代币分类系统，核心功能包括分类创建、代币管理、市值计算及动态排序。合约通过集成外部预言机获取代币价格数据，结合总供应量计算市值，并采用插入排序算法实现分类代币的降序排列。关键特性包括：1) 仅合约所有者可创建分类及管理代币成员；2) 每个分类最多容纳25个代币；3) 依赖长期/短期 TWAP 价格计算机制；4) 强制要求分类至少每日更新排序数据；5) 包含严格代币准入标准（如代币年龄、安全性、供应模型等）。系统通过事件日志记录分类状态变更，并提供多维度查询接口。\n\n函数列表：\ninitialize()：初始化合约所有权\nupdateCategoryPrices(uint256)：更新指定分类内代币价格数据\ncreateCategory(bytes32)：创建新代币分类并存储元数据哈希\naddToken(uint256,address)：向分类添加单个代币\naddTokens(uint256,address[])：批量添加代币至分类\nremoveToken(uint256,address)：从分类移除指定代币\norderCategoryTokensByMarketCap(uint256)：执行插入排序按市值降序排列分类代币\ncomputeAverageMarketCap(address)：计算单个代币平均市值\ncomputeAverageMarketCaps(address[])：批量计算多代币平均市值\nhasCategory(uint256)：验证分类ID是否存在\ngetLastCategoryUpdate(uint256)：查询分类最后排序时间戳\nisTokenInCategory(uint256,address)：检查代币是否属于指定分类\ngetCategoryTokens(uint256)：获取分类全部代币地址列表\ngetCategoryMarketCaps(uint256)：返回分类代币市值数组\ngetTopCategoryTokens(uint256,uint256)：获取分类内市值前N的代币', '智能合约名称：IUraniumPair（铀交易对接口合约）。该合约是一个定义去中心化交易所流动性池功能的接口合约，主要规范了ERC20代币标准接口与流动性池操作的核心功能。合约包含代币基础信息查询、余额管理、流动性铸造/销毁、代币兑换等核心机制，同时实现基于离线签名的授权许可功能（permit）。合约通过事件记录代币转移、流动性变动及交易行为，维护代币对的储备量数据与价格累积值，支持最小流动性限制与工厂合约模式。关键代码逻辑围绕代币对储备管理、流动性代币计算和滑点安全的代币兑换展开。\n\n函数列表：\nname()：查询流动性代币名称（ERC20标准）\nsymbol()：获取流动性代币符号（ERC20标准）\ndecimals()：返回代币精度位数（ERC20标准）\ntotalSupply()：查询流动性代币总供应量（ERC20标准）\nbalanceOf()：查询指定地址的流动性代币余额（ERC20标准）\nallowance()：获取授权额度（ERC20标准）\napprove()：设置代币操作权限（ERC20标准）\ntransfer()：转移流动性代币（ERC20标准）\ntransferFrom()：从指定地址转移代币（ERC20标准）\nDOMAIN_SEPARATOR()：获取EIP712域名分隔符\nPERMIT_TYPEHASH()：返回许可类型哈希值\nnonces()：查询地址的交易随机数\npermit()：通过签名执行授权操作\nMINIMUM_LIQUIDITY()：获取系统要求的最小流动性数值\nfactory()：查询所属工厂合约地址\ntoken0()：获取交易对中首个代币地址\ntoken1()：获取交易对中第二个代币地址\ngetReserves()：查询当前储备量及最后更新时间\nprice0CumulativeLast()：获取代币0价格累积值\nprice1CumulativeLast()：获取代币1价格累积值\nkLast()：查询最后一次交易的储备量乘积\nmint()：铸造流动性代币给指定地址\nburn()：销毁流动性代币并返还底层代币\nswap()：执行代币兑换操作\nskim()：强制调整合约代币余额与储备同步\nsync()：更新储备量数据\ninitialize()：初始化代币对地址', '该智能合约是 Uniswap V2 交易对的接口合约，定义了去中心化交易所中流动性池的核心功能。合约通过实现 ERC20 标准表示流动性代币，同时包含代币兑换、流动性铸造/销毁等 DeFi 核心操作。主要功能包括：1）管理流动性代币的转账和授权 2）记录代币兑换事件和储备金同步 3）提供基于签名授权的元交易功能 4）执行添加/移除流动性的经济模型计算 5）实现代币兑换的滑点机制。合约通过价格累计值跟踪实现链上价格预言机功能，并设有最小流动性保护机制防止流动性枯竭。\n\n函数列表：\nname() - 获取流动性代币名称\nsymbol() - 获取代币符号\ndecimals() - 返回代币精度\ntotalSupply() - 查询总供应量\nbalanceOf() - 查询地址余额\nallowance() - 查询授权额度\napprove() - 设置代币授权\ntransfer() - 转账代币\ntransferFrom() - 授权转账\nDOMAIN_SEPARATOR() - 获取EIP712域分隔符\nPERMIT_TYPEHASH() - 返回许可类型哈希\nnonces() - 查询地址nonce值\npermit() - 签名授权函数\nMINIMUM_LIQUIDITY() - 获取最小流动性值\nfactory() - 查询工厂合约地址\ntoken0() - 获取代币0地址\ntoken1() - 获取代币1地址\ngetReserves() - 查询储备量及时间戳\nprice0CumulativeLast() - 获取代币0累计价格\nprice1CumulativeLast() - 获取代币1累计价格\nkLast() - 查询最后储备积\nmint() - 铸造流动性代币\nburn() - 销毁流动性提取代币\nswap() - 执行代币兑换\nskim() - 调整合约余额\nsync() - 同步储备金\ninitialize() - 初始化交易对', '该智能合约是 Uniswap V2 路由器的扩展接口合约，主要用于支持转账时带有手续费代币的交易场景。合约继承自 IUniswapV2Router01 并新增了五个关键函数，核心功能围绕流动性移除和代币兑换操作进行优化，允许用户在执行交易时自动处理转账扣费代币的余额计算问题。其中移除流动性函数支持直接返还 ETH，并提供带数字签名授权（Permit）的版本以简化用户操作流程。swap 系列函数均支持精确输入金额的交易模式，并适配转账扣费机制，覆盖代币与代币、ETH 与代币之间的兑换场景。\n\n函数列表：\n1. removeLiquidityETHSupportingFeeOnTransferTokens：移除流动性并返还 ETH，支持转账扣费代币\n2. removeLiquidityETHWithPermitSupportingFeeOnTransferTokens：通过签名授权移除流动性并返 ETH，支持扣费代币\n3. swapExactTokensForTokensSupportingFeeOnTransferTokens：精确输入代币兑换代币，支持扣费代币\n4. swapExactETHForTokensSupportingFeeOnTransferTokens：精确输入 ETH 兑换代币，支持扣费代币\n5. swapExactTokensForETHSupportingFeeOnTransferTokens：精确输入代币兑换 ETH，支持扣费代币\n\n（注意：继承自 IUniswapV2Router01 的父接口函数未在本列表重复列出）', 'SafeERC20 库总结：该智能合约是一个用于安全执行 ERC20 标准代币操作的库合约，主要解决传统 ERC20 转账/授权可能因失败未回退导致的资金风险问题。其核心逻辑通过封装底层调用并强制验证返回值，确保代币操作在失败时自动回滚交易。关键实现包含三个安全层：1. 使用 functionCall 执行底层调用并验证合约存在性 2. 强制检查调用返回值长度，对非空返回数据解码验证布尔值 3. 特别处理 approve 授权操作，通过增量调整模式避免 ERC20 授权的前后不匹配问题。该库提供的主要安全操作包含代币转账、带来源的转账、授权额度调整等功能，其中针对授权操作专门设计了安全增加/减少额度函数以避免直接设置绝对值导致的风险。\n\n函数列表：\n1. safeTransfer(IERC20,address,uint256) - 安全转账操作，向指定地址转移代币\n2. safeTransferFrom(IERC20,address,address,uint256) - 安全跨地址转账，从来源地址向目标地址转移代币\n3. safeApprove(IERC20,address,uint256) - (已弃用) 设置代币授权额度，强制要求从零地址初始化或重置为零额度\n4. safeIncreaseAllowance(IERC20,address,uint256) - 安全增加授权额度，采用相对值调整模式\n5. safeDecreaseAllowance(IERC20,address,uint256) - 安全减少授权额度，带有额度不足检查防止超额减少\n6. _callOptionalReturn(IERC20,bytes) - 内部函数，执行代币合约底层调用并验证返回数据有效性', '该智能合约是一个用于高效计算指数激励奖励的库合约，主要功能是通过二项式展开算法避免大数运算溢出问题，实现形如k*(1+1/q)^N的指数表达式近似计算。其核心逻辑是通过预计算迭代次数p优化循环边界，并在循环中累加二项式展开项来逼近指数结果。log_two函数采用汇编代码实现高效的二进制对数计算，为迭代次数提供基础参数。该库针对Gas效率进行深度优化，适用于需要处理复利模型且数值较大的DeFi激励场景。函数列表如下：1. fracExp函数：通过二项式展开算法估算指数激励数值，接收本金k、基数q、指数n、超额迭代系数x作为参数，返回计算结果s。2. log_two函数：使用汇编实现的二进制对数计算函数，通过位操作和预置查找表快速计算log2(x)，为fracExp提供迭代次数计算支持。', '该智能合约是Uniswap V2的去中心化交易所核心工厂合约，主要用于创建和管理代币交易对。合约通过映射关系存储代币对的流动性池地址，并维护所有已创建交易对的列表。核心功能包括创建新的代币交易对、设置协议手续费接收地址、管理迁移合约以及权限控制。合约采用create2操作码部署交易对合约，确保同一代币对生成的合约地址唯一。权限系统通过feeToSetter地址进行集中控制，该地址拥有设置手续费接收账户、迁移合约和管理自身权限转移的能力。合约包含以下函数列表：1. 构造函数：初始化设置权限地址feeToSetter；2. allPairsLength：返回已创建交易对总数；3. pairCodeHash：获取交易对合约的字节码哈希；4. createPair：创建新的代币交易对；5. setFeeTo：设置手续费接收地址（仅限feeToSetter调用）；6. setMigrator：设置迁移合约地址（仅限feeToSetter调用）；7. setFeeToSetter：转移设置权限（仅限当前feeToSetter调用）。', '该智能合约是一个名为 Decimal 的库合约，用于实现 18 位精度的定点数运算。其主要功能是通过结构体 D256 封装数值，并提供一系列数学运算方法，支持加减乘除、幂运算、比较操作及类型转换。合约依赖 OpenZeppelin 的 SafeMath 库确保运算安全，避免溢出问题。核心逻辑围绕定点数的精度处理展开，例如将普通整数转换为定点数时自动乘以 10^18，除法运算通过预先放大数值保证精度。该库适用于需要高精度小数计算的场景，如金融利率计算或复杂数学建模。\n\n函数列表如下：\n- zero()：返回值为0的D256实例\n- one()：返回值为1的D256实例（实际存储为10^18）\n- from(uint256)：将普通整数转换为定点数\n- ratio(uint256,uint256)：计算两个数的比例值并转换为定点数\n- add()：实现定点数与普通整数/定点数的加法重载函数\n- sub()：实现定点数与普通整数/定点数的减法重载函数（包含带错误提示版本）\n- mul()：实现定点数与普通整数/定点数的乘法重载函数\n- div()：实现定点数与普通整数/定点数的除法重载函数\n- pow()：计算定点数的整数次幂\n- equals()：判断两个定点数是否相等\n- greaterThan()/lessThan()：实现大小比较功能\n- greaterThanOrEqualTo()/lessThanOrEqualTo()：实现复合条件比较\n- isZero()：判断数值是否为0\n- asUint256()：将定点数转换回普通整数（舍弃小数部分）\n- getPartial()：内部核心方法处理分数乘法运算\n- compareTo()：内部方法实现三态比较逻辑', '智能合约名称：IUraniumPair（铀交易对接口）。该合约是一个定义了去中心化交易所交易对核心功能的接口，同时兼容 ERC20 标准作为流动性代币凭证。合约主要包含四个模块功能：1）ERC20 标准代币功能，用于管理流动性提供者的份额凭证；2）流动性铸造/销毁机制，通过 mint/burn 函数处理流动性增减；3）代币交换功能，支持双向代币兑换并触发 Swap 事件；4）价格预言机相关功能，通过储备量记录和累计价格实现外部价格查询。特色功能包括支持 EIP-2612 离线授权许可（permit）、储备同步机制（sync/skim）以及最小流动性锁定机制（MINIMUM_LIQUIDITY）。\n\n函数列表：\n- ERC20 标准函数：name（代币名称）、symbol（代币符号）、decimals（小数位）、totalSupply（总供应量）、balanceOf（查询余额）、allowance（查询授权额度）、approve（设置授权）、transfer（转账）、transferFrom（授权转账）\n- 许可功能：DOMAIN_SEPARATOR（EIP712 域分隔符）、PERMIT_TYPEHASH（许可类型哈希）、nonces（地址 nonce 值）、permit（离线授权）\n- 流动性管理：mint（铸造流动性代币）、burn（销毁流动性代币）\n- 交易功能：swap（执行代币兑换）\n- 储备管理：sync（同步储备余额）、skim（调整余额差异）\n- 信息查询：factory（查询工厂地址）、token0（查询代币0）、token1（查询代币1）、getReserves（获取储备量）、price0CumulativeLast（代币0累计价格）、price1CumulativeLast（代币1累计价格）、kLast（最后储备乘积）\n- 初始化函数：initialize（初始化交易对）\n- 常量参数：MINIMUM_LIQUIDITY（最小流动性值）', 'MonoX 流动性池管理合约接口总结：该合约为基于 ERC1155 标准的多代币流动性池管理接口，主要功能涵盖流动性代币铸造销毁、WETH 存取、资产转移及流动性提供者管理。合约通过 ERC1155 基础功能实现多池流动性代币管理，支持 ETH 与 ERC20 代币的安全转账机制，内置 WETH 封装代币操作接口。核心特性包含流动性供应时间记录、顶级流动性持有者查询功能，并设置了白名单权限控制系统，允许通过 _isOfficial 参数区分官方流动性池，实现差异化管理策略。\n\n函数列表如下：\nmint：铸造流动性代币至指定账户\nburn：销毁账户持有的流动性代币\ntotalSupplyOf：查询指定流动性池代币总供应量\ndepositWETH：存入 WETH 代币\nwithdrawWETH：提取 WETH 代币\nsafeTransferETH：安全转账 ETH 至目标地址\nsafeTransferERC20Token：安全转账 ERC20 代币\nWETH：查询 WETH 合约地址\nliquidityLastAddedOf：查询账户最近流动性添加时间\ntopLPHolderOf：查询指定池顶级流动性持有者\nmintLp：铸造流动性代币（带官方标识参数）\nsetWhitelist：设置白名单权限状态', '该智能合约为 Uniswap V2 工厂合约的接口定义（Interface），声明了 Factory 合约必须实现的功能方法及事件。其核心作用是创建并管理代币交易对（Pair），同时具备手续费管理权限设置功能。合约不包含具体逻辑实现，仅通过接口规范定义了其他合约调用时应遵循的函数原型。\n\n核心功能包括：1. 创建任意两种 ERC20 代币的交易对合约 2. 查询已创建的交易对信息 3. 设置协议手续费接收地址 4. 更新合约权限控制者地址 5. 设置迁移合约地址。关键机制是通过 createPair 函数生成新的 Pair 合约，并通过事件 PairCreated 广播交易对创建信息。\n\n函数列表：\n- feeTo()：查看手续费接收地址\n- feeToSetter()：查看手续费设置权限地址\n- migrator()：查看迁移管理器地址\n- getPair()：查询两个代币对应的交易对地址\n- allPairs()：通过索引查询已创建的交易对地址\n- allPairsLength()：获取已创建交易对总数\n- createPair()：创建新的代币交易对\n- setFeeTo()：设置手续费接收地址（需权限）\n- setFeeToSetter()：设置权限控制者地址（需权限）\n- setMigrator()：设置迁移合约地址（需权限）', '智能合约名称：UraniumPair 接口合约。该合约定义了一个去中心化交易所流动性池配对合约的标准接口，包含代币交易、流动性管理、价格预言机等核心功能。合约继承 ERC20 标准代币基础功能，同时扩展 DEX 流动性池特性，支持铸造/销毁流动性代币、代币兑换、储备量同步等操作。关键功能包括：1. 实现 ERC20 标准代币接口用于流动性代币管理 2. 支持元交易许可（ERC2612）3. 提供代币兑换机制与滑点控制 4. 维护交易对储备量数据及价格累积值 5. 包含最小流动性保护机制。合约通过事件流记录流动性变化（Mint/Burn）、代币交换（Swap）和储备同步（Sync）等关键操作。\n\n函数列表：\nname() - 获取流动性代币名称\nsymbol() - 获取代币符号\ndecimals() - 返回代币精度\ntotalSupply() - 查询总供应量\nbalanceOf() - 查询指定地址余额\nallowance() - 查询授权额度\napprove() - 授权支出额度\ntransfer() - 转账代币\ntransferFrom() - 从指定地址转账\nDOMAIN_SEPARATOR() - 获取许可签名域分隔符\nPERMIT_TYPEHASH() - 返回许可类型哈希\nnonces() - 查询地址的许可随机数\npermit() - 执行离线许可授权\nMINIMUM_LIQUIDITY() - 获取最小流动性限制值\nfactory() - 查询所属工厂合约地址\ntoken0() - 获取交易对中第一种代币地址\ntoken1() - 获取交易对中第二种代币地址\ngetReserves() - 查询当前储备量及时间戳\nprice0CumulativeLast() - 获取代币0价格累积值\nprice1CumulativeLast() - 获取代币1价格累积值\nkLast() - 查询最后一次交易的储备积\nmint() - 铸造流动性代币\nburn() - 销毁流动性代币并提取基础资产\nswap() - 执行代币兑换交易\nskim() - 提取超额代币余额\nsync() - 强制同步储备量\ninitialize() - 初始化交易对代币地址', 'StakingRewardFixedAPY 智能合约总结：该合约是基于固定年化收益的质押奖励系统，支持多币种质押与奖励发放。合约通过非连续质押记录管理（nonce机制）实现用户多次质押独立核算，采用价格预言机与兑换路由实现跨代币价值转换。核心功能包括：1）支持带许可签名的质押操作 2）按时间段计算固定APY奖励 3）灵活切换奖励支付代币 4）动态调整APY参数 5）防重入与紧急暂停机制。质押资产与奖励代币可分离，通过价格预言机或DEX路由实现价值换算，奖励发放支持批量领取与指定用户领取功能。\n\n函数列表：\n1. 构造函数：初始化代币地址、路由合约与初始APY\n2. totalSupply：获取总质押量\n3. totalSupplyRewardEquivalent：获取奖励等价总质押量\n4. balanceOf：查询用户质押余额\n5. balanceOfRewardEquivalent：查询用户奖励等价余额\n6. earnedByNonce：计算指定nonce的应得奖励\n7. earned：计算用户总应得奖励\n8. stakeWithPermit：带EIP-2612许可的质押\n9. stake：普通质押\n10. stakeFor：为他人质押\n11. withdraw：按nonce提取质押\n12. getReward：领取奖励\n13. getRewardForUser：为指定用户领取奖励（仅管理员）\n14. withdrawAndGetReward：提取质押并领取奖励\n15. getTokenAmountForToken：代币兑换量计算\n16. exit：全额退出质押\n17. getEquivalentAmount：质押代币奖励等价转换\n18. setPaused：设置合约暂停状态\n19. updateRewardRate：更新APY参数\n20. updateSwapRouter：更新兑换路由\n21. updateRewardsPaymentToken：更新奖励支付代币\n22. updatePriceFeed：更新价格预言机\n23. updateUsePriceFeeds：切换价格源使用方式\n24. rescueEIP20：紧急代币提取', 'SafeERC20 库合约总结：该智能合约是 OpenZeppelin 标准库中的 SafeERC20 安全封装库，主要提供针对 ERC20 代币操作的安全封装方法。通过强化标准 ERC20 接口调用的异常处理机制，有效防范代币转账失败风险。核心功能包含安全转账、授权额度控制及底层调用验证三部分，重点解决以下三类问题：(1) 处理返回 false 的非常规 ERC20 代币的失败回滚 (2) 避免 approve 授权操作的竞争条件问题 (3) 使用 SafeMath 进行安全的数值计算防止溢出。其通过 _callOptionalReturn 私有函数实现底层调用验证，强制要求代币合约调用必须成功，同时兼容符合 ERC20 标准与非常规实现的代币合约。\n\n函数列表：\n1. safeTransfer(IERC20,address,uint256)：安全转账函数，执行 token.transfer 调用并验证结果\n2. safeTransferFrom(IERC20,address,address,uint256)：安全转账函数，执行 token.transferFrom 调用并验证结果\n3. safeApprove(IERC20,address,uint256)：安全授权函数（已弃用），设置授权额度时要求从零值初始化\n4. safeIncreaseAllowance(IERC20,address,uint256)：安全增加授权额度，采用加法操作避免竞争条件\n5. safeDecreaseAllowance(IERC20,address,uint256)：安全减少授权额度，执行减法操作并防止负值\n6. _callOptionalReturn(IERC20,bytes)：内部核心验证函数，执行底层调用并强制验证操作结果', '智能合约名称：指数池管理合约 (IIndexPool)。该合约定义了流动性池管理机制，支持动态代币权重调整、用户交易与流动性注入/提取功能。合约通过记录代币状态（绑定、权重、余额）实现指数化资产组合管理，提供手续费控制、权限管理及代币再平衡机制。核心功能包括：1) 允许外部调用进行代币互换与流动性操作 2) 控制器调整代币权重参数 3) 设置交易手续费与退出费用 4) 实时查询池状态与价格信息。合约包含代币初始化配置、渐进式权重更新机制，并通过事件日志跟踪所有关键状态变更。\n\n函数列表：\nconfigure：配置合约基础参数（控制器、名称、代币符号、退出费接收地址）\ninitialize：初始化代币数组、余额、权重参数\nsetSwapFee：设置交易手续费率\ndelegateCompLikeToken：委托治理代币投票权\nsetExitFeeRecipient：设置退出费接收地址\nsetController：更新控制器地址\nreweighTokens：批量调整代币目标权重\nreindexTokens：重新索引代币并设置最小余额\nsetMinimumBalance：设置单个代币最小余额\njoinPool：按指定额度注入流动性\njoinswapExternAmountIn：按输入代币量计算获得池代币\njoinswapPoolAmountOut：按期望池代币量计算需输入代币量\nexitPool：按指定额度退出流动性\nexitswapPoolAmountIn：按池代币输入量计算输出代币量\nexitswapExternAmountOut：按期望输出代币量计算需销毁池代币量\ngulp：同步代币余额数据\nswapExactAmountIn：精确输入代币数量进行兑换\nswapExactAmountOut：精确输出代币数量进行兑换\nisPublicSwap：查询是否开放公开交易\ngetSwapFee：获取当前交易手续费\ngetExitFee：获取退出费用\ngetController：查询控制器地址\ngetExitFeeRecipient：查询退出费接收地址\nisBound：检查代币是否已绑定\ngetNumTokens：获取绑定代币数量\ngetCurrentTokens：获取当前绑定代币列表\ngetCurrentDesiredTokens：获取目标代币列表\ngetDenormalizedWeight：查询代币去标准化权重\ngetTokenRecord：获取代币详细信息记录\nextrapolatePoolValueFromToken：从指定代币推算池总价值\ngetTotalDenormalizedWeight：获取总去标准化权重\ngetBalance：查询代币当前余额\ngetMinimumBalance：查询代币最低余额要求\ngetUsedBalance：查询代币可用余额\ngetSpotPrice：获取实时现货价格', '智能合约名称：ERC20元数据扩展接口合约（IERC20Metadata）\n\n总结内容：该智能合约是ERC20代币标准的元数据扩展接口，继承自基础的IERC20接口。主要功能是为ERC20代币提供元数据查询能力，包含三个核心元数据查询函数：获取代币名称(name)、获取代币符号(symbol)、获取代币精度(decimals)。合约通过定义标准化接口规范，要求实现该接口的代币必须暴露这三个元数据查询方法，便于外部应用（如钱包、交易所等）统一获取代币的基础信息。该接口属于ERC20标准的功能扩展，与基础转账功能形成互补，通过分离关注点的设计模式增强代币合约的可交互性。接口定义的函数均为view只读类型，不涉及状态修改操作。\n\n函数列表：\n1. name() - 查询代币的名称（如"Ethereum"），返回字符串类型\n2. symbol() - 查询代币的符号（如"ETH"），返回字符串类型\n3. decimals() - 查询代币精度位数（如18位小数），返回uint8类型', '智能合约名称：IERC20接口合约。该合约为ERC20代币标准接口定义，规定了代币合约必须实现的基本函数和事件，用于实现同质化代币的转账、余额查询和授权管理功能。合约定义了代币总量查询、账户余额查询、代币转账、授权额度设置与查询等核心功能，包含2个事件用于记录代币转移和授权变更。该接口作为ERC20代币合约的交互规范，所有符合标准的代币合约必须实现这些函数定义，确保不同代币之间的兼容性。接口未包含具体实现逻辑，仅定义函数签名和事件结构，供具体代币合约继承并实现。\n\n函数列表：totalSupply函数用于查询代币总供应量；balanceOf函数用于查询指定账户余额；transfer函数用于向指定地址转账；allowance函数用于查询授权额度；approve函数用于设置第三方操作权限；transferFrom函数用于通过授权机制执行转账。事件部分包含Transfer转账事件和Approval授权事件。', '智能合约名称：ERC20标准代币合约。该合约是基于OpenZeppelin框架实现的ERC20标准代币，提供通证基本功能的核心逻辑。合约包含代币名称、符号、总供应量、余额查询、转账、授权等标准功能，并通过内部函数实现代币铸造与销毁机制。关键特性包括：1. 遵循ERC20规范实现转账与授权逻辑 2. 采用SafeMath的unchecked模式处理算术运算 3. 提供增/减授权额度函数防止竞态条件 4. 包含转账前后的钩子函数供扩展 5. 通过内部_mint和_burn控制代币供应。合约需要派生合约实现具体的铸造逻辑，基础版本不包含公开的铸造方法。所有转账操作均进行零地址校验，余额变更采用先减后增的安全模式。\n\n函数列表：\n- constructor：初始化代币名称和符号\n- name：查询代币名称\n- symbol：查询代币符号\n- decimals：返回代币小数位数（固定18）\n- totalSupply：查询总供应量\n- balanceOf：查询指定地址余额\n- transfer：执行代币转账\n- allowance：查询授权额度\n- approve：设置代币授权\n- transferFrom：从授权地址执行转账\n- increaseAllowance：增加授权额度\n- decreaseAllowance：减少授权额度\n- _transfer：内部转账逻辑处理\n- _mint：内部代币铸造方法\n- _burn：内部代币销毁方法\n- _approve：内部授权处理\n- _beforeTokenTransfer：转账前钩子函数（空实现）\n- _afterTokenTransfer：转账后钩子函数（空实现）', '智能合约名称：IERC1155MetadataURI（ERC1155元数据接口合约）。该合约是ERC1155标准的元数据扩展接口，定义了获取代币元数据URI的规范。作为IERC1155接口的扩展，它遵循EIP-1155标准中关于元数据的规范要求，核心功能是为非同质化代币（NFT）和半同质化代币提供外部元数据查询支持。关键代码通过uri()函数实现，允许客户端根据代币ID查询对应的元数据URI地址，URI中可包含{id}占位符供客户端动态替换实际代币ID。此接口需要具体实现合约来返回实际URI路径，通常用于支持OpenSea等平台读取代币元数据信息。合约版本要求Solidity 0.6.2至0.8.0之间，符合ERC1155标准v3.1版本规范。\n\n函数列表：\n1. uri(uint256 id) external view returns (string memory)：查询指定代币ID对应的元数据URI，返回的URI字符串中可包含{id}占位符，客户端需将其替换为实际代币ID数值。该函数为外部只读视图函数，不消耗Gas且不修改链上状态。']], 'uris': None, 'data': None, 'included': ['distances', 'documents']}
+------------------------------------------------
+重排序结果：
+['SushiSwap.sol-SushiMaker.sol', 'SushiSwap.sol-SushiRoll.sol', 'SushiSwap.sol-SushiToken.sol', 'SushiSwap.sol-IUniswapV2Pair.sol', 'SushiSwap.sol-IUniswapV2Router02.sol', 'SushiSwap.sol-IUniswapV2Factory.sol', 'SushiSwap.sol-UniswapV2Factory.sol', 'SushiSwap.sol-UniswapV2ERC20.sol', 'SushiSwap.sol-SushiSwapPairMock.sol', 'SushiSwap.sol-BoringERC20.sol', 'Indexed Finance.sol-IUniswapV2Pair.sol', 'Indexed Finance.sol-IIndexPool.sol', 'MonoX.sol-Monoswap.sol', 'MonoX.sol-IMonoXPool.sol', 'MonoX.sol-SafeERC20.sol', 'Li.Fi.sol-SafeERC20.sol', 'Li.Fi.sol-IERC20Metadata.sol', 'Revest Finance.sol-IERC20.sol', 'Formation.Fi.sol-ERC20.sol', 'MonoX.sol-IERC1155MetadataURI.sol']
+------------------------------------------------
+函数切片：
+
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-bridgeFor-0
+元数据:{'block索引': 0, '函数名': 'bridgeFor', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function bridgeFor(address token) public view returns (address bridge) {
+bridge = _bridges[token];
+if (bridge == address(0)) {
+bridge = weth;
+}
+}
+// F1 - F10: OK
+// C1 - C24: OK
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-setBridge-1
+元数据:{'block索引': 1, '函数名': 'setBridge', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address token, address bridge', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['LogBridgeSet']", '返回值': ''}
+函数切片:
+function setBridge(address token, address bridge) external onlyOwner {
+// Checks
+require(token != sushi && token != weth && token != bridge, "SushiMaker: Invalid bridge");
+// Effects
+_bridges[token] = bridge;
+emit LogBridgeSet(token, bridge);
+}
+// M1 - M5: OK
+// C1 - C24: OK
+// C6: It's not a fool proof solution, but it prevents flash loans, so here it's ok to use tx.origin
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-onlyEOA-2
+元数据:{'block索引': 2, '函数名': 'onlyEOA', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+modifier onlyEOA() {
+// Try to make flash-loan exploit harder to do.
+require(msg.sender == tx.origin, "SushiMaker: must use EOA");
+_;
+}
+// F1 - F10: OK
+// F3: _convert is separate to save gas by only checking the 'onlyEOA' modifier once in case of convertMultiple
+// F6: There is an exploit to add lots of SUSHI to the bar, run convert, then remove the SUSHI again.
+//     As the size of the SushiBar has grown, this requires large amounts of funds and isn't super profitable anymore
+//     The onlyEOA modifier prevents this being done with a flash loan.
+// C1 - C24: OK
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-convert-3
+元数据:{'block索引': 3, '函数名': 'convert', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address token0, address token1', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function convert(address token0, address token1) external onlyEOA() {
+_convert(token0, token1);
+}
+// F1 - F10: OK, see convert
+// C1 - C24: OK
+// C3: Loop is under control of the caller
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-convertMultiple-4
+元数据:{'block索引': 4, '函数名': 'convertMultiple', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address[] calldata token0, address[] calldata token1', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function convertMultiple(address[] calldata token0, address[] calldata token1) external onlyEOA() {
+// TODO: This can be optimized a fair bit, but this is safer and simpler for now
+uint256 len = token0.length;
+for(uint256 i=0; i < len; i++) {
+_convert(token0[i], token1[i]);
+}
+}
+// F1 - F10: OK
+// C1- C24: OK
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-_convert-5
+元数据:{'block索引': 5, '函数名': '_convert', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address token0, address token1', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['LogConvert']", '返回值': ''}
+函数切片:
+function _convert(address token0, address token1) internal {
+// Interactions
+// S1 - S4: OK
+IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(token0, token1));
+require(address(pair) != address(0), "SushiMaker: Invalid pair");
+// balanceOf: S1 - S4: OK
+// transfer: X1 - X5: OK
+IERC20(address(pair)).safeTransfer(address(pair), pair.balanceOf(address(this)));
+// X1 - X5: OK
+(uint256 amount0, uint256 amount1) = pair.burn(address(this));
+if (token0 != pair.token0()) {
+(amount0, amount1) = (amount1, amount0);
+}
+emit LogConvert(msg.sender, token0, token1, amount0, amount1, _convertStep(token0, token1, amount0, amount1));
+}
+// F1 - F10: OK
+// C1 - C24: OK
+// All safeTransfer, _swap, _toSUSHI, _convertStep: X1 - X5: OK
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-_convertStep-6
+元数据:{'block索引': 6, '函数名': '_convertStep', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address token0, address token1, uint256 amount0, uint256 amount1', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _convertStep(address token0, address token1, uint256 amount0, uint256 amount1) internal returns(uint256 sushiOut) {
+// Interactions
+if (token0 == token1) {
+uint256 amount = amount0.add(amount1);
+if (token0 == sushi) {
+IERC20(sushi).safeTransfer(bar, amount);
+sushiOut = amount;
+} else if (token0 == weth) {
+sushiOut = _toSUSHI(weth, amount);
+} else {
+address bridge = bridgeFor(token0);
+amount = _swap(token0, bridge, amount, address(this));
+sushiOut = _convertStep(bridge, bridge, amount, 0);
+}
+} else if (token0 == sushi) { // eg. SUSHI - ETH
+IERC20(sushi).safeTransfer(bar, amount0);
+sushiOut = _toSUSHI(token1, amount1).add(amount0);
+} else if (token1 == sushi) { // eg. USDT - SUSHI
+IERC20(sushi).safeTransfer(bar, amount1);
+sushiOut = _toSUSHI(token0, amount0).add(amount1);
+} else if (token0 == weth) { // eg. ETH - USDC
+sushiOut = _toSUSHI(weth, _swap(token1, weth, amount1, address(this)).add(amount0));
+} else if (token1 == weth) { // eg. USDT - ETH
+sushiOut = _toSUSHI(weth, _swap(token0, weth, amount0, address(this)).add(amount1));
+} else { // eg. MIC - USDT
+address bridge0 = bridgeFor(token0);
+address bridge1 = bridgeFor(token1);
+if (bridge0 == token1) { // eg. MIC - USDT - and bridgeFor(MIC) = USDT
+sushiOut = _convertStep(bridge0, token1,
+_swap(token0, bridge0, amount0, address(this)),
+amount1
+);
+} else if (bridge1 == token0) { // eg. WBTC - DSD - and bridgeFor(DSD) = WBTC
+sushiOut = _convertStep(token0, bridge1,
+amount0,
+_swap(token1, bridge1, amount1, address(this))
+);
+} else {
+sushiOut = _convertStep(bridge0, bridge1, // eg. USDT - DSD - and bridgeFor(DSD) = WBTC
+_swap(token0, bridge0, amount0, address(this)),
+_swap(token1, bridge1, amount1, address(this))
+);
+}
+}
+}
+// F1 - F10: OK
+// C1 - C24: OK
+// All safeTransfer, swap: X1 - X5: OK
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-_swap-7
+元数据:{'block索引': 7, '函数名': '_swap', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address fromToken, address toToken, uint256 amountIn, address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _swap(address fromToken, address toToken, uint256 amountIn, address to) internal returns (uint256 amountOut) {
+// Checks
+// X1 - X5: OK
+IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(fromToken, toToken));
+require(address(pair) != address(0), "SushiMaker: Cannot convert");
+// Interactions
+// X1 - X5: OK
+(uint256 reserve0, uint256 reserve1,) = pair.getReserves();
+uint256 amountInWithFee = amountIn.mul(997);
+if (fromToken == pair.token0()) {
+amountOut = amountIn.mul(997).mul(reserve1) / reserve0.mul(1000).add(amountInWithFee);
+IERC20(fromToken).safeTransfer(address(pair), amountIn);
+pair.swap(0, amountOut, to, new bytes(0));
+// TODO: Add maximum slippage?
+} else {
+amountOut = amountIn.mul(997).mul(reserve0) / reserve1.mul(1000).add(amountInWithFee);
+IERC20(fromToken).safeTransfer(address(pair), amountIn);
+pair.swap(amountOut, 0, to, new bytes(0));
+// TODO: Add maximum slippage?
+}
+}
+// F1 - F10: OK
+// C1 - C24: OK
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiMaker.sol-_toSUSHI-8
+元数据:{'block索引': 8, '函数名': '_toSUSHI', '函数所属的合约或接口': 'SushiSwap.sol-SushiMaker.sol', '参数': 'address token, uint256 amountIn', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _toSUSHI(address token, uint256 amountIn) internal returns(uint256 amountOut) {
+// X1 - X5: OK
+amountOut = _swap(token, sushi, amountIn, bar);
+}
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiRoll.sol-0
+元数据:{'block索引': 0, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-SushiRoll.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function migrateWithPermit(
+address tokenA,
+address tokenB,
+uint256 liquidity,
+uint256 amountAMin,
+uint256 amountBMin,
+uint256 deadline,
+uint8 v,
+bytes32 r,
+bytes32 s
+) public {
+IUniswapV2Pair pair = IUniswapV2Pair(pairForOldRouter(tokenA, tokenB));
+pair.permit(msg.sender, address(this), liquidity, deadline, v, r, s);
+migrate(tokenA, tokenB, liquidity, amountAMin, amountBMin, deadline);
+}
+// msg.sender should have approved 'liquidity' amount of LP token of 'tokenA' and 'tokenB'
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiRoll.sol-1
+元数据:{'block索引': 1, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-SushiRoll.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function migrate(
+address tokenA,
+address tokenB,
+uint256 liquidity,
+uint256 amountAMin,
+uint256 amountBMin,
+uint256 deadline
+) public {
+require(deadline >= block.timestamp, 'SushiSwap: EXPIRED');
+// Remove liquidity from the old router with permit
+(uint256 amountA, uint256 amountB) = removeLiquidity(
+tokenA,
+tokenB,
+liquidity,
+amountAMin,
+amountBMin,
+deadline
+);
+// Add liquidity to the new router
+(uint256 pooledAmountA, uint256 pooledAmountB) = addLiquidity(tokenA, tokenB, amountA, amountB);
+// Send remaining tokens to msg.sender
+if (amountA > pooledAmountA) {
+IERC20(tokenA).safeTransfer(msg.sender, amountA - pooledAmountA);
+}
+if (amountB > pooledAmountB) {
+IERC20(tokenB).safeTransfer(msg.sender, amountB - pooledAmountB);
+}
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiRoll.sol-2
+元数据:{'block索引': 2, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-SushiRoll.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function removeLiquidity(
+address tokenA,
+address tokenB,
+uint256 liquidity,
+uint256 amountAMin,
+uint256 amountBMin,
+uint256 deadline
+) internal returns (uint256 amountA, uint256 amountB) {
+IUniswapV2Pair pair = IUniswapV2Pair(pairForOldRouter(tokenA, tokenB));
+pair.transferFrom(msg.sender, address(pair), liquidity);
+(uint256 amount0, uint256 amount1) = pair.burn(address(this));
+(address token0,) = UniswapV2Library.sortTokens(tokenA, tokenB);
+(amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
+require(amountA >= amountAMin, 'SushiRoll: INSUFFICIENT_A_AMOUNT');
+require(amountB >= amountBMin, 'SushiRoll: INSUFFICIENT_B_AMOUNT');
+}
+// calculates the CREATE2 address for a pair without making any external calls
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiRoll.sol-pairForOldRouter-3
+元数据:{'block索引': 3, '函数名': 'pairForOldRouter', '函数所属的合约或接口': 'SushiSwap.sol-SushiRoll.sol', '参数': 'address tokenA, address tokenB', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function pairForOldRouter(address tokenA, address tokenB) internal view returns (address pair) {
+(address token0, address token1) = UniswapV2Library.sortTokens(tokenA, tokenB);
+pair = address(uint(keccak256(abi.encodePacked(
+hex'ff',
+oldRouter.factory(),
+keccak256(abi.encodePacked(token0, token1)),
+hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
+))));
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiRoll.sol-4
+元数据:{'block索引': 4, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-SushiRoll.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function addLiquidity(
+address tokenA,
+address tokenB,
+uint256 amountADesired,
+uint256 amountBDesired
+) internal returns (uint amountA, uint amountB) {
+(amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired);
+address pair = UniswapV2Library.pairFor(router.factory(), tokenA, tokenB);
+IERC20(tokenA).safeTransfer(pair, amountA);
+IERC20(tokenB).safeTransfer(pair, amountB);
+IUniswapV2Pair(pair).mint(msg.sender);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiRoll.sol-5
+元数据:{'block索引': 5, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-SushiRoll.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _addLiquidity(
+address tokenA,
+address tokenB,
+uint256 amountADesired,
+uint256 amountBDesired
+) internal returns (uint256 amountA, uint256 amountB) {
+// create the pair if it doesn't exist yet
+IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
+if (factory.getPair(tokenA, tokenB) == address(0)) {
+factory.createPair(tokenA, tokenB);
+}
+(uint256 reserveA, uint256 reserveB) = UniswapV2Library.getReserves(address(factory), tokenA, tokenB);
+if (reserveA == 0 && reserveB == 0) {
+(amountA, amountB) = (amountADesired, amountBDesired);
+} else {
+uint256 amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
+if (amountBOptimal <= amountBDesired) {
+(amountA, amountB) = (amountADesired, amountBOptimal);
+} else {
+uint256 amountAOptimal = UniswapV2Library.quote(amountBDesired, reserveB, reserveA);
+assert(amountAOptimal <= amountADesired);
+(amountA, amountB) = (amountAOptimal, amountBDesired);
+}
+}
+}
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-mint-0
+元数据:{'block索引': 0, '函数名': 'mint', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'address _to, uint256 _amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function mint(address _to, uint256 _amount) public onlyOwner {
+_mint(_to, _amount);
+_moveDelegates(address(0), _delegates[_to], _amount);
+}
+// Copied and modified from YAM code:
+// https://github.com/yam-finance/yam-protocol/blob/master/contracts/token/YAMGovernanceStorage.sol
+// https://github.com/yam-finance/yam-protocol/blob/master/contracts/token/YAMGovernance.sol
+// Which is copied and modified from COMPOUND:
+// https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/Comp.sol
+/// @notice A record of each accounts delegate
+mapping (address => address) internal _delegates;
+/// @notice A checkpoint for marking number of votes from a given block
+struct Checkpoint {
+uint32 fromBlock;
+uint256 votes;
+}
+/// @notice A record of votes checkpoints for each account, by index
+mapping (address => mapping (uint32 => Checkpoint)) public checkpoints;
+/// @notice The number of checkpoints for each account
+mapping (address => uint32) public numCheckpoints;
+/// @notice The EIP-712 typehash for the contract's domain
+bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+/// @notice The EIP-712 typehash for the delegation struct used by the contract
+bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
+/// @notice A record of states for signing / validating signatures
+mapping (address => uint) public nonces;
+/// @notice An event thats emitted when an account changes its delegate
+event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
+/// @notice An event thats emitted when a delegate account's vote balance changes
+event DelegateVotesChanged(address indexed delegate, uint previousBalance, uint newBalance);
+/**
+* @notice Delegate votes from `msg.sender` to `delegatee`
+* @param delegator The address to get delegatee for
+*/
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-delegates-1
+元数据:{'block索引': 1, '函数名': 'delegates', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'address delegator', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function delegates(address delegator)
+external
+view
+returns (address)
+{
+return _delegates[delegator];
+}
+/**
+* @notice Delegate votes from `msg.sender` to `delegatee`
+* @param delegatee The address to delegate votes to
+*/
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-delegate-2
+元数据:{'block索引': 2, '函数名': 'delegate', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'address delegatee', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function delegate(address delegatee) external {
+return _delegate(msg.sender, delegatee);
+}
+/**
+* @notice Delegates votes from signatory to `delegatee`
+* @param delegatee The address to delegate votes to
+* @param nonce The contract state required to match the signature
+* @param expiry The time at which to expire the signature
+* @param v The recovery byte of the signature
+* @param r Half of the ECDSA signature pair
+* @param s Half of the ECDSA signature pair
+*/
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-3
+元数据:{'block索引': 3, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function delegateBySig(
+address delegatee,
+uint nonce,
+uint expiry,
+uint8 v,
+bytes32 r,
+bytes32 s
+)
+external
+{
+bytes32 domainSeparator = keccak256(
+abi.encode(
+DOMAIN_TYPEHASH,
+keccak256(bytes(name())),
+getChainId(),
+address(this)
+)
+);
+bytes32 structHash = keccak256(
+abi.encode(
+DELEGATION_TYPEHASH,
+delegatee,
+nonce,
+expiry
+)
+);
+bytes32 digest = keccak256(
+abi.encodePacked(
+"\x19\x01",
+domainSeparator,
+structHash
+)
+);
+address signatory = ecrecover(digest, v, r, s);
+require(signatory != address(0), "SUSHI::delegateBySig: invalid signature");
+require(nonce == nonces[signatory]++, "SUSHI::delegateBySig: invalid nonce");
+require(now <= expiry, "SUSHI::delegateBySig: signature expired");
+return _delegate(signatory, delegatee);
+}
+/**
+* @notice Gets the current votes balance for `account`
+* @param account The address to get votes balance
+* @return The number of current votes for `account`
+*/
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-getCurrentVotes-4
+元数据:{'block索引': 4, '函数名': 'getCurrentVotes', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'address account', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getCurrentVotes(address account)
+external
+view
+returns (uint256)
+{
+uint32 nCheckpoints = numCheckpoints[account];
+return nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
+}
+/**
+* @notice Determine the prior number of votes for an account as of a block number
+* @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
+* @param account The address of the account to check
+* @param blockNumber The block number to get the vote balance at
+* @return The number of votes the account had as of the given block
+*/
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-getPriorVotes-5
+元数据:{'block索引': 5, '函数名': 'getPriorVotes', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'address account, uint blockNumber', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getPriorVotes(address account, uint blockNumber)
+external
+view
+returns (uint256)
+{
+require(blockNumber < block.number, "SUSHI::getPriorVotes: not yet determined");
+uint32 nCheckpoints = numCheckpoints[account];
+if (nCheckpoints == 0) {
+return 0;
+}
+// First check most recent balance
+if (checkpoints[account][nCheckpoints - 1].fromBlock <= blockNumber) {
+return checkpoints[account][nCheckpoints - 1].votes;
+}
+// Next check implicit zero balance
+if (checkpoints[account][0].fromBlock > blockNumber) {
+return 0;
+}
+uint32 lower = 0;
+uint32 upper = nCheckpoints - 1;
+while (upper > lower) {
+uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+Checkpoint memory cp = checkpoints[account][center];
+if (cp.fromBlock == blockNumber) {
+return cp.votes;
+} else if (cp.fromBlock < blockNumber) {
+lower = center;
+} else {
+upper = center - 1;
+}
+}
+return checkpoints[account][lower].votes;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-_delegate-6
+元数据:{'block索引': 6, '函数名': '_delegate', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'address delegator, address delegatee', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['DelegateChanged']", '返回值': ''}
+函数切片:
+function _delegate(address delegator, address delegatee)
+internal
+{
+address currentDelegate = _delegates[delegator];
+uint256 delegatorBalance = balanceOf(delegator); // balance of underlying SUSHIs (not scaled);
+_delegates[delegator] = delegatee;
+emit DelegateChanged(delegator, currentDelegate, delegatee);
+_moveDelegates(currentDelegate, delegatee, delegatorBalance);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-_moveDelegates-7
+元数据:{'block索引': 7, '函数名': '_moveDelegates', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'address srcRep, address dstRep, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _moveDelegates(address srcRep, address dstRep, uint256 amount) internal {
+if (srcRep != dstRep && amount > 0) {
+if (srcRep != address(0)) {
+// decrease old representative
+uint32 srcRepNum = numCheckpoints[srcRep];
+uint256 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].votes : 0;
+uint256 srcRepNew = srcRepOld.sub(amount);
+_writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
+}
+if (dstRep != address(0)) {
+// increase new representative
+uint32 dstRepNum = numCheckpoints[dstRep];
+uint256 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].votes : 0;
+uint256 dstRepNew = dstRepOld.add(amount);
+_writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
+}
+}
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-8
+元数据:{'block索引': 8, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['DelegateVotesChanged']", '返回值': ''}
+函数切片:
+function _writeCheckpoint(
+address delegatee,
+uint32 nCheckpoints,
+uint256 oldVotes,
+uint256 newVotes
+)
+internal
+{
+uint32 blockNumber = safe32(block.number, "SUSHI::_writeCheckpoint: block number exceeds 32 bits");
+if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
+checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
+} else {
+checkpoints[delegatee][nCheckpoints] = Checkpoint(blockNumber, newVotes);
+numCheckpoints[delegatee] = nCheckpoints + 1;
+}
+emit DelegateVotesChanged(delegatee, oldVotes, newVotes);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-safe32-9
+元数据:{'block索引': 9, '函数名': 'safe32', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': 'uint n, string memory errorMessage', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safe32(uint n, string memory errorMessage) internal pure returns (uint32) {
+require(n < 2**32, errorMessage);
+return uint32(n);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-SushiToken.sol-getChainId-10
+元数据:{'block索引': 10, '函数名': 'getChainId', '函数所属的合约或接口': 'SushiSwap.sol-SushiToken.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getChainId() internal pure returns (uint) {
+uint256 chainId;
+assembly { chainId := chainid() }
+return chainId;
+}
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-name-0
+元数据:{'block索引': 0, '函数名': 'name', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function name() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-symbol-1
+元数据:{'block索引': 1, '函数名': 'symbol', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function symbol() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-decimals-2
+元数据:{'block索引': 2, '函数名': 'decimals', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function decimals() external pure returns (uint8);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-totalSupply-3
+元数据:{'block索引': 3, '函数名': 'totalSupply', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function totalSupply() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-balanceOf-4
+元数据:{'block索引': 4, '函数名': 'balanceOf', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address owner', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function balanceOf(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-allowance-5
+元数据:{'block索引': 5, '函数名': 'allowance', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address owner, address spender', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function allowance(address owner, address spender) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-approve-6
+元数据:{'block索引': 6, '函数名': 'approve', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address spender, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function approve(address spender, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-transfer-7
+元数据:{'block索引': 7, '函数名': 'transfer', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transfer(address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-transferFrom-8
+元数据:{'block索引': 8, '函数名': 'transferFrom', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address from, address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transferFrom(address from, address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-DOMAIN_SEPARATOR-9
+元数据:{'block索引': 9, '函数名': 'DOMAIN_SEPARATOR', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function DOMAIN_SEPARATOR() external view returns (bytes32);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-PERMIT_TYPEHASH-10
+元数据:{'block索引': 10, '函数名': 'PERMIT_TYPEHASH', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function PERMIT_TYPEHASH() external pure returns (bytes32);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-nonces-11
+元数据:{'block索引': 11, '函数名': 'nonces', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address owner', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function nonces(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-permit-12
+元数据:{'block索引': 12, '函数名': 'permit', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+event Mint(address indexed sender, uint amount0, uint amount1);
+event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
+event Swap(
+address indexed sender,
+uint amount0In,
+uint amount1In,
+uint amount0Out,
+uint amount1Out,
+address indexed to
+);
+event Sync(uint112 reserve0, uint112 reserve1);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-MINIMUM_LIQUIDITY-13
+元数据:{'block索引': 13, '函数名': 'MINIMUM_LIQUIDITY', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function MINIMUM_LIQUIDITY() external pure returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-factory-14
+元数据:{'block索引': 14, '函数名': 'factory', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function factory() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-token0-15
+元数据:{'block索引': 15, '函数名': 'token0', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function token0() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-token1-16
+元数据:{'block索引': 16, '函数名': 'token1', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function token1() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-getReserves-17
+元数据:{'block索引': 17, '函数名': 'getReserves', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-price0CumulativeLast-18
+元数据:{'block索引': 18, '函数名': 'price0CumulativeLast', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function price0CumulativeLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-price1CumulativeLast-19
+元数据:{'block索引': 19, '函数名': 'price1CumulativeLast', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function price1CumulativeLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-kLast-20
+元数据:{'block索引': 20, '函数名': 'kLast', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function kLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-mint-21
+元数据:{'block索引': 21, '函数名': 'mint', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function mint(address to) external returns (uint liquidity);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-burn-22
+元数据:{'block索引': 22, '函数名': 'burn', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function burn(address to) external returns (uint amount0, uint amount1);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-swap-23
+元数据:{'block索引': 23, '函数名': 'swap', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'uint amount0Out, uint amount1Out, address to, bytes calldata data', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-skim-24
+元数据:{'block索引': 24, '函数名': 'skim', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function skim(address to) external;
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-sync-25
+元数据:{'block索引': 25, '函数名': 'sync', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function sync() external;
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Pair.sol-initialize-26
+元数据:{'block索引': 26, '函数名': 'initialize', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Pair.sol', '参数': 'address, address', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function initialize(address, address) external;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Router02.sol-0
+元数据:{'block索引': 0, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Router02.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function removeLiquidityETHSupportingFeeOnTransferTokens(
+address token,
+uint liquidity,
+uint amountTokenMin,
+uint amountETHMin,
+address to,
+uint deadline
+) external returns (uint amountETH);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Router02.sol-1
+元数据:{'block索引': 1, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Router02.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+address token,
+uint liquidity,
+uint amountTokenMin,
+uint amountETHMin,
+address to,
+uint deadline,
+bool approveMax, uint8 v, bytes32 r, bytes32 s
+) external returns (uint amountETH);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Router02.sol-2
+元数据:{'block索引': 2, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Router02.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+uint amountIn,
+uint amountOutMin,
+address[] calldata path,
+address to,
+uint deadline
+) external;
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Router02.sol-3
+元数据:{'block索引': 3, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Router02.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactETHForTokensSupportingFeeOnTransferTokens(
+uint amountOutMin,
+address[] calldata path,
+address to,
+uint deadline
+) external payable;
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Router02.sol-4
+元数据:{'block索引': 4, '函数名': '', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Router02.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactTokensForETHSupportingFeeOnTransferTokens(
+uint amountIn,
+uint amountOutMin,
+address[] calldata path,
+address to,
+uint deadline
+) external;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-feeTo-0
+元数据:{'block索引': 0, '函数名': 'feeTo', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function feeTo() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-feeToSetter-1
+元数据:{'block索引': 1, '函数名': 'feeToSetter', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function feeToSetter() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-migrator-2
+元数据:{'block索引': 2, '函数名': 'migrator', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function migrator() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-getPair-3
+元数据:{'block索引': 3, '函数名': 'getPair', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': 'address tokenA, address tokenB', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getPair(address tokenA, address tokenB) external view returns (address pair);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-allPairs-4
+元数据:{'block索引': 4, '函数名': 'allPairs', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': 'uint', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function allPairs(uint) external view returns (address pair);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-allPairsLength-5
+元数据:{'block索引': 5, '函数名': 'allPairsLength', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function allPairsLength() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-createPair-6
+元数据:{'block索引': 6, '函数名': 'createPair', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': 'address tokenA, address tokenB', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function createPair(address tokenA, address tokenB) external returns (address pair);
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-setFeeTo-7
+元数据:{'block索引': 7, '函数名': 'setFeeTo', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': 'address', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setFeeTo(address) external;
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-setFeeToSetter-8
+元数据:{'block索引': 8, '函数名': 'setFeeToSetter', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': 'address', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setFeeToSetter(address) external;
+------------------------------------------------
+函数切片ID: SushiSwap.sol-IUniswapV2Factory.sol-setMigrator-9
+元数据:{'block索引': 9, '函数名': 'setMigrator', '函数所属的合约或接口': 'SushiSwap.sol-IUniswapV2Factory.sol', '参数': 'address', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setMigrator(address) external;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2Factory.sol-allPairsLength-0
+元数据:{'block索引': 0, '函数名': 'allPairsLength', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2Factory.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function allPairsLength() external override view returns (uint) {
+return allPairs.length;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2Factory.sol-pairCodeHash-1
+元数据:{'block索引': 1, '函数名': 'pairCodeHash', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2Factory.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function pairCodeHash() external pure returns (bytes32) {
+return keccak256(type(UniswapV2Pair).creationCode);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2Factory.sol-createPair-2
+元数据:{'block索引': 2, '函数名': 'createPair', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2Factory.sol', '参数': 'address tokenA, address tokenB', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['PairCreated']", '返回值': ''}
+函数切片:
+function createPair(address tokenA, address tokenB) external override returns (address pair) {
+require(tokenA != tokenB, 'UniswapV2: IDENTICAL_ADDRESSES');
+(address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+require(token0 != address(0), 'UniswapV2: ZERO_ADDRESS');
+require(getPair[token0][token1] == address(0), 'UniswapV2: PAIR_EXISTS'); // single check is sufficient
+bytes memory bytecode = type(UniswapV2Pair).creationCode;
+bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+assembly {
+pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
+}
+UniswapV2Pair(pair).initialize(token0, token1);
+getPair[token0][token1] = pair;
+getPair[token1][token0] = pair; // populate mapping in the reverse direction
+allPairs.push(pair);
+emit PairCreated(token0, token1, pair, allPairs.length);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2Factory.sol-setFeeTo-3
+元数据:{'block索引': 3, '函数名': 'setFeeTo', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2Factory.sol', '参数': 'address _feeTo', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setFeeTo(address _feeTo) external override {
+require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+feeTo = _feeTo;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2Factory.sol-setMigrator-4
+元数据:{'block索引': 4, '函数名': 'setMigrator', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2Factory.sol', '参数': 'address _migrator', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setMigrator(address _migrator) external override {
+require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+migrator = _migrator;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2Factory.sol-setFeeToSetter-5
+元数据:{'block索引': 5, '函数名': 'setFeeToSetter', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2Factory.sol', '参数': 'address _feeToSetter', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setFeeToSetter(address _feeToSetter) external override {
+require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+feeToSetter = _feeToSetter;
+}
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-_mint-0
+元数据:{'block索引': 0, '函数名': '_mint', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Transfer']", '返回值': ''}
+函数切片:
+function _mint(address to, uint value) internal {
+totalSupply = totalSupply.add(value);
+balanceOf[to] = balanceOf[to].add(value);
+emit Transfer(address(0), to, value);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-_burn-1
+元数据:{'block索引': 1, '函数名': '_burn', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address from, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Transfer']", '返回值': ''}
+函数切片:
+function _burn(address from, uint value) internal {
+balanceOf[from] = balanceOf[from].sub(value);
+totalSupply = totalSupply.sub(value);
+emit Transfer(from, address(0), value);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-_approve-2
+元数据:{'block索引': 2, '函数名': '_approve', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address owner, address spender, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Approval']", '返回值': ''}
+函数切片:
+function _approve(address owner, address spender, uint value) private {
+allowance[owner][spender] = value;
+emit Approval(owner, spender, value);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-_transfer-3
+元数据:{'block索引': 3, '函数名': '_transfer', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address from, address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Transfer']", '返回值': ''}
+函数切片:
+function _transfer(address from, address to, uint value) private {
+balanceOf[from] = balanceOf[from].sub(value);
+balanceOf[to] = balanceOf[to].add(value);
+emit Transfer(from, to, value);
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-approve-4
+元数据:{'block索引': 4, '函数名': 'approve', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address spender, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function approve(address spender, uint value) external returns (bool) {
+_approve(msg.sender, spender, value);
+return true;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-transfer-5
+元数据:{'block索引': 5, '函数名': 'transfer', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transfer(address to, uint value) external returns (bool) {
+_transfer(msg.sender, to, value);
+return true;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-transferFrom-6
+元数据:{'block索引': 6, '函数名': 'transferFrom', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address from, address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transferFrom(address from, address to, uint value) external returns (bool) {
+if (allowance[from][msg.sender] != uint(-1)) {
+allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
+}
+_transfer(from, to, value);
+return true;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-UniswapV2ERC20.sol-permit-7
+元数据:{'block索引': 7, '函数名': 'permit', '函数所属的合约或接口': 'SushiSwap.sol-UniswapV2ERC20.sol', '参数': 'address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+require(deadline >= block.timestamp, 'UniswapV2: EXPIRED');
+bytes32 digest = keccak256(
+abi.encodePacked(
+'\x19\x01',
+DOMAIN_SEPARATOR,
+keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
+)
+);
+address recoveredAddress = ecrecover(digest, v, r, s);
+require(recoveredAddress != address(0) && recoveredAddress == owner, 'UniswapV2: INVALID_SIGNATURE');
+_approve(owner, spender, value);
+}
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-BoringERC20.sol-safeSymbol-0
+元数据:{'block索引': 0, '函数名': 'safeSymbol', '函数所属的合约或接口': 'SushiSwap.sol-BoringERC20.sol', '参数': 'IERC20 token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeSymbol(IERC20 token) internal view returns(string memory) {
+(bool success, bytes memory data) = address(token).staticcall(abi.encodeWithSelector(0x95d89b41));
+return success && data.length > 0 ? abi.decode(data, (string)) : "???";
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-BoringERC20.sol-safeName-1
+元数据:{'block索引': 1, '函数名': 'safeName', '函数所属的合约或接口': 'SushiSwap.sol-BoringERC20.sol', '参数': 'IERC20 token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeName(IERC20 token) internal view returns(string memory) {
+(bool success, bytes memory data) = address(token).staticcall(abi.encodeWithSelector(0x06fdde03));
+return success && data.length > 0 ? abi.decode(data, (string)) : "???";
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-BoringERC20.sol-safeDecimals-2
+元数据:{'block索引': 2, '函数名': 'safeDecimals', '函数所属的合约或接口': 'SushiSwap.sol-BoringERC20.sol', '参数': 'IERC20 token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeDecimals(IERC20 token) public view returns (uint8) {
+(bool success, bytes memory data) = address(token).staticcall(abi.encodeWithSelector(0x313ce567));
+return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-BoringERC20.sol-safeTransfer-3
+元数据:{'block索引': 3, '函数名': 'safeTransfer', '函数所属的合约或接口': 'SushiSwap.sol-BoringERC20.sol', '参数': 'IERC20 token, address to, uint256 amount', '可见性': 'public', '外部调用': True, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransfer(IERC20 token, address to, uint256 amount) internal {
+(bool success, bytes memory data) = address(token).call(abi.encodeWithSelector(0xa9059cbb, to, amount));
+require(success && (data.length == 0 || abi.decode(data, (bool))), "BentoBox: Transfer failed");
+}
+------------------------------------------------
+函数切片ID: SushiSwap.sol-BoringERC20.sol-safeTransferFrom-4
+元数据:{'block索引': 4, '函数名': 'safeTransferFrom', '函数所属的合约或接口': 'SushiSwap.sol-BoringERC20.sol', '参数': 'IERC20 token, address from, uint256 amount', '可见性': 'public', '外部调用': True, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransferFrom(IERC20 token, address from, uint256 amount) internal {
+(bool success, bytes memory data) = address(token).call(abi.encodeWithSelector(0x23b872dd, from, address(this), amount));
+require(success && (data.length == 0 || abi.decode(data, (bool))), "BentoBox: TransferFrom failed");
+}
+}
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-name-0
+元数据:{'block索引': 0, '函数名': 'name', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function name() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-symbol-1
+元数据:{'block索引': 1, '函数名': 'symbol', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function symbol() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-decimals-2
+元数据:{'block索引': 2, '函数名': 'decimals', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function decimals() external pure returns (uint8);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-totalSupply-3
+元数据:{'block索引': 3, '函数名': 'totalSupply', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function totalSupply() external view returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-balanceOf-4
+元数据:{'block索引': 4, '函数名': 'balanceOf', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address owner', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function balanceOf(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-allowance-5
+元数据:{'block索引': 5, '函数名': 'allowance', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address owner, address spender', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function allowance(address owner, address spender) external view returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-approve-6
+元数据:{'block索引': 6, '函数名': 'approve', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address spender, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function approve(address spender, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-transfer-7
+元数据:{'block索引': 7, '函数名': 'transfer', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transfer(address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-transferFrom-8
+元数据:{'block索引': 8, '函数名': 'transferFrom', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address from, address to, uint value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transferFrom(address from, address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-DOMAIN_SEPARATOR-9
+元数据:{'block索引': 9, '函数名': 'DOMAIN_SEPARATOR', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function DOMAIN_SEPARATOR() external view returns (bytes32);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-PERMIT_TYPEHASH-10
+元数据:{'block索引': 10, '函数名': 'PERMIT_TYPEHASH', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function PERMIT_TYPEHASH() external pure returns (bytes32);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-nonces-11
+元数据:{'block索引': 11, '函数名': 'nonces', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address owner', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function nonces(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-permit-12
+元数据:{'block索引': 12, '函数名': 'permit', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+event Mint(address indexed sender, uint amount0, uint amount1);
+event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
+event Swap(
+address indexed sender,
+uint amount0In,
+uint amount1In,
+uint amount0Out,
+uint amount1Out,
+address indexed to
+);
+event Sync(uint112 reserve0, uint112 reserve1);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-MINIMUM_LIQUIDITY-13
+元数据:{'block索引': 13, '函数名': 'MINIMUM_LIQUIDITY', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function MINIMUM_LIQUIDITY() external pure returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-factory-14
+元数据:{'block索引': 14, '函数名': 'factory', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function factory() external view returns (address);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-token0-15
+元数据:{'block索引': 15, '函数名': 'token0', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function token0() external view returns (address);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-token1-16
+元数据:{'block索引': 16, '函数名': 'token1', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function token1() external view returns (address);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-getReserves-17
+元数据:{'block索引': 17, '函数名': 'getReserves', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-price0CumulativeLast-18
+元数据:{'block索引': 18, '函数名': 'price0CumulativeLast', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function price0CumulativeLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-price1CumulativeLast-19
+元数据:{'block索引': 19, '函数名': 'price1CumulativeLast', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function price1CumulativeLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-kLast-20
+元数据:{'block索引': 20, '函数名': 'kLast', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function kLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-mint-21
+元数据:{'block索引': 21, '函数名': 'mint', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function mint(address to) external returns (uint liquidity);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-burn-22
+元数据:{'block索引': 22, '函数名': 'burn', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function burn(address to) external returns (uint amount0, uint amount1);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-swap-23
+元数据:{'block索引': 23, '函数名': 'swap', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'uint amount0Out, uint amount1Out, address to, bytes calldata data', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-skim-24
+元数据:{'block索引': 24, '函数名': 'skim', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function skim(address to) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-sync-25
+元数据:{'block索引': 25, '函数名': 'sync', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function sync() external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IUniswapV2Pair.sol-initialize-26
+元数据:{'block索引': 26, '函数名': 'initialize', '函数所属的合约或接口': 'Indexed Finance.sol-IUniswapV2Pair.sol', '参数': 'address, address', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function initialize(address, address) external;
+}
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-0
+元数据:{'block索引': 0, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function configure(
+address controller,
+string calldata name,
+string calldata symbol,
+address exitFeeRecipient
+) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-1
+元数据:{'block索引': 1, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function initialize(
+address[] calldata tokens,
+uint256[] calldata balances,
+uint96[] calldata denorms,
+address tokenProvider,
+address unbindHandler
+) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-setSwapFee-2
+元数据:{'block索引': 2, '函数名': 'setSwapFee', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'uint256 swapFee', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setSwapFee(uint256 swapFee) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-delegateCompLikeToken-3
+元数据:{'block索引': 3, '函数名': 'delegateCompLikeToken', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token, address delegatee', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function delegateCompLikeToken(address token, address delegatee) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-setExitFeeRecipient-4
+元数据:{'block索引': 4, '函数名': 'setExitFeeRecipient', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address exitFeeRecipient', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setExitFeeRecipient(address exitFeeRecipient) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-setController-5
+元数据:{'block索引': 5, '函数名': 'setController', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address controller', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setController(address controller) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-6
+元数据:{'block索引': 6, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function reweighTokens(
+address[] calldata tokens,
+uint96[] calldata desiredDenorms
+) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-7
+元数据:{'block索引': 7, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function reindexTokens(
+address[] calldata tokens,
+uint96[] calldata desiredDenorms,
+uint256[] calldata minimumBalances
+) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-setMinimumBalance-8
+元数据:{'block索引': 8, '函数名': 'setMinimumBalance', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token, uint256 minimumBalance', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setMinimumBalance(address token, uint256 minimumBalance) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-joinPool-9
+元数据:{'block索引': 9, '函数名': 'joinPool', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'uint256 poolAmountOut, uint256[] calldata maxAmountsIn', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-10
+元数据:{'block索引': 10, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function joinswapExternAmountIn(
+address tokenIn,
+uint256 tokenAmountIn,
+uint256 minPoolAmountOut
+) external returns (uint256/* poolAmountOut */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-11
+元数据:{'block索引': 11, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function joinswapPoolAmountOut(
+address tokenIn,
+uint256 poolAmountOut,
+uint256 maxAmountIn
+) external returns (uint256/* tokenAmountIn */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-exitPool-12
+元数据:{'block索引': 12, '函数名': 'exitPool', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'uint256 poolAmountIn, uint256[] calldata minAmountsOut', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function exitPool(uint256 poolAmountIn, uint256[] calldata minAmountsOut) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-13
+元数据:{'block索引': 13, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function exitswapPoolAmountIn(
+address tokenOut,
+uint256 poolAmountIn,
+uint256 minAmountOut
+)
+external returns (uint256/* tokenAmountOut */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-14
+元数据:{'block索引': 14, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function exitswapExternAmountOut(
+address tokenOut,
+uint256 tokenAmountOut,
+uint256 maxPoolAmountIn
+) external returns (uint256/* poolAmountIn */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-gulp-15
+元数据:{'block索引': 15, '函数名': 'gulp', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function gulp(address token) external;
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-16
+元数据:{'block索引': 16, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactAmountIn(
+address tokenIn,
+uint256 tokenAmountIn,
+address tokenOut,
+uint256 minAmountOut,
+uint256 maxPrice
+) external returns (uint256/* tokenAmountOut */, uint256/* spotPriceAfter */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-17
+元数据:{'block索引': 17, '函数名': '', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactAmountOut(
+address tokenIn,
+uint256 maxAmountIn,
+address tokenOut,
+uint256 tokenAmountOut,
+uint256 maxPrice
+) external returns (uint256 /* tokenAmountIn */, uint256 /* spotPriceAfter */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-isPublicSwap-18
+元数据:{'block索引': 18, '函数名': 'isPublicSwap', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function isPublicSwap() external view returns (bool);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getSwapFee-19
+元数据:{'block索引': 19, '函数名': 'getSwapFee', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getSwapFee() external view returns (uint256/* swapFee */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getExitFee-20
+元数据:{'block索引': 20, '函数名': 'getExitFee', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getExitFee() external view returns (uint256/* exitFee */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getController-21
+元数据:{'block索引': 21, '函数名': 'getController', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getController() external view returns (address);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getExitFeeRecipient-22
+元数据:{'block索引': 22, '函数名': 'getExitFeeRecipient', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getExitFeeRecipient() external view returns (address);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-isBound-23
+元数据:{'block索引': 23, '函数名': 'isBound', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address t', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function isBound(address t) external view returns (bool);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getNumTokens-24
+元数据:{'block索引': 24, '函数名': 'getNumTokens', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getNumTokens() external view returns (uint256);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getCurrentTokens-25
+元数据:{'block索引': 25, '函数名': 'getCurrentTokens', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getCurrentTokens() external view returns (address[] memory tokens);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getCurrentDesiredTokens-26
+元数据:{'block索引': 26, '函数名': 'getCurrentDesiredTokens', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getCurrentDesiredTokens() external view returns (address[] memory tokens);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getDenormalizedWeight-27
+元数据:{'block索引': 27, '函数名': 'getDenormalizedWeight', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getDenormalizedWeight(address token) external view returns (uint256/* denorm */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getTokenRecord-28
+元数据:{'block索引': 28, '函数名': 'getTokenRecord', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getTokenRecord(address token) external view returns (Record memory record);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-extrapolatePoolValueFromToken-29
+元数据:{'block索引': 29, '函数名': 'extrapolatePoolValueFromToken', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function extrapolatePoolValueFromToken() external view returns (address/* token */, uint256/* extrapolatedValue */);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getTotalDenormalizedWeight-30
+元数据:{'block索引': 30, '函数名': 'getTotalDenormalizedWeight', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getTotalDenormalizedWeight() external view returns (uint256);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getBalance-31
+元数据:{'block索引': 31, '函数名': 'getBalance', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getBalance(address token) external view returns (uint256);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getMinimumBalance-32
+元数据:{'block索引': 32, '函数名': 'getMinimumBalance', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getMinimumBalance(address token) external view returns (uint256);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getUsedBalance-33
+元数据:{'block索引': 33, '函数名': 'getUsedBalance', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getUsedBalance(address token) external view returns (uint256);
+------------------------------------------------
+函数切片ID: Indexed Finance.sol-IIndexPool.sol-getSpotPrice-34
+元数据:{'block索引': 34, '函数名': 'getSpotPrice', '函数所属的合约或接口': 'Indexed Finance.sol-IIndexPool.sol', '参数': 'address tokenIn, address tokenOut', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getSpotPrice(address tokenIn, address tokenOut) external view returns (uint256);
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-mint-0
+元数据:{'block索引': 0, '函数名': 'mint', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address account, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function mint (address account, uint256 amount) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-burn-1
+元数据:{'block索引': 1, '函数名': 'burn', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address account, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function burn (address account, uint256 amount) external;
+}
+/**
+* The Monoswap is ERC1155 contract does this and that...
+*/
+contract Monoswap is Initializable, OwnableUpgradeable {
+using SafeMath for uint256;
+using SafeMath for uint112;
+using SafeERC20 for IERC20;
+using SafeERC20 for IvCash;
+IvCash vCash;
+address WETH;
+address feeTo;
+uint16 fees; // over 1e5, 300 means 0.3%
+uint16 devFee; // over 1e5, 50 means 0.05%
+uint256 constant MINIMUM_LIQUIDITY=100;
+struct PoolInfo {
+uint256 pid;
+uint256 lastPoolValue;
+address token;
+PoolStatus status;
+uint112 vcashDebt;
+uint112 vcashCredit;
+uint112 tokenBalance;
+uint256 price; // over 1e18
+uint256 createdAt; // timestamp
+}
+enum TxType {
+SELL,
+BUY
+}
+enum PoolStatus {
+UNLISTED,
+LISTED,
+OFFICIAL,
+SYNTHETIC,
+PAUSED
+}
+mapping (address => PoolInfo) public pools;
+// tokenStatus is for token lock/transfer. exempt means no need to verify post tx
+mapping (address => uint8) private tokenStatus; //0=unlocked, 1=locked, 2=exempt
+// token poool status is to track if the pool has already been created for the token
+mapping (address => uint8) public tokenPoolStatus; //0=undefined, 1=exists
+// negative vCash balance allowed for each token
+mapping (address => uint) public tokenInsurance;
+uint256 public poolSize;
+uint private unlocked;
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-lock-2
+元数据:{'block索引': 2, '函数名': 'lock', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+modifier lock() {
+require(unlocked == 1, 'MonoX:LOCKED');
+unlocked = 0;
+_;
+unlocked = 1;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-lockToken-3
+元数据:{'block索引': 3, '函数名': 'lockToken', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+modifier lockToken(address _token) {
+uint8 originalState = tokenStatus[_token];
+require(originalState!=1, 'MonoX:POOL_LOCKED');
+if(originalState==0) {
+tokenStatus[_token] = 1;
+}
+_;
+if(originalState==0) {
+tokenStatus[_token] = 0;
+}
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-ensure-4
+元数据:{'block索引': 4, '函数名': 'ensure', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'uint deadline', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+modifier ensure(uint deadline) {
+require(deadline >= block.timestamp, 'MonoX:EXPIRED');
+_;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-onlyPriceAdjuster-5
+元数据:{'block索引': 5, '函数名': 'onlyPriceAdjuster', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+modifier onlyPriceAdjuster(){
+require(priceAdjusterRole[msg.sender]==true,"MonoX:BAD_ROLE");
+_;
+}
+event AddLiquidity(address indexed provider,
+uint indexed pid,
+address indexed token,
+uint liquidityAmount,
+uint vcashAmount, uint tokenAmount, uint price);
+event RemoveLiquidity(address indexed provider,
+uint indexed pid,
+address indexed token,
+uint liquidityAmount,
+uint vcashAmount, uint tokenAmount, uint price);
+event Swap(
+address indexed user,
+address indexed tokenIn,
+address indexed tokenOut,
+uint amountIn,
+uint amountOut,
+uint swapVcashValue
+);
+// event PriceAdjusterChanged(
+//   address indexed priceAdjuster,
+//   bool added
+// );
+event PoolBalanced(
+address _token,
+uint vcashIn
+);
+event SyntheticPoolPriceChanged(
+address _token,
+uint price
+);
+event PoolStatusChanged(
+address _token,
+PoolStatus oldStatus,
+PoolStatus newStatus
+);
+IMonoXPool public monoXPool;
+// mapping (token address => block number of the last trade)
+mapping (address => uint) public lastTradedBlock;
+uint256 constant MINIMUM_POOL_VALUE = 10000 * 1e18;
+mapping (address=>bool) public priceAdjusterRole;
+// ------------
+uint public poolSizeMinLimit;
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-initialize-6
+元数据:{'block索引': 6, '函数名': 'initialize', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'IMonoXPool _monoXPool, IvCash _vcash', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function initialize(IMonoXPool _monoXPool, IvCash _vcash) public initializer {
+OwnableUpgradeable.__Ownable_init();
+monoXPool = _monoXPool;
+vCash = _vcash;
+WETH = _monoXPool.WETH();
+fees = 300;
+devFee = 50;
+poolSize = 0;
+unlocked = 1;
+}
+// receive() external payable {
+//   assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
+// }
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-setFeeTo-7
+元数据:{'block索引': 7, '函数名': 'setFeeTo', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _feeTo', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setFeeTo (address _feeTo) onlyOwner external {
+feeTo = _feeTo;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-setFees-8
+元数据:{'block索引': 8, '函数名': 'setFees', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'uint16 _fees', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setFees (uint16 _fees) onlyOwner external {
+require(_fees<1e3);
+fees = _fees;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-setDevFee-9
+元数据:{'block索引': 9, '函数名': 'setDevFee', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'uint16 _devFee', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setDevFee (uint16 _devFee) onlyOwner external {
+require(_devFee<1e3);
+devFee = _devFee;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-setPoolSizeMinLimit-10
+元数据:{'block索引': 10, '函数名': 'setPoolSizeMinLimit', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'uint _poolSizeMinLimit', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setPoolSizeMinLimit(uint _poolSizeMinLimit) onlyOwner external {
+poolSizeMinLimit = _poolSizeMinLimit;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-setTokenInsurance-11
+元数据:{'block索引': 11, '函数名': 'setTokenInsurance', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint _insurance', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setTokenInsurance (address _token, uint _insurance) onlyOwner external {
+tokenInsurance[_token] = _insurance;
+}
+// when safu, setting token status to 2 can achieve significant gas savings
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-setTokenStatus-12
+元数据:{'block索引': 12, '函数名': 'setTokenStatus', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint8 _status', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setTokenStatus (address _token, uint8 _status) onlyOwner external {
+tokenStatus[_token] = _status;
+}
+// update status of a pool. onlyOwner.
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-updatePoolStatus-13
+元数据:{'block索引': 13, '函数名': 'updatePoolStatus', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, PoolStatus _status', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['PoolStatusChanged']", '返回值': ''}
+函数切片:
+function updatePoolStatus(address _token, PoolStatus _status) external onlyOwner {
+PoolStatus poolStatus = pools[_token].status;
+if(poolStatus==PoolStatus.PAUSED){
+require(block.number > lastTradedBlock[_token].add(6000), "MonoX:TOO_EARLY");
+}
+else{
+// okay to pause an official pool, wait 6k blocks and then convert it to synthetic
+require(_status!=PoolStatus.SYNTHETIC,"MonoX:NO_SYNT");
+}
+emit PoolStatusChanged(_token, poolStatus,_status);
+pools[_token].status = _status;
+// unlisting a token allows creating a new pool of the same token.
+// should move it to PAUSED if the goal is to blacklist the token forever
+if(_status==PoolStatus.UNLISTED) {
+tokenPoolStatus[_token] = 0;
+}
+}
+/**
+@dev update pools price if there were no active trading for the last 6000 blocks
+@notice Only owner callable, new price can neither be 0 nor be equal to old one
+@param _token pool identifider (token address)
+@param _newPrice new price in wei (uint112)
+*/
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-updatePoolPrice-14
+元数据:{'block索引': 14, '函数名': 'updatePoolPrice', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint _newPrice', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function updatePoolPrice(address _token, uint _newPrice) external onlyOwner {
+require(_newPrice > 0, 'MonoX:0_PRICE');
+require(tokenPoolStatus[_token] != 0, "MonoX:NO_POOL");
+require(block.number > lastTradedBlock[_token].add(6000), "MonoX:TOO_EARLY");
+pools[_token].price = _newPrice;
+lastTradedBlock[_token] = block.number;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-updatePriceAdjuster-15
+元数据:{'block索引': 15, '函数名': 'updatePriceAdjuster', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address account, bool _status', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['PriceAdjusterChanged']", '返回值': ''}
+函数切片:
+function updatePriceAdjuster(address account, bool _status) external onlyOwner{
+priceAdjusterRole[account]=_status;
+//emit PriceAdjusterChanged(account,_status);
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-setSynthPoolPrice-16
+元数据:{'block索引': 16, '函数名': 'setSynthPoolPrice', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint price', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['SyntheticPoolPriceChanged']", '返回值': ''}
+函数切片:
+function setSynthPoolPrice(address _token, uint price) external onlyPriceAdjuster {
+require(pools[_token].status==PoolStatus.SYNTHETIC,"MonoX:NOT_SYNT");
+require(price > 0, "MonoX:ZERO_PRICE");
+pools[_token].price=price;
+emit SyntheticPoolPriceChanged(_token,price);
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-rebalancePool-17
+元数据:{'block索引': 17, '函数名': 'rebalancePool', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['PoolBalanced']", '返回值': ''}
+函数切片:
+function rebalancePool(address _token) external lockToken(_token) onlyOwner{
+// // PoolInfo memory pool = pools[_token];
+// uint poolPrice = pools[_token].price;
+// require(vcashIn <= pools[_token].vcashDebt,"MonoX:NO_CREDIT");
+// require((pools[_token].tokenBalance * poolPrice).div(1e18) >= vcashIn,"MonoX:INSUF_TOKEN_VAL");
+// // uint rebalancedAmount = vcashIn.mul(1e18).div(pool.price);
+// monoXPool.safeTransferERC20Token(_token, msg.sender, vcashIn.mul(1e18).div(poolPrice));
+// _syncPoolInfo(_token, vcashIn, 0);
+// emit PoolBalanced(_token, vcashIn);
+_internalRebalance(_token);
+}
+// must be called from a method with token lock to prevent reentry
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-_internalRebalance-18
+元数据:{'block索引': 18, '函数名': '_internalRebalance', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['PoolBalanced']", '返回值': ''}
+函数切片:
+function _internalRebalance(address _token) internal {
+uint poolPrice = pools[_token].price;
+uint vcashIn = pools[_token].vcashDebt;
+if(poolPrice.mul(pools[_token].tokenBalance) / 1e18 < vcashIn){
+vcashIn = poolPrice.mul(pools[_token].tokenBalance) / 1e18;
+}
+if(tokenStatus[_token]==2){
+monoXPool.safeTransferERC20Token(_token, feeTo, vcashIn.mul(1e18).div(poolPrice));
+}else{
+uint256 balanceIn0 = IERC20(_token).balanceOf(address(monoXPool));
+monoXPool.safeTransferERC20Token(_token, feeTo, vcashIn.mul(1e18).div(poolPrice));
+uint256 balanceIn1 = IERC20(_token).balanceOf(address(monoXPool));
+uint realAmount = balanceIn0.sub(balanceIn1);
+vcashIn = realAmount.mul(poolPrice) / 1e18;
+}
+_syncPoolInfo(_token, vcashIn, 0);
+emit PoolBalanced(_token,vcashIn);
+}
+// creates a pool
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-_createPool-19
+元数据:{'block索引': 19, '函数名': '_createPool', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint _price, PoolStatus _status', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _createPool (address _token, uint _price, PoolStatus _status) lock internal returns(uint256 _pid)  {
+require(tokenPoolStatus[_token]==0, "MonoX:POOL_EXISTS");
+require (_token != address(vCash), "MonoX:NO_vCash");
+_pid = poolSize;
+pools[_token] = PoolInfo({
+token: _token,
+pid: _pid,
+vcashCredit: 0,
+vcashDebt: 0,
+tokenBalance: 0,
+lastPoolValue: 0,
+status: _status,
+price: _price,
+createdAt: block.timestamp
+});
+poolSize = _pid.add(1);
+tokenPoolStatus[_token]=1;
+// initialze pool's lasttradingblocknumber as the block number on which the pool is created
+lastTradedBlock[_token] = block.number;
+}
+// creates a pool with special status
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-addSpecialToken-20
+元数据:{'block索引': 20, '函数名': 'addSpecialToken', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint _price, PoolStatus _status', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function addSpecialToken (address _token, uint _price, PoolStatus _status) onlyOwner external returns(uint256 _pid)  {
+_pid = _createPool(_token, _price, _status);
+}
+// internal func to pay contract owner
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-_mintFee-21
+元数据:{'block索引': 21, '函数名': '_mintFee', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'uint256 pid, uint256 lastPoolValue, uint256 newPoolValue', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _mintFee (uint256 pid, uint256 lastPoolValue, uint256 newPoolValue) internal {
+// dropping tx fees for now
+return;
+}
+// util func to get some basic pool info
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-getPool-22
+元数据:{'block索引': 22, '函数名': 'getPool', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getPool (address _token) view public returns (uint256 poolValue,
+uint256 tokenBalanceVcashValue, uint256 vcashCredit, uint256 vcashDebt) {
+// PoolInfo memory pool = pools[_token];
+vcashCredit = pools[_token].vcashCredit;
+vcashDebt = pools[_token].vcashDebt;
+tokenBalanceVcashValue = pools[_token].price.mul(pools[_token].tokenBalance)/1e18;
+poolValue = tokenBalanceVcashValue.add(vcashCredit).sub(vcashDebt);
+}
+// trustless listing pool creation. always creates unofficial pool
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-23
+元数据:{'block索引': 23, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function listNewToken (address _token, uint _price,
+uint256 vcashAmount,
+uint256 tokenAmount,
+address to) external returns(uint _pid, uint256 liquidity) {
+_pid = _createPool(_token, _price, PoolStatus.LISTED);
+liquidity = _addLiquidityPair(_token, vcashAmount, tokenAmount, msg.sender, to);
+}
+// add liquidity pair to a pool. allows adding vcash.
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-24
+元数据:{'block索引': 24, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function addLiquidityPair (address _token,
+uint256 vcashAmount,
+uint256 tokenAmount,
+address to) external returns(uint256 liquidity) {
+liquidity = _addLiquidityPair(_token, vcashAmount, tokenAmount, msg.sender, to);
+}
+// add liquidity pair to a pool. allows adding vcash.
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-25
+元数据:{'block索引': 25, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['AddLiquidity']", '返回值': ''}
+函数切片:
+function _addLiquidityPair (address _token,
+uint256 vcashAmount,
+uint256 tokenAmount,
+address from,
+address to) internal lockToken(_token) returns(uint256 liquidity) {
+require (tokenAmount>0, "MonoX:BAD_AMOUNT");
+require(tokenPoolStatus[_token]==1, "MonoX:NO_POOL");
+// (uint256 poolValue, , ,) = getPool(_token);
+PoolInfo memory pool = pools[_token];
+IMonoXPool monoXPoolLocal = monoXPool;
+uint256 poolValue = pool.price.mul(pool.tokenBalance)/1e18;
+poolValue = poolValue.add(pool.vcashCredit).sub(pool.vcashDebt);
+_mintFee(pool.pid, pool.lastPoolValue, poolValue);
+tokenAmount = transferAndCheck(from,address(monoXPoolLocal),_token,tokenAmount);
+if(vcashAmount>0){
+vCash.safeTransferFrom(msg.sender, address(monoXPoolLocal), vcashAmount);
+vCash.burn(address(monoXPool), vcashAmount);
+}
+// this is to avoid stack too deep
+{
+uint256 _totalSupply = monoXPoolLocal.totalSupplyOf(pool.pid);
+uint256 liquidityVcashValue = vcashAmount.add(tokenAmount.mul(pool.price)/1e18);
+if(_totalSupply==0){
+liquidityVcashValue = liquidityVcashValue/1e6; // so $1m would get you 1e18
+liquidity = liquidityVcashValue.sub(MINIMUM_LIQUIDITY);
+// sorry, oz doesn't allow minting to address(0)
+monoXPoolLocal.mintLp(feeTo, pool.pid, MINIMUM_LIQUIDITY, pool.status == PoolStatus.LISTED);
+}else{
+liquidity = _totalSupply.mul(liquidityVcashValue).div(poolValue);
+}
+}
+monoXPoolLocal.mintLp(to, pool.pid, liquidity, pool.status == PoolStatus.LISTED);
+_syncPoolInfo(_token, vcashAmount, 0);
+emit AddLiquidity(to,
+pool.pid,
+_token,
+liquidity,
+vcashAmount, tokenAmount, pool.price);
+}
+// add one-sided liquidity to a pool. no vcash
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-addLiquidity-26
+元数据:{'block索引': 26, '函数名': 'addLiquidity', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint256 _amount, address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function addLiquidity (address _token, uint256 _amount, address to) external returns(uint256 liquidity)  {
+liquidity = _addLiquidityPair(_token, 0, _amount, msg.sender, to);
+}
+// add one-sided ETH liquidity to a pool. no vcash
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-addLiquidityETH-27
+元数据:{'block索引': 27, '函数名': 'addLiquidityETH', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address to', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function addLiquidityETH (address to) external payable returns(uint256 liquidity)  {
+MonoXLibrary.safeTransferETH(address(monoXPool), msg.value);
+monoXPool.depositWETH(msg.value);
+liquidity = _addLiquidityPair(WETH, 0, msg.value, address(this), to);
+}
+// updates pool vcash balance, token balance and last pool value.
+// this function requires others to do the input validation
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-_syncPoolInfo-28
+元数据:{'block索引': 28, '函数名': '_syncPoolInfo', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address _token, uint256 vcashIn, uint256 vcashOut', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _syncPoolInfo (address _token, uint256 vcashIn, uint256 vcashOut) internal {
+// PoolInfo memory pool = pools[_token];
+uint256 tokenPoolPrice = pools[_token].price;
+(uint256 vcashCredit, uint256 vcashDebt) = _updateVcashBalance(_token, vcashIn, vcashOut);
+uint256 tokenReserve = IERC20(_token).balanceOf(address(monoXPool));
+uint256 tokenBalanceVcashValue = tokenPoolPrice.mul(tokenReserve)/1e18;
+require(tokenReserve <= uint112(-1));
+pools[_token].tokenBalance = uint112(tokenReserve);
+// poolValue = tokenBalanceVcashValue.add(vcashCredit).sub(vcashDebt);
+pools[_token].lastPoolValue = tokenBalanceVcashValue.add(vcashCredit).sub(vcashDebt);
+}
+// view func for removing liquidity
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-29
+元数据:{'block索引': 29, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _removeLiquidity (address _token, uint256 liquidity,
+address to) view public returns(
+uint256 poolValue, uint256 liquidityIn, uint256 vcashOut, uint256 tokenOut) {
+require (liquidity>0, "MonoX:BAD_AMOUNT");
+uint256 tokenBalanceVcashValue;
+uint256 vcashCredit;
+uint256 vcashDebt;
+PoolInfo memory pool = pools[_token];
+IMonoXPool monoXPoolLocal = monoXPool;
+uint256 lastAdded = monoXPoolLocal.liquidityLastAddedOf(pool.pid, msg.sender);
+require((lastAdded + (pool.status == PoolStatus.OFFICIAL ? 4 hours : pool.status == PoolStatus.LISTED ? 24 hours : 0)) <= block.timestamp, "MonoX:WRONG_TIME"); // Users are not allowed to remove liquidity right after adding
+address topLPHolder = monoXPoolLocal.topLPHolderOf(pool.pid);
+require(pool.status != PoolStatus.LISTED || msg.sender != topLPHolder || pool.createdAt + 90 days < block.timestamp, "MonoX:TOP_HOLDER & WRONG_TIME"); // largest LP holder is not allowed to remove LP within 90 days after pool creation
+(poolValue, tokenBalanceVcashValue, vcashCredit, vcashDebt) = getPool(_token);
+uint256 _totalSupply = monoXPool.totalSupplyOf(pool.pid);
+liquidityIn = monoXPool.balanceOf(to, pool.pid)>liquidity?liquidity:monoXPool.balanceOf(to, pool.pid);
+uint256 tokenReserve = IERC20(_token).balanceOf(address(monoXPool));
+if(tokenReserve < pool.tokenBalance){
+tokenBalanceVcashValue = tokenReserve.mul(pool.price)/1e18;
+}
+if(vcashDebt>0){
+tokenReserve = (tokenBalanceVcashValue.sub(vcashDebt)).mul(1e18).div(pool.price);
+}
+// if vcashCredit==0, vcashOut will be 0 as well
+vcashOut = liquidityIn.mul(vcashCredit).div(_totalSupply);
+tokenOut = liquidityIn.mul(tokenReserve).div(_totalSupply);
+}
+// actually removes liquidity
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-30
+元数据:{'block索引': 30, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function removeLiquidity (address _token, uint256 liquidity, address to,
+uint256 minVcashOut,
+uint256 minTokenOut) external returns(uint256 vcashOut, uint256 tokenOut)  {
+(vcashOut, tokenOut) = _removeLiquidityHelper (_token, liquidity, to, minVcashOut, minTokenOut, false);
+}
+// actually removes liquidity
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-31
+元数据:{'block索引': 31, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['RemoveLiquidity']", '返回值': ''}
+函数切片:
+function _removeLiquidityHelper (address _token, uint256 liquidity, address to,
+uint256 minVcashOut,
+uint256 minTokenOut,
+bool isETH) lockToken(_token) internal returns(uint256 vcashOut, uint256 tokenOut)  {
+require (tokenPoolStatus[_token]==1, "MonoX:NO_TOKEN");
+PoolInfo memory pool = pools[_token];
+uint256 poolValue;
+uint256 liquidityIn;
+(poolValue, liquidityIn, vcashOut, tokenOut) = _removeLiquidity(_token, liquidity, to);
+_mintFee(pool.pid, pool.lastPoolValue, poolValue);
+require (vcashOut>=minVcashOut, "MonoX:INSUFF_vCash");
+require (tokenOut>=minTokenOut, "MonoX:INSUFF_TOKEN");
+if (vcashOut>0){
+vCash.mint(to, vcashOut);
+}
+if (!isETH) {
+monoXPool.safeTransferERC20Token(_token, to, tokenOut);
+} else {
+monoXPool.withdrawWETH(tokenOut);
+monoXPool.safeTransferETH(to, tokenOut);
+}
+monoXPool.burn(to, pool.pid, liquidityIn);
+_syncPoolInfo(_token, 0, vcashOut);
+emit RemoveLiquidity(to,
+pool.pid,
+_token,
+liquidityIn,
+vcashOut, tokenOut, pool.price);
+}
+// actually removes ETH liquidity
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-32
+元数据:{'block索引': 32, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function removeLiquidityETH (uint256 liquidity, address to,
+uint256 minVcashOut,
+uint256 minTokenOut) external returns(uint256 vcashOut, uint256 tokenOut)  {
+(vcashOut, tokenOut) = _removeLiquidityHelper (WETH, liquidity, to, minVcashOut, minTokenOut, true);
+}
+// util func to compute new price
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-33
+元数据:{'block索引': 33, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _getNewPrice (uint256 originalPrice, uint256 reserve,
+uint256 delta, uint256 deltaBlocks, TxType txType) pure internal returns(uint256 price) {
+if(txType==TxType.SELL) {
+// no risk of being div by 0
+price = originalPrice.mul(reserve)/(reserve.add(delta));
+}else{ // BUY
+price = originalPrice.mul(reserve).div(reserve.sub(delta));
+}
+}
+// util func to compute new price
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-_getAvgPrice-34
+元数据:{'block索引': 34, '函数名': '_getAvgPrice', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'uint256 originalPrice, uint256 newPrice', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _getAvgPrice (uint256 originalPrice, uint256 newPrice) pure internal returns(uint256 price) {
+price = originalPrice.add(newPrice.mul(4))/5;
+}
+// standard swap interface implementing uniswap router V2
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-35
+元数据:{'block索引': 35, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactETHForToken(
+address tokenOut,
+uint amountOutMin,
+address to,
+uint deadline
+) external virtual payable ensure(deadline) returns (uint amountOut) {
+uint amountIn = msg.value;
+MonoXLibrary.safeTransferETH(address(monoXPool), amountIn);
+monoXPool.depositWETH(amountIn);
+amountOut = swapIn(WETH, tokenOut, address(this), to, amountIn);
+require(amountOut >= amountOutMin, 'MonoX:INSUFF_OUTPUT');
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-36
+元数据:{'block索引': 36, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactTokenForETH(
+address tokenIn,
+uint amountIn,
+uint amountOutMin,
+address to,
+uint deadline
+) external virtual ensure(deadline) returns (uint amountOut) {
+IMonoXPool monoXPoolLocal = monoXPool;
+amountOut = swapIn(tokenIn, WETH, msg.sender, address(monoXPoolLocal), amountIn);
+require(amountOut >= amountOutMin, 'MonoX:INSUFF_OUTPUT');
+monoXPoolLocal.withdrawWETH(amountOut);
+monoXPoolLocal.safeTransferETH(to, amountOut);
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-37
+元数据:{'block索引': 37, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapETHForExactToken(
+address tokenOut,
+uint amountInMax,
+uint amountOut,
+address to,
+uint deadline
+) external virtual payable ensure(deadline) returns (uint amountIn) {
+uint amountSentIn = msg.value;
+( , , amountIn, ) = getAmountIn(WETH, tokenOut, amountOut);
+MonoXLibrary.safeTransferETH(address(monoXPool), amountIn);
+monoXPool.depositWETH(amountIn);
+amountIn = swapOut(WETH, tokenOut, address(this), to, amountOut);
+require(amountIn <= amountSentIn, 'MonoX:BAD_INPUT');
+require(amountIn <= amountInMax, 'MonoX:EXCESSIVE_INPUT');
+if (amountSentIn > amountIn) {
+MonoXLibrary.safeTransferETH(msg.sender, amountSentIn.sub(amountIn));
+}
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-38
+元数据:{'block索引': 38, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapTokenForExactETH(
+address tokenIn,
+uint amountInMax,
+uint amountOut,
+address to,
+uint deadline
+) external virtual ensure(deadline) returns (uint amountIn) {
+IMonoXPool monoXPoolLocal = monoXPool;
+amountIn = swapOut(tokenIn, WETH, msg.sender, address(monoXPoolLocal), amountOut);
+require(amountIn <= amountInMax, 'MonoX:EXCESSIVE_INPUT');
+monoXPoolLocal.withdrawWETH(amountOut);
+monoXPoolLocal.safeTransferETH(to, amountOut);
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-39
+元数据:{'block索引': 39, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapExactTokenForToken(
+address tokenIn,
+address tokenOut,
+uint amountIn,
+uint amountOutMin,
+address to,
+uint deadline
+) external virtual ensure(deadline) returns (uint amountOut) {
+amountOut = swapIn(tokenIn, tokenOut, msg.sender, to, amountIn);
+require(amountOut >= amountOutMin, 'MonoX:INSUFF_OUTPUT');
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-40
+元数据:{'block索引': 40, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': True, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function swapTokenForExactToken(
+address tokenIn,
+address tokenOut,
+uint amountInMax,
+uint amountOut,
+address to,
+uint deadline
+) external virtual ensure(deadline) returns (uint amountIn) {
+amountIn = swapOut(tokenIn, tokenOut, msg.sender, to, amountOut);
+require(amountIn <= amountInMax, 'MonoX:EXCESSIVE_INPUT');
+}
+// util func to manipulate vcash balance
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-41
+元数据:{'block索引': 41, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _updateVcashBalance (address _token,
+uint _vcashIn, uint _vcashOut) internal returns (uint _vcashCredit, uint _vcashDebt) {
+if(_vcashIn>_vcashOut){
+_vcashIn = _vcashIn - _vcashOut;
+_vcashOut = 0;
+}else{
+_vcashOut = _vcashOut - _vcashIn;
+_vcashIn = 0;
+}
+// PoolInfo memory _pool = pools[_token];
+uint _poolVcashCredit = pools[_token].vcashCredit;
+uint _poolVcashDebt = pools[_token].vcashDebt;
+PoolStatus _poolStatus = pools[_token].status;
+if(_vcashOut>0){
+(_vcashCredit, _vcashDebt) = MonoXLibrary.vcashBalanceSub(
+_poolVcashCredit, _poolVcashDebt, _vcashOut);
+require(_vcashCredit <= uint112(-1) && _vcashDebt <= uint112(-1));
+pools[_token].vcashCredit = uint112(_vcashCredit);
+pools[_token].vcashDebt = uint112(_vcashDebt);
+}
+if(_vcashIn>0){
+(_vcashCredit, _vcashDebt) = MonoXLibrary.vcashBalanceAdd(
+_poolVcashCredit, _poolVcashDebt, _vcashIn);
+require(_vcashCredit <= uint112(-1) && _vcashDebt <= uint112(-1));
+pools[_token].vcashCredit = uint112(_vcashCredit);
+pools[_token].vcashDebt = uint112(_vcashDebt);
+}
+if(_poolStatus == PoolStatus.LISTED){
+require (_vcashDebt<=tokenInsurance[_token], "MonoX:INSUFF_vCash");
+}
+}
+// updates pool token balance and price.
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-42
+元数据:{'block索引': 42, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _updateTokenInfo (address _token, uint256 _price,
+uint256 _vcashIn, uint256 _vcashOut, uint256 _ETHDebt) internal {
+uint256 _balance = IERC20(_token).balanceOf(address(monoXPool));
+_balance = _balance.sub(_ETHDebt);
+require(pools[_token].status!=PoolStatus.PAUSED,"MonoX:PAUSED");
+require(_balance <= uint112(-1));
+(uint initialPoolValue, , ,) = getPool(_token);
+pools[_token].tokenBalance = uint112(_balance);
+pools[_token].price = _price;
+// record last trade's block number in mapping: lastTradedBlock
+lastTradedBlock[_token] = block.number;
+_updateVcashBalance(_token, _vcashIn, _vcashOut);
+(uint poolValue, , ,) = getPool(_token);
+require(initialPoolValue <= poolValue || poolValue >= poolSizeMinLimit,
+"MonoX:MIN_POOL_SIZE");
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-43
+元数据:{'block索引': 43, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function directSwapAllowed(uint tokenInPoolPrice,uint tokenOutPoolPrice,
+uint tokenInPoolTokenBalance, uint tokenOutPoolTokenBalance, PoolStatus status, bool getsAmountOut) internal pure returns(bool){
+uint tokenInValue  = tokenInPoolTokenBalance.mul(tokenInPoolPrice).div(1e18);
+uint tokenOutValue = tokenOutPoolTokenBalance.mul(tokenOutPoolPrice).div(1e18);
+bool priceExists   = getsAmountOut?tokenInPoolPrice>0:tokenOutPoolPrice>0;
+// only if it's official pool with similar size
+return priceExists&&status==PoolStatus.OFFICIAL&&tokenInValue>0&&tokenOutValue>0&&
+((tokenInValue/tokenOutValue)+(tokenOutValue/tokenInValue)==1);
+}
+// view func to compute amount required for tokenIn to get fixed amount of tokenOut
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-44
+元数据:{'block索引': 44, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getAmountIn(address tokenIn, address tokenOut,
+uint256 amountOut) public view returns (uint256 tokenInPrice, uint256 tokenOutPrice,
+uint256 amountIn, uint256 tradeVcashValue) {
+require(amountOut > 0, 'MonoX:INSUFF_INPUT');
+uint256 amountOutWithFee = amountOut.mul(1e5).div(1e5 - fees);
+address vcashAddress = address(vCash);
+uint tokenOutPoolPrice = pools[tokenOut].price;
+uint tokenOutPoolTokenBalance = pools[tokenOut].tokenBalance;
+if(tokenOut==vcashAddress){
+tradeVcashValue = amountOutWithFee;
+tokenOutPrice = 1e18;
+}else{
+require (tokenPoolStatus[tokenOut]==1, "MonoX:NO_POOL");
+// PoolInfo memory tokenOutPool = pools[tokenOut];
+PoolStatus tokenOutPoolStatus = pools[tokenOut].status;
+require (tokenOutPoolStatus != PoolStatus.UNLISTED, "MonoX:POOL_UNLST");
+tokenOutPrice = _getNewPrice(tokenOutPoolPrice, tokenOutPoolTokenBalance,
+amountOutWithFee, 0, TxType.BUY);
+tradeVcashValue = _getAvgPrice(tokenOutPoolPrice, tokenOutPrice).mul(amountOutWithFee)/1e18;
+}
+if(tokenIn==vcashAddress){
+amountIn = tradeVcashValue;
+tokenInPrice = 1e18;
+}else{
+require (tokenPoolStatus[tokenIn]==1, "MonoX:NO_POOL");
+// PoolInfo memory tokenInPool = pools[tokenIn];
+PoolStatus tokenInPoolStatus = pools[tokenIn].status;
+uint tokenInPoolPrice = pools[tokenIn].price;
+uint tokenInPoolTokenBalance = pools[tokenIn].tokenBalance;
+require (tokenInPoolStatus != PoolStatus.UNLISTED, "MonoX:POOL_UNLST");
+amountIn = tradeVcashValue.add(tokenInPoolTokenBalance.mul(tokenInPoolPrice).div(1e18));
+amountIn = tradeVcashValue.mul(tokenInPoolTokenBalance).div(amountIn);
+bool allowDirectSwap=directSwapAllowed(tokenInPoolPrice,tokenOutPoolPrice,tokenInPoolTokenBalance,tokenOutPoolTokenBalance,tokenInPoolStatus,false);
+// assuming p1*p2 = k, equivalent to uniswap's x * y = k
+uint directSwapTokenInPrice = allowDirectSwap?tokenOutPoolPrice.mul(tokenInPoolPrice).div(tokenOutPrice):1;
+tokenInPrice = _getNewPrice(tokenInPoolPrice, tokenInPoolTokenBalance,
+amountIn, 0, TxType.SELL);
+tokenInPrice = directSwapTokenInPrice > tokenInPrice?directSwapTokenInPrice:tokenInPrice;
+amountIn = tradeVcashValue.mul(1e18).div(_getAvgPrice(tokenInPoolPrice, tokenInPrice));
+}
+}
+// view func to compute amount required for tokenOut to get fixed amount of tokenIn
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-45
+元数据:{'block索引': 45, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getAmountOut(address tokenIn, address tokenOut,
+uint256 amountIn) public view returns (uint256 tokenInPrice, uint256 tokenOutPrice,
+uint256 amountOut, uint256 tradeVcashValue) {
+require(amountIn > 0, 'MonoX:INSUFF_INPUT');
+uint256 amountInWithFee = amountIn.mul(1e5-fees)/1e5;
+address vcashAddress = address(vCash);
+uint tokenInPoolPrice = pools[tokenIn].price;
+uint tokenInPoolTokenBalance = pools[tokenIn].tokenBalance;
+if(tokenIn==vcashAddress){
+tradeVcashValue = amountInWithFee;
+tokenInPrice = 1e18;
+}else{
+require (tokenPoolStatus[tokenIn]==1, "MonoX:NO_POOL");
+// PoolInfo memory tokenInPool = pools[tokenIn];
+PoolStatus tokenInPoolStatus = pools[tokenIn].status;
+require (tokenInPoolStatus != PoolStatus.UNLISTED, "MonoX:POOL_UNLST");
+tokenInPrice = _getNewPrice(tokenInPoolPrice, tokenInPoolTokenBalance,
+amountInWithFee, 0, TxType.SELL);
+tradeVcashValue = _getAvgPrice(tokenInPoolPrice, tokenInPrice).mul(amountInWithFee)/1e18;
+}
+if(tokenOut==vcashAddress){
+amountOut = tradeVcashValue;
+tokenOutPrice = 1e18;
+}else{
+require (tokenPoolStatus[tokenOut]==1, "MonoX:NO_POOL");
+// PoolInfo memory tokenOutPool = pools[tokenOut];
+PoolStatus tokenOutPoolStatus = pools[tokenOut].status;
+uint tokenOutPoolPrice = pools[tokenOut].price;
+uint tokenOutPoolTokenBalance = pools[tokenOut].tokenBalance;
+require (tokenOutPoolStatus != PoolStatus.UNLISTED, "MonoX:POOL_UNLST");
+amountOut = tradeVcashValue.add(tokenOutPoolTokenBalance.mul(tokenOutPoolPrice).div(1e18));
+amountOut = tradeVcashValue.mul(tokenOutPoolTokenBalance).div(amountOut);
+bool allowDirectSwap=directSwapAllowed(tokenInPoolPrice,tokenOutPoolPrice,tokenInPoolTokenBalance,tokenOutPoolTokenBalance,tokenOutPoolStatus,true);
+// assuming p1*p2 = k, equivalent to uniswap's x * y = k
+uint directSwapTokenOutPrice = allowDirectSwap?tokenInPoolPrice.mul(tokenOutPoolPrice).div(tokenInPrice):uint(-1);
+// prevent the attack where user can use a small pool to update price in a much larger pool
+tokenOutPrice = _getNewPrice(tokenOutPoolPrice, tokenOutPoolTokenBalance,
+amountOut, 0, TxType.BUY);
+tokenOutPrice = directSwapTokenOutPrice < tokenOutPrice?directSwapTokenOutPrice:tokenOutPrice;
+amountOut = tradeVcashValue.mul(1e18).div(_getAvgPrice(tokenOutPoolPrice, tokenOutPrice));
+}
+}
+// swap from tokenIn to tokenOut with fixed tokenIn amount.
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-46
+元数据:{'block索引': 46, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Swap']", '返回值': ''}
+函数切片:
+function swapIn (address tokenIn, address tokenOut, address from, address to,
+uint256 amountIn) internal lockToken(tokenIn) returns(uint256 amountOut)  {
+address monoXPoolLocal = address(monoXPool);
+amountIn = transferAndCheck(from,monoXPoolLocal,tokenIn,amountIn);
+// uint256 halfFeesInTokenIn = amountIn.mul(fees)/2e5;
+uint256 tokenInPrice;
+uint256 tokenOutPrice;
+uint256 tradeVcashValue;
+(tokenInPrice, tokenOutPrice, amountOut, tradeVcashValue) = getAmountOut(tokenIn, tokenOut, amountIn);
+uint256 oneSideFeesInVcash = tokenInPrice.mul(amountIn.mul(fees)/2e5)/1e18;
+// trading in
+if(tokenIn==address(vCash)){
+vCash.burn(monoXPoolLocal, amountIn);
+// all fees go to the other side
+oneSideFeesInVcash = oneSideFeesInVcash.mul(2);
+}else{
+_updateTokenInfo(tokenIn, tokenInPrice, 0, tradeVcashValue.add(oneSideFeesInVcash), 0);
+}
+// trading out
+if(tokenOut==address(vCash)){
+vCash.mint(to, amountOut);
+}else{
+if (to != monoXPoolLocal) {
+IMonoXPool(monoXPoolLocal).safeTransferERC20Token(tokenOut, to, amountOut);
+}
+_updateTokenInfo(tokenOut, tokenOutPrice, tradeVcashValue.add(oneSideFeesInVcash), 0,
+to == monoXPoolLocal ? amountOut : 0);
+}
+if(pools[tokenIn].vcashDebt > 0 && pools[tokenIn].status == PoolStatus.OFFICIAL){
+_internalRebalance(tokenIn);
+}
+emit Swap(to, tokenIn, tokenOut, amountIn, amountOut, tradeVcashValue);
+}
+// swap from tokenIn to tokenOut with fixed tokenOut amount.
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-47
+元数据:{'block索引': 47, '函数名': '', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Swap']", '返回值': ''}
+函数切片:
+function swapOut (address tokenIn, address tokenOut, address from, address to,
+uint256 amountOut) internal lockToken(tokenIn) returns(uint256 amountIn)  {
+uint256 tokenInPrice;
+uint256 tokenOutPrice;
+uint256 tradeVcashValue;
+(tokenInPrice, tokenOutPrice, amountIn, tradeVcashValue) = getAmountIn(tokenIn, tokenOut, amountOut);
+address monoXPoolLocal = address(monoXPool);
+amountIn = transferAndCheck(from,monoXPoolLocal,tokenIn,amountIn);
+// uint256 halfFeesInTokenIn = amountIn.mul(fees)/2e5;
+uint256 oneSideFeesInVcash = tokenInPrice.mul(amountIn.mul(fees)/2e5)/1e18;
+// trading in
+if(tokenIn==address(vCash)){
+vCash.burn(monoXPoolLocal, amountIn);
+// all fees go to buy side
+oneSideFeesInVcash = oneSideFeesInVcash.mul(2);
+}else {
+_updateTokenInfo(tokenIn, tokenInPrice, 0, tradeVcashValue.add(oneSideFeesInVcash), 0);
+}
+// trading out
+if(tokenOut==address(vCash)){
+vCash.mint(to, amountOut);
+// all fees go to sell side
+_updateVcashBalance(tokenIn, oneSideFeesInVcash, 0);
+}else{
+if (to != monoXPoolLocal) {
+IMonoXPool(monoXPoolLocal).safeTransferERC20Token(tokenOut, to, amountOut);
+}
+_updateTokenInfo(tokenOut, tokenOutPrice, tradeVcashValue.add(oneSideFeesInVcash), 0,
+to == monoXPoolLocal ? amountOut:0 );
+}
+if(pools[tokenIn].vcashDebt > 0 && pools[tokenIn].status == PoolStatus.OFFICIAL){
+_internalRebalance(tokenIn);
+}
+emit Swap(to, tokenIn, tokenOut, amountIn, amountOut, tradeVcashValue);
+}
+// function balanceOf(address account, uint256 id) public view returns (uint256) {
+//   return monoXPool.balanceOf(account, id);
+// }
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-getConfig-48
+元数据:{'block索引': 48, '函数名': 'getConfig', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function getConfig() public view returns (address _vCash, address _weth, address _feeTo, uint16 _fees, uint16 _devFee) {
+_vCash = address(vCash);
+_weth = WETH;
+_feeTo = feeTo;
+_fees = fees;
+_devFee = devFee;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-Monoswap.sol-transferAndCheck-49
+元数据:{'block索引': 49, '函数名': 'transferAndCheck', '函数所属的合约或接口': 'MonoX.sol-Monoswap.sol', '参数': 'address from,address to,address _token,uint amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transferAndCheck(address from,address to,address _token,uint amount) internal returns (uint256){
+if(from == address(this)){
+return amount; // if it's ETH
+}
+// if it's not ETH
+if(tokenStatus[_token]==2){
+IERC20(_token).safeTransferFrom(from, to, amount);
+return amount;
+}else{
+uint256 balanceIn0 = IERC20(_token).balanceOf(to);
+IERC20(_token).safeTransferFrom(from, to, amount);
+uint256 balanceIn1 = IERC20(_token).balanceOf(to);
+return balanceIn1.sub(balanceIn0);
+}
+}
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-mint-0
+元数据:{'block索引': 0, '函数名': 'mint', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'address account, uint256 id, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function mint (address account, uint256 id, uint256 amount) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-burn-1
+元数据:{'block索引': 1, '函数名': 'burn', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'address account, uint256 id, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function burn (address account, uint256 id, uint256 amount) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-totalSupplyOf-2
+元数据:{'block索引': 2, '函数名': 'totalSupplyOf', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'uint256 pid', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function totalSupplyOf(uint256 pid) external view returns (uint256);
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-depositWETH-3
+元数据:{'block索引': 3, '函数名': 'depositWETH', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function depositWETH(uint256 amount) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-withdrawWETH-4
+元数据:{'block索引': 4, '函数名': 'withdrawWETH', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function withdrawWETH(uint256 amount) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-safeTransferETH-5
+元数据:{'block索引': 5, '函数名': 'safeTransferETH', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'address to, uint amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransferETH(address to, uint amount) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-safeTransferERC20Token-6
+元数据:{'block索引': 6, '函数名': 'safeTransferERC20Token', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'address token, address to, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransferERC20Token(address token, address to, uint256 amount) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-WETH-7
+元数据:{'block索引': 7, '函数名': 'WETH', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function WETH() external view returns (address);
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-liquidityLastAddedOf-8
+元数据:{'block索引': 8, '函数名': 'liquidityLastAddedOf', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'uint256 pid, address account', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function liquidityLastAddedOf(uint256 pid, address account) external view returns(uint256);
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-topLPHolderOf-9
+元数据:{'block索引': 9, '函数名': 'topLPHolderOf', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'uint256 pid', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function topLPHolderOf(uint256 pid) external view returns (address);
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-mintLp-10
+元数据:{'block索引': 10, '函数名': 'mintLp', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'address account, uint256 id, uint256 amount, bool _isOfficial', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function mintLp(address account, uint256 id, uint256 amount, bool _isOfficial) external;
+------------------------------------------------
+函数切片ID: MonoX.sol-IMonoXPool.sol-setWhitelist-11
+元数据:{'block索引': 11, '函数名': 'setWhitelist', '函数所属的合约或接口': 'MonoX.sol-IMonoXPool.sol', '参数': 'address _whitelister, bool _isWhitelister', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function setWhitelist(address _whitelister, bool _isWhitelister) external;
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-SafeERC20.sol-safeTransfer-0
+元数据:{'block索引': 0, '函数名': 'safeTransfer', '函数所属的合约或接口': 'MonoX.sol-SafeERC20.sol', '参数': 'IERC20 token, address to, uint256 value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransfer(IERC20 token, address to, uint256 value) internal {
+_callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-SafeERC20.sol-safeTransferFrom-1
+元数据:{'block索引': 1, '函数名': 'safeTransferFrom', '函数所属的合约或接口': 'MonoX.sol-SafeERC20.sol', '参数': 'IERC20 token, address from, address to, uint256 value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+_callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+}
+/**
+* @dev Deprecated. This function has issues similar to the ones found in
+* {IERC20-approve}, and its usage is discouraged.
+*
+* Whenever possible, use {safeIncreaseAllowance} and
+* {safeDecreaseAllowance} instead.
+*/
+------------------------------------------------
+函数切片ID: MonoX.sol-SafeERC20.sol-safeApprove-2
+元数据:{'block索引': 2, '函数名': 'safeApprove', '函数所属的合约或接口': 'MonoX.sol-SafeERC20.sol', '参数': 'IERC20 token, address spender, uint256 value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeApprove(IERC20 token, address spender, uint256 value) internal {
+// safeApprove should only be called when setting an initial allowance,
+// or when resetting it to zero. To increase and decrease it, use
+// 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+// solhint-disable-next-line max-line-length
+require((value == 0) || (token.allowance(address(this), spender) == 0),
+"SafeERC20: approve from non-zero to non-zero allowance"
+);
+_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-SafeERC20.sol-safeIncreaseAllowance-3
+元数据:{'block索引': 3, '函数名': 'safeIncreaseAllowance', '函数所属的合约或接口': 'MonoX.sol-SafeERC20.sol', '参数': 'IERC20 token, address spender, uint256 value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+uint256 newAllowance = token.allowance(address(this), spender).add(value);
+_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-SafeERC20.sol-safeDecreaseAllowance-4
+元数据:{'block索引': 4, '函数名': 'safeDecreaseAllowance', '函数所属的合约或接口': 'MonoX.sol-SafeERC20.sol', '参数': 'IERC20 token, address spender, uint256 value', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+}
+/**
+* @dev Imitates a Solidity high-level call (i.e. a regular function call to a contract), relaxing the requirement
+* on the return value: the return value is optional (but if data is returned, it must not be false).
+* @param token The token targeted by the call.
+* @param data The call data (encoded using abi.encode or one of its variants).
+*/
+------------------------------------------------
+函数切片ID: MonoX.sol-SafeERC20.sol-_callOptionalReturn-5
+元数据:{'block索引': 5, '函数名': '_callOptionalReturn', '函数所属的合约或接口': 'MonoX.sol-SafeERC20.sol', '参数': 'IERC20 token, bytes memory data', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _callOptionalReturn(IERC20 token, bytes memory data) private {
+// We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+// we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+// the target address contains contract code and also asserts for success in the low-level call.
+bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+if (returndata.length > 0) { // Return data is optional
+// solhint-disable-next-line max-line-length
+require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+}
+}
+}
+------------------------------------------------
+函数切片ID: Li.Fi.sol-SafeERC20.sol-0
+元数据:{'block索引': 0, '函数名': '', '函数所属的合约或接口': 'Li.Fi.sol-SafeERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransfer(
+IERC20 token,
+address to,
+uint256 value
+) internal {
+_callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+}
+------------------------------------------------
+函数切片ID: Li.Fi.sol-SafeERC20.sol-1
+元数据:{'block索引': 1, '函数名': '', '函数所属的合约或接口': 'Li.Fi.sol-SafeERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeTransferFrom(
+IERC20 token,
+address from,
+address to,
+uint256 value
+) internal {
+_callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+}
+/**
+* @dev Deprecated. This function has issues similar to the ones found in
+* {IERC20-approve}, and its usage is discouraged.
+*
+* Whenever possible, use {safeIncreaseAllowance} and
+* {safeDecreaseAllowance} instead.
+*/
+------------------------------------------------
+函数切片ID: Li.Fi.sol-SafeERC20.sol-2
+元数据:{'block索引': 2, '函数名': '', '函数所属的合约或接口': 'Li.Fi.sol-SafeERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeApprove(
+IERC20 token,
+address spender,
+uint256 value
+) internal {
+// safeApprove should only be called when setting an initial allowance,
+// or when resetting it to zero. To increase and decrease it, use
+// 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+require(
+(value == 0) || (token.allowance(address(this), spender) == 0),
+"SafeERC20: approve from non-zero to non-zero allowance"
+);
+_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+}
+------------------------------------------------
+函数切片ID: Li.Fi.sol-SafeERC20.sol-3
+元数据:{'block索引': 3, '函数名': '', '函数所属的合约或接口': 'Li.Fi.sol-SafeERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeIncreaseAllowance(
+IERC20 token,
+address spender,
+uint256 value
+) internal {
+uint256 newAllowance = token.allowance(address(this), spender) + value;
+_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+}
+------------------------------------------------
+函数切片ID: Li.Fi.sol-SafeERC20.sol-4
+元数据:{'block索引': 4, '函数名': '', '函数所属的合约或接口': 'Li.Fi.sol-SafeERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function safeDecreaseAllowance(
+IERC20 token,
+address spender,
+uint256 value
+) internal {
+unchecked {
+uint256 oldAllowance = token.allowance(address(this), spender);
+require(oldAllowance >= value, "SafeERC20: decreased allowance below zero");
+uint256 newAllowance = oldAllowance - value;
+_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+}
+}
+/**
+* @dev Imitates a Solidity high-level call (i.e. a regular function call to a contract), relaxing the requirement
+* on the return value: the return value is optional (but if data is returned, it must not be false).
+* @param token The token targeted by the call.
+* @param data The call data (encoded using abi.encode or one of its variants).
+*/
+------------------------------------------------
+函数切片ID: Li.Fi.sol-SafeERC20.sol-_callOptionalReturn-5
+元数据:{'block索引': 5, '函数名': '_callOptionalReturn', '函数所属的合约或接口': 'Li.Fi.sol-SafeERC20.sol', '参数': 'IERC20 token, bytes memory data', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _callOptionalReturn(IERC20 token, bytes memory data) private {
+// We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+// we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+// the target address contains contract code and also asserts for success in the low-level call.
+bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+if (returndata.length > 0) {
+// Return data is optional
+require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+}
+}
+}
+------------------------------------------------
+函数切片ID: Li.Fi.sol-IERC20Metadata.sol-name-0
+元数据:{'block索引': 0, '函数名': 'name', '函数所属的合约或接口': 'Li.Fi.sol-IERC20Metadata.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function name() external view returns (string memory);
+/**
+* @dev Returns the symbol of the token.
+*/
+------------------------------------------------
+函数切片ID: Li.Fi.sol-IERC20Metadata.sol-symbol-1
+元数据:{'block索引': 1, '函数名': 'symbol', '函数所属的合约或接口': 'Li.Fi.sol-IERC20Metadata.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function symbol() external view returns (string memory);
+/**
+* @dev Returns the decimals places of the token.
+*/
+------------------------------------------------
+函数切片ID: Li.Fi.sol-IERC20Metadata.sol-decimals-2
+元数据:{'block索引': 2, '函数名': 'decimals', '函数所属的合约或接口': 'Li.Fi.sol-IERC20Metadata.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function decimals() external view returns (uint8);
+}
+------------------------------------------------
+函数切片ID: Revest Finance.sol-IERC20.sol-totalSupply-0
+元数据:{'block索引': 0, '函数名': 'totalSupply', '函数所属的合约或接口': 'Revest Finance.sol-IERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function totalSupply() external view returns (uint256);
+/**
+* @dev Returns the amount of tokens owned by `account`.
+*/
+------------------------------------------------
+函数切片ID: Revest Finance.sol-IERC20.sol-balanceOf-1
+元数据:{'block索引': 1, '函数名': 'balanceOf', '函数所属的合约或接口': 'Revest Finance.sol-IERC20.sol', '参数': 'address account', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function balanceOf(address account) external view returns (uint256);
+/**
+* @dev Moves `amount` tokens from the caller's account to `recipient`.
+*
+* Returns a boolean value indicating whether the operation succeeded.
+*
+* Emits a {Transfer} event.
+*/
+------------------------------------------------
+函数切片ID: Revest Finance.sol-IERC20.sol-transfer-2
+元数据:{'block索引': 2, '函数名': 'transfer', '函数所属的合约或接口': 'Revest Finance.sol-IERC20.sol', '参数': 'address recipient, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transfer(address recipient, uint256 amount) external returns (bool);
+/**
+* @dev Returns the remaining number of tokens that `spender` will be
+* allowed to spend on behalf of `owner` through {transferFrom}. This is
+* zero by default.
+*
+* This value changes when {approve} or {transferFrom} are called.
+*/
+------------------------------------------------
+函数切片ID: Revest Finance.sol-IERC20.sol-allowance-3
+元数据:{'block索引': 3, '函数名': 'allowance', '函数所属的合约或接口': 'Revest Finance.sol-IERC20.sol', '参数': 'address owner, address spender', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function allowance(address owner, address spender) external view returns (uint256);
+/**
+* @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+*
+* Returns a boolean value indicating whether the operation succeeded.
+*
+* IMPORTANT: Beware that changing an allowance with this method brings the risk
+* that someone may use both the old and the new allowance by unfortunate
+* transaction ordering. One possible solution to mitigate this race
+* condition is to first reduce the spender's allowance to 0 and set the
+* desired value afterwards:
+* https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+*
+* Emits an {Approval} event.
+*/
+------------------------------------------------
+函数切片ID: Revest Finance.sol-IERC20.sol-approve-4
+元数据:{'block索引': 4, '函数名': 'approve', '函数所属的合约或接口': 'Revest Finance.sol-IERC20.sol', '参数': 'address spender, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function approve(address spender, uint256 amount) external returns (bool);
+/**
+* @dev Moves `amount` tokens from `sender` to `recipient` using the
+* allowance mechanism. `amount` is then deducted from the caller's
+* allowance.
+*
+* Returns a boolean value indicating whether the operation succeeded.
+*
+* Emits a {Transfer} event.
+*/
+------------------------------------------------
+函数切片ID: Revest Finance.sol-IERC20.sol-5
+元数据:{'block索引': 5, '函数名': '', '函数所属的合约或接口': 'Revest Finance.sol-IERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transferFrom(
+address sender,
+address recipient,
+uint256 amount
+) external returns (bool);
+/**
+* @dev Emitted when `value` tokens are moved from one account (`from`) to
+* another (`to`).
+*
+* Note that `value` may be zero.
+*/
+event Transfer(address indexed from, address indexed to, uint256 value);
+/**
+* @dev Emitted when the allowance of a `spender` for an `owner` is set by
+* a call to {approve}. `value` is the new allowance.
+*/
+event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-name-0
+元数据:{'block索引': 0, '函数名': 'name', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function name() public view virtual override returns (string memory) {
+return _name;
+}
+/**
+* @dev Returns the symbol of the token, usually a shorter version of the
+* name.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-symbol-1
+元数据:{'block索引': 1, '函数名': 'symbol', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function symbol() public view virtual override returns (string memory) {
+return _symbol;
+}
+/**
+* @dev Returns the number of decimals used to get its user representation.
+* For example, if `decimals` equals `2`, a balance of `505` tokens should
+* be displayed to a user as `5,05` (`505 / 10 ** 2`).
+*
+* Tokens usually opt for a value of 18, imitating the relationship between
+* Ether and Wei. This is the value {ERC20} uses, unless this function is
+* overridden;
+*
+* NOTE: This information is only used for _display_ purposes: it in
+* no way affects any of the arithmetic of the contract, including
+* {IERC20-balanceOf} and {IERC20-transfer}.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-decimals-2
+元数据:{'block索引': 2, '函数名': 'decimals', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function decimals() public view virtual override returns (uint8) {
+return 18;
+}
+/**
+* @dev See {IERC20-totalSupply}.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-totalSupply-3
+元数据:{'block索引': 3, '函数名': 'totalSupply', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function totalSupply() public view virtual override returns (uint256) {
+return _totalSupply;
+}
+/**
+* @dev See {IERC20-balanceOf}.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-balanceOf-4
+元数据:{'block索引': 4, '函数名': 'balanceOf', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address account', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function balanceOf(address account) public view virtual override returns (uint256) {
+return _balances[account];
+}
+/**
+* @dev See {IERC20-transfer}.
+*
+* Requirements:
+*
+* - `recipient` cannot be the zero address.
+* - the caller must have a balance of at least `amount`.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-transfer-5
+元数据:{'block索引': 5, '函数名': 'transfer', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address recipient, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+_transfer(_msgSender(), recipient, amount);
+return true;
+}
+/**
+* @dev See {IERC20-allowance}.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-allowance-6
+元数据:{'block索引': 6, '函数名': 'allowance', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address owner, address spender', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function allowance(address owner, address spender) public view virtual override returns (uint256) {
+return _allowances[owner][spender];
+}
+/**
+* @dev See {IERC20-approve}.
+*
+* Requirements:
+*
+* - `spender` cannot be the zero address.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-approve-7
+元数据:{'block索引': 7, '函数名': 'approve', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address spender, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function approve(address spender, uint256 amount) public virtual override returns (bool) {
+_approve(_msgSender(), spender, amount);
+return true;
+}
+/**
+* @dev See {IERC20-transferFrom}.
+*
+* Emits an {Approval} event indicating the updated allowance. This is not
+* required by the EIP. See the note at the beginning of {ERC20}.
+*
+* Requirements:
+*
+* - `sender` and `recipient` cannot be the zero address.
+* - `sender` must have a balance of at least `amount`.
+* - the caller must have allowance for ``sender``'s tokens of at least
+* `amount`.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-8
+元数据:{'block索引': 8, '函数名': '', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function transferFrom(
+address sender,
+address recipient,
+uint256 amount
+) public virtual override returns (bool) {
+_transfer(sender, recipient, amount);
+uint256 currentAllowance = _allowances[sender][_msgSender()];
+require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
+unchecked {
+_approve(sender, _msgSender(), currentAllowance - amount);
+}
+return true;
+}
+/**
+* @dev Atomically increases the allowance granted to `spender` by the caller.
+*
+* This is an alternative to {approve} that can be used as a mitigation for
+* problems described in {IERC20-approve}.
+*
+* Emits an {Approval} event indicating the updated allowance.
+*
+* Requirements:
+*
+* - `spender` cannot be the zero address.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-increaseAllowance-9
+元数据:{'block索引': 9, '函数名': 'increaseAllowance', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address spender, uint256 addedValue', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+_approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
+return true;
+}
+/**
+* @dev Atomically decreases the allowance granted to `spender` by the caller.
+*
+* This is an alternative to {approve} that can be used as a mitigation for
+* problems described in {IERC20-approve}.
+*
+* Emits an {Approval} event indicating the updated allowance.
+*
+* Requirements:
+*
+* - `spender` cannot be the zero address.
+* - `spender` must have allowance for the caller of at least
+* `subtractedValue`.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-decreaseAllowance-10
+元数据:{'block索引': 10, '函数名': 'decreaseAllowance', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address spender, uint256 subtractedValue', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+uint256 currentAllowance = _allowances[_msgSender()][spender];
+require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
+unchecked {
+_approve(_msgSender(), spender, currentAllowance - subtractedValue);
+}
+return true;
+}
+/**
+* @dev Moves `amount` of tokens from `sender` to `recipient`.
+*
+* This internal function is equivalent to {transfer}, and can be used to
+* e.g. implement automatic token fees, slashing mechanisms, etc.
+*
+* Emits a {Transfer} event.
+*
+* Requirements:
+*
+* - `sender` cannot be the zero address.
+* - `recipient` cannot be the zero address.
+* - `sender` must have a balance of at least `amount`.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-11
+元数据:{'block索引': 11, '函数名': '', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Transfer']", '返回值': ''}
+函数切片:
+function _transfer(
+address sender,
+address recipient,
+uint256 amount
+) internal virtual {
+require(sender != address(0), "ERC20: transfer from the zero address");
+require(recipient != address(0), "ERC20: transfer to the zero address");
+_beforeTokenTransfer(sender, recipient, amount);
+uint256 senderBalance = _balances[sender];
+require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
+unchecked {
+_balances[sender] = senderBalance - amount;
+}
+_balances[recipient] += amount;
+emit Transfer(sender, recipient, amount);
+_afterTokenTransfer(sender, recipient, amount);
+}
+/** @dev Creates `amount` tokens and assigns them to `account`, increasing
+* the total supply.
+*
+* Emits a {Transfer} event with `from` set to the zero address.
+*
+* Requirements:
+*
+* - `account` cannot be the zero address.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-_mint-12
+元数据:{'block索引': 12, '函数名': '_mint', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address account, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Transfer']", '返回值': ''}
+函数切片:
+function _mint(address account, uint256 amount) internal virtual {
+require(account != address(0), "ERC20: mint to the zero address");
+_beforeTokenTransfer(address(0), account, amount);
+_totalSupply += amount;
+_balances[account] += amount;
+emit Transfer(address(0), account, amount);
+_afterTokenTransfer(address(0), account, amount);
+}
+/**
+* @dev Destroys `amount` tokens from `account`, reducing the
+* total supply.
+*
+* Emits a {Transfer} event with `to` set to the zero address.
+*
+* Requirements:
+*
+* - `account` cannot be the zero address.
+* - `account` must have at least `amount` tokens.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-_burn-13
+元数据:{'block索引': 13, '函数名': '_burn', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': 'address account, uint256 amount', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Transfer']", '返回值': ''}
+函数切片:
+function _burn(address account, uint256 amount) internal virtual {
+require(account != address(0), "ERC20: burn from the zero address");
+_beforeTokenTransfer(account, address(0), amount);
+uint256 accountBalance = _balances[account];
+require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+unchecked {
+_balances[account] = accountBalance - amount;
+}
+_totalSupply -= amount;
+emit Transfer(account, address(0), amount);
+_afterTokenTransfer(account, address(0), amount);
+}
+/**
+* @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
+*
+* This internal function is equivalent to `approve`, and can be used to
+* e.g. set automatic allowances for certain subsystems, etc.
+*
+* Emits an {Approval} event.
+*
+* Requirements:
+*
+* - `owner` cannot be the zero address.
+* - `spender` cannot be the zero address.
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-14
+元数据:{'block索引': 14, '函数名': '', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': "['Approval']", '返回值': ''}
+函数切片:
+function _approve(
+address owner,
+address spender,
+uint256 amount
+) internal virtual {
+require(owner != address(0), "ERC20: approve from the zero address");
+require(spender != address(0), "ERC20: approve to the zero address");
+_allowances[owner][spender] = amount;
+emit Approval(owner, spender, amount);
+}
+/**
+* @dev Hook that is called before any transfer of tokens. This includes
+* minting and burning.
+*
+* Calling conditions:
+*
+* - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
+* will be transferred to `to`.
+* - when `from` is zero, `amount` tokens will be minted for `to`.
+* - when `to` is zero, `amount` of ``from``'s tokens will be burned.
+* - `from` and `to` are never both zero.
+*
+* To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-15
+元数据:{'block索引': 15, '函数名': '', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _beforeTokenTransfer(
+address from,
+address to,
+uint256 amount
+) internal virtual {}
+/**
+* @dev Hook that is called after any transfer of tokens. This includes
+* minting and burning.
+*
+* Calling conditions:
+*
+* - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
+* has been transferred to `to`.
+* - when `from` is zero, `amount` tokens have been minted for `to`.
+* - when `to` is zero, `amount` of ``from``'s tokens have been burned.
+* - `from` and `to` are never both zero.
+*
+* To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+*/
+------------------------------------------------
+函数切片ID: Formation.Fi.sol-ERC20.sol-16
+元数据:{'block索引': 16, '函数名': '', '函数所属的合约或接口': 'Formation.Fi.sol-ERC20.sol', '参数': '', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function _afterTokenTransfer(
+address from,
+address to,
+uint256 amount
+) internal virtual {}
+}
+------------------------------------------------
+函数切片ID: MonoX.sol-IERC1155MetadataURI.sol-uri-0
+元数据:{'block索引': 0, '函数名': 'uri', '函数所属的合约或接口': 'MonoX.sol-IERC1155MetadataURI.sol', '参数': 'uint256 id', '可见性': 'public', '外部调用': False, '是否使用防重入锁': False, '是否包含权限校验逻辑': False, '状态变量依赖': '', '状态可变性': '', '触发的事件': '[]', '返回值': ''}
+函数切片:
+function uri(uint256 id) external view returns (string memory);
+}
+------------------------------------------------
+排名结果：
+函数切片ID,分数
+SushiSwap.sol-SushiMaker.sol-_swap-7,0.95
+SushiSwap.sol-SushiMaker.sol-_convertStep-6,0.90
+MonoX.sol-Monoswap.sol-swapIn-46,0.85
+SushiSwap.sol-SushiMaker.sol-_convert-5,0.80
+SushiSwap.sol-SushiMaker.sol-convert-3,0.75
+SushiSwap.sol-SushiMaker.sol-convertMultiple-4,0.70
+MonoX.sol-Monoswap.sol-_updateTokenInfo-42,0.65
+SushiSwap.sol-SushiMaker.sol-_toSUSHI-8,0.60
+MonoX.sol-Monoswap.sol-_getNewPrice-34,0.55
+SushiSwap.sol-SushiMaker.sol-bridgeFor-0,0.50
+SushiSwap.sol-SushiMaker.sol-setBridge-1,0.45
+SushiSwap.sol-SushiRoll.sol-migrate-1,0.40
+SushiSwap.sol-SushiRoll.sol-removeLiquidity-2,0.35
+MonoX.sol-Monoswap.sol-removeLiquidity-30,0.30
+SushiSwap.sol-SushiToken.sol-mint-0,0.25
+MonoX.sol-Monoswap.sol-_syncPoolInfo-28,0.20
+SushiSwap.sol-SushiRoll.sol-addLiquidity-4,0.15
+SushiSwap.sol-IUniswapV2Pair.sol-swap-23,0.10
+SushiSwap.sol-UniswapV2Factory.sol-createPair-2,0.05
+SushiSwap.sol-BoringERC20.sol-safeTransfer-3,0.00

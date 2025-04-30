@@ -1,0 +1,143 @@
+
+-----------------------------------------
+正在处理dapp：Beanstalk.json~
+address list = {'0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5', '0x259a2795624b8a17bc7eb312a94504ad0f615d1e', '0x4e59b44847b379578588920ca78fbf26c0b4956c', '0x728ad672409da288ca5b9aa85d1a55b803ba97d7'}
+0x4e59b44847b379578588920ca78fbf26c0b4956c获取的源代码为空！
+0x728ad672409da288ca5b9aa85d1a55b803ba97d7获取的源代码为空！
+
+-----------------------------------------
+Beanstalk.json已经处理完成！
+
+['Bearn.json', 'BTFinance.json', 'bZx.json', 'bZx0215.json', 'Cover.json', 'CreamFinance.json', 'DODO.json', 'ElevenFinance.json', 'FEGtoken.json', 'ForceDAO.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：BTFinance.json~
+address list = {'0x617887f9410d8ebd6046637958663f13b68f570c', '0x54b5ae5ebe86d2d86134f3bb7e36e7c83295cbcb', '0xded1219b5ba4da3a9d57c9f12c0d5da50f2fc4a2'}
+0x617887f9410d8ebd6046637958663f13b68f570c获取的源代码为空！
+0x54b5ae5ebe86d2d86134f3bb7e36e7c83295cbcb获取的源代码为空！
+0xded1219b5ba4da3a9d57c9f12c0d5da50f2fc4a2获取的源代码为空！
+
+-----------------------------------------
+BTFinance.json已经处理完成！
+
+['Bearn.json', 'bZx.json', 'bZx0215.json', 'Cover.json', 'CreamFinance.json', 'DODO.json', 'ElevenFinance.json', 'FEGtoken.json', 'ForceDAO.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：bZx0215.json~
+address list = {'0x4f4e0f2cb72e718fc0433222768c57e823162152', '0x11111254369792b2ca5d084ab5eea397ca8fa48b', '0x6ef7cc3891e4881bf6106f41e4732e4807868633', '0x77f973fcaf871459aa58cd81881ce453759281bc', '0x14094949152eddbfcd073717200da82fed8dc960', '0xf013406a0b1d544238083df0b93ad0d2cbe0f65f', '0xd6ad7a6750a7593e092a9b218d66c0a814a3436e', '0x06a5bf70bff314177488864fe03576ff608e6aec', '0x45f783cce6b7ff23b2ab2d70e416cdb7d6055f51', '0x46bb4576993f50302bb0d5f7440aeffbabfdbb78', '0x4e2ca0093028c8401c93aacccaf59288ca6fb728', '0xf173214c720f58e03e194085b1db28b50acdeead'}
+0x4f4e0f2cb72e718fc0433222768c57e823162152获取的源代码为空！
+0x11111254369792b2ca5d084ab5eea397ca8fa48b获取的源代码为空！
+0x6ef7cc3891e4881bf6106f41e4732e4807868633获取的源代码为空！
+0x77f973fcaf871459aa58cd81881ce453759281bc获取的源代码为空！
+0x14094949152eddbfcd073717200da82fed8dc960获取的源代码为空！
+0xf013406a0b1d544238083df0b93ad0d2cbe0f65f获取的源代码为空！
+0xd6ad7a6750a7593e092a9b218d66c0a814a3436e获取的源代码为空！
+0x06a5bf70bff314177488864fe03576ff608e6aec获取的源代码为空！
+0x45f783cce6b7ff23b2ab2d70e416cdb7d6055f51获取的源代码为空！
+0x46bb4576993f50302bb0d5f7440aeffbabfdbb78获取的源代码为空！
+0x4e2ca0093028c8401c93aacccaf59288ca6fb728获取的源代码为空！
+0xf173214c720f58e03e194085b1db28b50acdeead获取的源代码为空！
+
+-----------------------------------------
+bZx0215.json已经处理完成！
+
+['Bearn.json', 'bZx.json', 'Cover.json', 'CreamFinance.json', 'DODO.json', 'ElevenFinance.json', 'FEGtoken.json', 'ForceDAO.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：CreamFinance.json~
+address list = {'0x3225e3c669b39c7c8b3e204a8614bb218c5e31bc', '0x3d5bc3c8d13dcb8bf317092d84783c2697ae9258', '0x38c40427efbaae566407e4cde2a91947df0bd22b', '0x523effc8bfefc2948211a05a905f761cba5e8e9e', '0x299e254a8a165bbeb76d9d69305013329eea3a3b', '0x17107f40d70f4470d20cb3f138a052cae8ebd4be', '0x1f9b4756b008106c806c7e64322d7ed3b72cb284', '0xd06527d5e56a3495252a528c4987003b712860ee', '0xeff039c3c1d668f408d09dd7b63008622a77532c', '0x797aab1ce7c01eb727ab980762ba88e7133d2157', '0x44fbebd2f576670a6c33f6fc0b00aa8c5753b322', '0x338286c0bc081891a4bda39c7667ae150bf5d206', '0x06091717521c2002f2859c75f53987eaf1e5aa2f'}
+0x3225e3c669b39c7c8b3e204a8614bb218c5e31bc编译结果 ast 为空
+0x3d5bc3c8d13dcb8bf317092d84783c2697ae9258编译结果 ast 为空
+0x38c40427efbaae566407e4cde2a91947df0bd22b获取的源代码为空！
+0x523effc8bfefc2948211a05a905f761cba5e8e9e编译结果 ast 为空
+0x299e254a8a165bbeb76d9d69305013329eea3a3b编译结果 ast 为空
+0x17107f40d70f4470d20cb3f138a052cae8ebd4be编译结果 ast 为空
+0x1f9b4756b008106c806c7e64322d7ed3b72cb284编译结果 ast 为空
+0xd06527d5e56a3495252a528c4987003b712860ee编译结果 ast 为空
+0xeff039c3c1d668f408d09dd7b63008622a77532c编译结果 ast 为空
+0x797aab1ce7c01eb727ab980762ba88e7133d2157编译结果 ast 为空
+0x44fbebd2f576670a6c33f6fc0b00aa8c5753b322编译结果 ast 为空
+0x338286c0bc081891a4bda39c7667ae150bf5d206编译结果 ast 为空
+0x06091717521c2002f2859c75f53987eaf1e5aa2f编译结果 ast 为空
+
+-----------------------------------------
+CreamFinance.json已经处理完成！
+
+['Bearn.json', 'bZx.json', 'Cover.json', 'DODO.json', 'ElevenFinance.json', 'FEGtoken.json', 'ForceDAO.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：ElevenFinance.json~
+
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 711, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 1007, in _prepare_proxy
+    conn.connect()
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connection.py", line 419, in connect
+    self.sock = ssl_wrap_socket(
+                ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 449, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 493, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 517, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1075, in _create
+    self.do_handshake()
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1346, in do_handshake
+    self._sslobj.do_handshake()
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 798, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.bscscan.com', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0xbbcd27ec2d99b49f49cfab3270124de410e8f0a0839f0126da155f82e1d3aa8d&apikey=M1Z8JTSB37EKZFD56BAGNHTRYYW4IRXIUT (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 164, in <module>
+    asyncio.run(handler.process(file))
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 67, in process
+    address = get_contract_address_from_tx(_hash, _platform)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\get_source_code.py", line 27, in get_contract_address_from_tx
+    response = requests.get(url)
+               ^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 513, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.bscscan.com', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0xbbcd27ec2d99b49f49cfab3270124de410e8f0a0839f0126da155f82e1d3aa8d&apikey=M1Z8JTSB37EKZFD56BAGNHTRYYW4IRXIUT (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))

@@ -1,0 +1,1669 @@
+------------------------------------------------
+交易故障分析：
+一、关键异常点 1. 故障交易中代币合约0x9a13867048e01c663ce8ce2fe0cdae69ff9f35e3出现单笔6.05亿代币销毁和铸造操作，销毁量与铸造量存在数量级差异（销毁量是铸造量的11274倍）。2. 流动性池0xceff51756c56ceffca006cd410b03ffc46dd3a58的Swap事件显示用3.449 WBTC兑换8.6 ETH，兑换比例显著偏离正常市场汇率。3. 最终所有资金流向地址0x8798249c2e607446efb7ad49ec89dd1865ff4272，该地址在多个交易中持续接收异常大额SUSHI代币。4. 交易中涉及多次代币从0x0地址铸造到合约的操作，存在未经授权的代币铸造风险。
+
+二、漏洞原因分析 该漏洞属于流动性池价格操纵攻击，根本原因在于SushiSwap的LP合约价格计算机制存在缺陷。攻击者利用以下技术组合实施攻击：1. 通过闪电贷获取大量WBTC作为初始资金，在0x9a13...5e3合约中通过销毁流动性代币SLP人为制造流动性池失衡，触发Sync事件更新错误储备量。2. 在流动性失衡状态下，使用0xe11fc0...df50路由合约发起跨池套利交易，利用价格计算公式K值恒定漏洞，通过WBTC/ETH和ETH/SUSHI两个交易对的价格偏差完成套利。3. 攻击核心在于SLP代币合约未对burn函数实施权限控制，允许任意地址销毁流动性代币，导致攻击者可通过销毁流动性代币直接修改流动性池储备数据。4. Swap函数未设置最小输出量校验，使得异常价格下的套利交易得以执行。
+
+三、攻击路径还原 1. 攻击者调用0x9a13...5e3合约的burn函数销毁SLP代币，触发流动性池储备数据异常更新。2. 通过路由合约在WBTC/ETH池执行虚高价格的WBTC兑换ETH操作，获取超额ETH。3. 将套利获得的ETH转入ETH/SUSHI池，利用时间差进行二次套利。4. 最终将套利所得SUSHI转入收益地址0x8798...4272。5. 通过重复调用相同漏洞在多个区块实施连续攻击。
+
+四、trace调用链（故障交易） 0x51841d9afe10fe55571bdb8f4af1060415003528 -> 0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50 -> 0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac -> 0x9a13867048e01c663ce8ce2fe0cdae69ff9f35e3 -> 0x2260fac5e5542a773aa44fbcfedf7c193bc2c599 -> 0xceff51756c56ceffca006cd410b03ffc46dd3a58 -> 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 -> 0x795065dcc9f64b5614c407a6efdc400da6221fb0 -> 0x6b3595068778dd592e39a122f4f5a5cf09c90fe2 -> 0x8798249c2e607446efb7ad49ec89dd1865ff4272
+------------------------------------------------
+向量库匹配结果：
+{'ids': [['SushiSwap-UniswapV2Factory.sol', 'SushiSwap-SushiRoll.sol', 'SushiSwap-SushiSwapPairMock.sol', 'SushiSwap-SushiBar.sol', 'SushiSwap-SushiMaker.sol', 'SushiSwap-IUniswapV2Router02.sol', 'SushiSwap-MasterChef.sol', 'SushiSwap-IUniswapV2Callee.sol', 'SushiSwap-IUniswapV2Pair.sol', 'SushiSwap-IUniswapV2ERC20.sol', 'SushiSwap-BoringMath.sol', 'SushiSwap-Address.sol', 'SushiSwap-Migrator.sol', 'SushiSwap-UniswapV2ERC20.sol', 'SushiSwap-SushiMakerExploitMock.sol', 'SushiSwap-ERC20Mock.sol', 'SushiSwap-UniswapV2Library.sol', 'SushiSwap-IUniswapV2Router01.sol', 'SushiSwap-UniswapV2Pair.sol', 'SushiSwap-UQ112x112.sol', 'SushiSwap-Context.sol', 'SushiSwap-IUniswapV2Factory.sol', 'SushiSwap-EnumerableSet.sol', 'SushiSwap-UniswapV2Router02.sol', 'SushiSwap-IWETH.sol', 'SushiSwap-ERC20.sol', 'SushiSwap-SafeERC20.sol', 'SushiSwap-IERC20.sol', 'SushiSwap-BoringOwnable.sol', 'SushiSwap-Ownable.sol', 'SushiSwap-BoringERC20.sol', 'SushiSwap-Math.sol', 'SushiSwap-SushiToken.sol', 'SushiSwap-SushiSwapFactoryMock.sol', 'SushiSwap-TransferHelper.sol', 'SushiSwap-SafeMath.sol', 'SushiSwap-Timelock.sol']], 'embeddings': None, 'documents': [['UniswapV2Factory 智能合约总结：该合约是 Uniswap V2 去中心化交易所的核心工厂合约，主要负责创建和管理流动性池交易对（Pair）。合约通过映射结构记录代币对的流动性池地址，并维护所有已创建池的列表。核心功能包括：1. 使用 create2 操作码创建确定性地址的流动性池；2. 通过权限控制（feeToSetter）管理手续费接收地址和迁移合约；3. 确保代币对地址有序排列避免重复创建。关键代码逻辑体现在 createPair 函数中，通过排序代币地址保证唯一性，采用汇编代码创建合约，并双向更新代币对的映射关系。合约设置了多重安全校验，包括地址非零验证、代币对重复性检查，以及关键权限函数的调用者身份验证。\n\n函数列表：\n1. constructor(_feeToSetter)：初始化合约，设置初始权限管理员\n2. allPairsLength()：返回已创建的流动性池总数\n3. pairCodeHash()：获取流动性池合约的字节码哈希值\n4. createPair(tokenA, tokenB)：创建新的代币对流动性池\n5. setFeeTo(_feeTo)：设置手续费接收地址（仅限管理员）\n6. setMigrator(_migrator)：设置迁移合约地址（仅限管理员）\n7. setFeeToSetter(_feeToSetter)：转移管理员权限（仅限当前管理员）', 'SushiRoll 智能合约总结：该合约旨在帮助用户将现有的 Uniswap V2 流动性池（LP）代币迁移至 SushiSwap 平台。其核心功能通过连接新旧两个 Uniswap V2 路由器实现，用户可先将资金从旧路由器撤出，再注入新路由器完成流动性转移。合约通过 SafeERC20 实现安全的代币转账，并采用 UniswapV2Library 进行代币配对计算。关键流程包含移除旧流动性、添加新流动性两个阶段，期间会自动处理代币比例优化，并将未使用的代币余量返还用户。迁移时支持带授权签名（permit）和无签名两种模式，前者可避免预先授权操作。合约包含工厂地址计算、流动性移除/添加等底层操作，且能自动创建不存在的代币交易对。\n\n函数列表：\n1. migrateWithPermit：带授权签名的迁移入口函数，通过 permit 授权后触发迁移流程\n2. migrate：核心迁移函数，执行移除旧流动性、添加新流动性全流程\n3. removeLiquidity（internal）：从旧路由器提取流动性并销毁 LP 代币\n4. pairForOldRouter（internal）：计算旧路由器上代币对的 CREATE2 地址\n5. addLiquidity（internal）：向新路由器注入流动性并铸造新 LP 代币\n6. _addLiquidity（internal）：计算最优代币添加量并处理新交易对创建\n7. 构造函数：初始化新旧路由器地址', 'SushiSwapPairMock 智能合约总结：该合约是基于 Uniswap V2 交易对合约的模拟实现，主要作为测试环境下的代币兑换池功能模拟器使用。合约继承自 UniswapV2Pair 标准合约，未添加任何新功能或修改逻辑，完整保留了原生交易对合约的所有特性，包括流动性注入/提取、代币兑换价格计算、储备量同步等核心功能。其构造函数仅执行父合约初始化操作，适用于需要模拟 Uniswap 交易对行为的开发测试场景，避免与主网合约产生交互依赖。\n\n函数列表：1. mint(address to) 向流动性池添加代币并铸造 LP 代币给指定地址 2. burn(address to) 销毁 LP 代币并返还对应比例的基础代币 3. swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) 执行代币兑换操作 4. sync() 强制同步合约内的代币储备量 5. initialize(address, address) 初始化交易对代币地址 6. getReserves() 查看当前代币储备量 7. _update(uint balance0, uint balance1, uint112 _reserve0, uint112 _reserve1) 内部更新储备量数据 8. _mintFee(uint112 _reserve0, uint112 _reserve1) 内部计算协议手续费 9. MINIMUM_LIQUIDITY() 获取最小流动性常数。注：所有函数参数及返回值均与 UniswapV2Pair 标准合约保持完全一致。', '智能合约名称：SushiBar（xSUSHI 质押合约）该合约是一个质押奖励池系统，允许用户通过质押Sushi代币获取xSUSHI代币，并根据质押比例随时间获得收益。核心机制采用动态汇率模型，用户存入Sushi时铸造xSUSHI份额，取出时按比例兑换回Sushi及累积收益。主要功能包含：1. 首次存款1:1铸造xSUSHI基准 2. 后续存款按资金池比例计算铸造量 3. 提款时按当前资金池总价值比例分配 4. 集成SafeMath安全计算防止溢出。通过维护xSUSHI与Sushi的兑换比率变化，实现用户质押期间的价值增长。关键点在于资金池总量变化会动态影响每次存取兑换比例，从而实现收益分配。\n\n函数列表：\n1. 构造函数 constructor(IERC20 _sushi)：初始化合约，绑定Sushi代币地址\n2. enter(uint256 _amount)：存入Sushi代币并铸造对应比例的xSUSHI，处理首次存款1:1铸造逻辑，执行代币转账锁定操作\n3. leave(uint256 _share)：销毁指定数量的xSUSHI代币，按当前汇率兑换回Sushi代币，包含代币转账解锁功能\n4. ERC20标准继承函数：包含totalSupply()总供应量查询、balanceOf()余额查询等基础ERC20功能（由父类自动生成）', 'SushiMaker 智能合约总结：该合约是一个用于将交易对流动性池（LP）代币转换为 SUSHI 代币并分配至 xSUSHI 持有者的奖励处理系统。其核心功能是通过销毁 LP 代币获取底层资产，再通过预设的桥接路径将资产逐步兑换为 SUSHI 代币。关键机制包括：1. 使用 onlyEOA 修饰器防止闪电贷攻击，限制只有外部账户可触发转换；2. 通过桥接映射表处理非直接兑换路径，支持多层级代币转换；3. 实现单币对/多币对批量转换功能；4. 集成 Uniswap V2 协议进行代币兑换计算。合约将最终获得的 SUSHI 转入 bar 地址（xSUSHI 质押合约），完成奖励分配流程。\n\n函数列表：\nconstructor 初始化工厂地址、bar 地址、SUSHI 和 WETH 地址\nbridgeFor 查询代币对应的桥接兑换路径\nsetBridge 所有者设置特定代币的桥接路径（仅限非 SUSHI/WETH 代币）\nconvert 执行单个交易对 LP 代币转换（仅限 EOA）\nconvertMultiple 批量执行多个交易对 LP 代币转换（仅限 EOA）\n_convert 内部处理 LP 代币销毁和底层资产提取\n_convertStep 内部处理多层级代币兑换逻辑，包含 6 种兑换路径判断\n_swap 内部执行 Uniswap 代币兑换，包含滑点计算和交易执行\n_toSUSHI 内部将任意代币最终兑换为 SUSHI 并发送至 bar 地址', '智能合约命名为 IUniswapV2Router02，是 Uniswap V2 路由器的升级版接口合约，主要扩展了对转账手续费代币（FeeOnTransferTokens）交易场景的支持。该合约继承自 IUniswapV2Router01 接口，新增了 5 个核心函数，用于处理包含转账手续费的代币流动性移除及兑换操作。关键功能包括：1. 允许用户在移除流动性时直接获取 ETH 并自动计算手续费影响后的实际数量；2. 支持通过链下签名授权（Permit）模式移除流动性，简化用户操作；3. 提供精确输入兑换功能（ETH/代币互换、代币间互换），自动适配转账手续费场景，确保用户设置的最小输出量准确有效。该合约通过扩展交易函数，解决了转账手续费代币在兑换和流动性操作中的计算难题，优化了去中心化交易所的用户体验。\n\n函数列表如下：  \n1. removeLiquidityETHSupportingFeeOnTransferTokens：移除流动性并返回 ETH（支持手续费代币）  \n2. removeLiquidityETHWithPermitSupportingFeeOnTransferTokens：通过签名授权移除流动性并返回 ETH（支持手续费代币）  \n3. swapExactTokensForTokensSupportingFeeOnTransferTokens：精确输入代币兑换代币（支持手续费代币）  \n4. swapExactETHForTokensSupportingFeeOnTransferTokens：精确输入 ETH 兑换代币（支持手续费代币）  \n5. swapExactTokensForETHSupportingFeeOnTransferTokens：精确输入代币兑换 ETH（支持手续费代币）  \n（注：该合约同时包含继承自 IUniswapV2Router01 的其他路由功能函数）', '智能合约名称：MasterChef。该合约是一个流动性挖矿治理合约，用于分配SUSHI代币奖励。核心功能包括管理多个质押池、计算用户奖励、处理LP代币存取及迁移。合约采用区块奖励机制，前bonusEndBlock区块阶段提供10倍奖励加速。主要逻辑涉及用户质押LP代币后，根据质押量和池子权重分配SUSHI代币，通过accSushiPerShare实现动态奖励计算。合约包含开发者地址，每区块奖励的10%分配给开发者。关键风险控制包括紧急提款功能、安全代币转账防止溢出、迁移合约权限控制。合约所有权由Ownable模式管理，未来计划移交社区治理。\n\n函数列表：\n- poolLength()：查看当前质押池总数\n- add()：管理员添加新质押池\n- set()：管理员修改质押池奖励权重\n- setMigrator()：设置LP代币迁移合约\n- migrate()：执行LP代币迁移\n- getMultiplier()：计算区块区间奖励倍率\n- pendingSushi()：查询用户待领取奖励数量\n- massUpdatePools()：批量更新所有池子奖励数据\n- updatePool()：更新单个池子奖励参数\n- deposit()：存入LP代币开始挖矿\n- withdraw()：提取LP代币并领取奖励\n- emergencyWithdraw()：紧急提取LP代币（放弃奖励）\n- safeSushiTransfer()：内部安全转账SUSHI代币\n- dev()：修改开发者地址', '智能合约名称：IUniswapV2Callee 回调接口\n\n该智能合约是 Uniswap V2 去中心化交易所的回调函数接口定义，主要用于实现闪电贷（Flash Swap）功能中的回调机制。合约通过定义标准化的 uniswapV2Call 函数接口，允许其他合约在执行闪电贷交易时触发自定义逻辑。当用户通过 Uniswap V2 池进行闪电贷借款时，交易所会在借款操作完成后自动调用借款合约中实现的这个回调函数，开发者可在此函数中编写资金处理逻辑（如套利操作、还款验证等）。关键特性包括提供交易发起者地址、借贷代币数量、附加数据参数等核心信息，要求实现合约必须正确处理借贷资金并完成还款验证。\n\n函数列表：\n1. uniswapV2Call(address sender, uint amount0, uint amount1, bytes calldata data) external: Uniswap V2 标准回调接口函数，当闪电贷交易发生时由交易所合约自动触发调用。参数包含交易发起地址 sender，两个资金池代币的借贷数量 amount0/amount1，以及用于传递自定义数据的 data 字节数组。实现该接口的合约需在此函数内完成借贷资金的使用和还款验证。', '智能合约名称：IUniswapV2Pair（Uniswap V2 交易对接口合约）。该合约是 Uniswap V2 去中心化交易所中流动性池的核心接口定义，规定了交易对合约必须实现的函数及事件。合约主要功能包括代币交易、流动性管理、价格数据追踪，同时兼容 ERC20 标准与 ERC2612 许可协议。核心模块包含：1）基础信息查询（代币符号、精度、总量）；2）ERC20 标准功能（余额查询、转账、授权）；3）链下签名许可功能；4）流动性操作（添加/移除流动性）；5）代币互换功能；6）储备量管理（同步/调整资金池）。特别包含价格累计值记录机制，为外部价格预言机提供数据支持，并通过 MINIMUM_LIQUIDITY 机制防止初始流动性攻击。\n\n函数列表：name() 获取代币名称；symbol() 获取代币符号；decimals() 获取代币精度；totalSupply() 查询总供应量；balanceOf() 查询地址余额；allowance() 查询授权额度；approve() 设置授权；transfer() 转账代币；transferFrom() 授权转账；DOMAIN_SEPARATOR() 获取EIP712域分隔符；PERMIT_TYPEHASH() 获取许可类型哈希；nonces() 查询地址随机数；permit() 签名授权；MINIMUM_LIQUIDITY() 获取最小流动性常数；factory() 查询工厂地址；token0() 查询代币0地址；token1() 查询代币1地址；getReserves() 获取储备量数据；price0CumulativeLast() 获取代币0价格累计值；price1CumulativeLast() 获取代币1价格累计值；kLast() 获取最后储备乘积；mint() 铸造流动性代币；burn() 销毁流动性代币；swap() 执行代币交换；skim() 调整超额代币余额；sync() 同步储备量；initialize() 初始化交易对。', '智能合约名称：UniswapV2ERC20接口合约\n\n该合约是Uniswap V2中ERC20代币标准的接口定义，主要定义了代币的基础功能和扩展授权功能。合约包含标准ERC20代币必备的转账、余额查询、总量控制等核心功能，同时实现了基于离线签名的许可授权机制（EIP-2612标准），允许用户通过数字签名进行代币授权操作而无需发起链上交易。关键特性包括：1. 符合ERC20标准的事件与基础转账功能；2. 支持代币元数据查询（名称/符号/精度）；3. 实现域分隔符和许可类型哈希等密码学要素；4. 提供带签名验证的permit函数实现免交易授权。合约通过nonces机制防止签名重放攻击，并通过deadline参数控制签名的有效期。\n\n函数列表：\n- name()：查询代币名称，返回字符串\n- symbol()：查询代币符号，返回字符串\n- decimals()：查询代币精度，返回uint8\n- totalSupply()：查询代币总供应量，返回uint\n- balanceOf()：查询指定地址余额，参数为地址，返回uint\n- allowance()：查询授权额度，参数为所有者和授权者地址，返回uint\n- approve()：设置授权额度，参数为授权者地址和金额，返回布尔\n- transfer()：转账到指定地址，参数为接收地址和金额，返回布尔\n- transferFrom()：从指定地址转账，参数为发送地址、接收地址和金额，返回布尔\n- DOMAIN_SEPARATOR()：获取EIP-712域分隔符，返回bytes32\n- PERMIT_TYPEHASH()：获取许可类型哈希，返回bytes32\n- nonces()：查询地址的交易计数器，参数为地址，返回uint\n- permit()：通过签名执行授权，参数包括所有者地址、授权者地址、金额、截止时间、签名vrs值', '智能合约命名为BoringMath库及BoringMath128库。这两个库合约主要用于实现安全数学运算，防止数值溢出问题。BoringMath库针对uint256类型数据，提供加法、减法、乘法运算的安全校验，并包含uint256到uint128的类型转换函数。BoringMath128库则专门处理uint128类型数据的安全加减法运算。两个库均通过require语句进行溢出检查，在发生溢出时会回滚交易并返回错误提示，有效避免智能合约中常见的算术溢出漏洞。其核心设计目标是确保数值运算的安全性，适用于需要高精度计算的DeFi场景，例如代币兑换、资金池计算等关键操作。\n\nBoringMath库函数列表：\n1. add(uint256 a, uint256 b)：执行安全加法，防止上溢\n2. sub(uint256 a, uint256 b)：执行安全减法，防止下溢\n3. mul(uint256 a, uint256 b)：执行安全乘法，防止乘积溢出\n4. to128(uint256 a)：将uint256安全转换为uint128类型\n\nBoringMath128库函数列表：\n1. add(uint128 a, uint128 b)：uint128类型安全加法\n2. sub(uint128 a, uint128 b)：uint128类型安全减法', '智能合约名称：Address 库合约。该合约是一个提供地址类型相关功能的基础工具库，主要用于安全地执行合约调用、ETH转账及地址类型检查。核心功能分为三部分：1. 通过检查extcodesize判断地址是否为合约账户；2. 改进ETH转账方法sendValue以突破2300 gas限制；3. 封装底层call调用并提供静态调用支持，实现安全的合约间交互。合约特别强调对非合约地址调用的防护，所有外部调用方法均会验证目标地址的合约属性。关键安全特性包括余额检查、错误原因回传、重入攻击风险提示，并采用汇编代码处理底层调用返回数据解析。\n\n函数列表如下：\nisContract：检查给定地址是否为合约地址，通过extcodesize获取代码大小判断\nsendValue：向指定地址发送ETH，替代transfer方法并支持全量gas传递\nfunctionCall：执行低级别call调用，不带ETH转账的基础版本\nfunctionCall：带自定义错误信息的call调用重载方法\nfunctionCallWithValue：附带ETH转账的call调用基础版本\nfunctionCallWithValue：带自定义错误信息和ETH转账的call调用重载方法\nfunctionStaticCall：执行静态call调用（不改变状态）的基础版本\nfunctionStaticCall：带错误信息的静态call调用重载方法\n_verifyCallResult：内部方法，验证调用结果并处理错误回滚逻辑', '智能合约命名为Migrator。该合约主要用于帮助用户从旧的Uniswap V2流动性池迁移到新的流动性池，由特定管理员控制迁移条件。核心功能包括：验证调用者权限、检查迁移时间条件、在目标工厂创建新交易对、将用户持有的旧流动性代币转移到新池，并生成新的流动性代币。合约通过强制校验调用者为chef管理员地址、迁移区块高度限制、原工厂地址匹配等机制确保安全性。迁移过程中会先销毁旧池的流动性代币，再通过新池的mint函数生成等量新代币给用户。\n\n函数列表如下：\n1. 构造函数：初始化设置chef管理员地址、旧工厂地址、新工厂地址及允许迁移的起始区块号。\n2. migrate：执行流动性迁移主函数，包含权限验证、新交易对创建、流动性代币转移与兑换流程。\n3. chef()：获取管理员地址的公共getter函数。\n4. oldFactory()：获取旧工厂地址的公共getter函数。\n5. factory()：获取新工厂地址的公共getter函数。\n6. notBeforeBlock()：获取允许迁移的最小区块号的公共getter函数。\n7. desiredLiquidity()：获取当前迁移所需的流动性数量的公共getter函数。', '智能合约名称：UniswapV2ERC20（SushiSwap LP 代币合约）。该合约是符合 ERC20 标准的流动性池代币实现，用于 SushiSwap 平台的 LP 代币管理。核心功能包括代币转账、授权铸造销毁机制及 EIP-712 离线许可签名功能。合约通过 SafeMath 库实现安全运算，总供应量通过 _mint/_burn 内部函数调节。特色功能 permit() 允许用户通过链下签名完成授权操作，避免提前发送交易。代币名称为"SushiSwap LP Token"，符号为"SLP"，精度 18 位。合约在初始化时构建 EIP-712 域分隔符，包含链 ID 和合约地址防止跨链重放攻击。转账授权逻辑包含特殊处理：当授权额度为 uint256 最大值时，transferFrom 不会减少授权额度以节省 gas。\n\n函数列表：\n1. 构造函数()：初始化 DOMAIN_SEPARATOR 用于 EIP-712 签名\n2. _mint(address to, uint value)：内部铸币函数，增加总供应量和接收地址余额\n3. _burn(address from, uint value)：内部销毁函数，减少总供应量和指定地址余额\n4. _approve(address owner, address spender, uint value)：内部授权处理，更新 allowance 映射\n5. _transfer(address from, address to, uint value)：内部转账逻辑，调整双方余额\n6. approve(address spender, uint value)：外部授权函数，设置第三方可操作额度\n7. transfer(address to, uint value)：标准 ERC20 转账函数\n8. transferFrom(address from, address to, uint value)：带授权检查的第三方转账功能\n9. permit(...)：离线签名授权函数，实现 EIP-712 标准许可机制', 'SushiMakerExploitMock 智能合约总结：该合约是一个针对 SushiMaker 合约的功能模拟测试合约，主要用于调用 SushiMaker 的核心转换功能。合约通过构造函数注入 SushiMaker 合约地址，并在 convert 函数中直接转发调用请求至 SushiMaker 的 convert 函数，形成轻量级的中间调用层。其设计目的可能是用于测试 SushiMaker 合约的转换功能触发机制，或模拟外部合约对 SushiMaker 合约的功能调用场景。合约代码结构极为简洁，未包含额外的业务逻辑或安全检查机制，仅保留基础调用转发功能。\n\n函数列表：\n1. constructor 构造函数：接收 SushiMaker 合约地址并初始化 sushiMaker 实例对象。\n2. convert 转换函数：通过外部传入 token0 和 token1 代币地址参数，调用 sushiMaker 合约的 convert 函数执行代币转换操作。', 'ERC20Mock 智能合约总结：该合约是基于 OpenZeppelin ERC20 标准实现的模拟代币合约，主要用于测试环境或模拟 ERC20 代币基础功能。合约通过继承 ERC20 标准合约，自动获得转账、余额查询等核心功能，并在构造函数中扩展了初始代币铸造逻辑。部署时可自定义代币名称、符号及总供应量，并立即将全部初始供应量铸造给合约部署者地址。合约未添加额外业务逻辑，核心代码仅为构造函数中的 _mint 铸造函数调用，属于最小化实现的 ERC20 基础模板合约。\n\n函数列表：1. 构造函数(name, symbol, supply) - 初始化代币名称与符号，铸造指定数量代币到部署者地址 2. transfer(recipient, amount) - 标准代币转账功能（继承自ERC20） 3. approve(spender, amount) - 设置第三方操作额度（继承自ERC20） 4. transferFrom(sender, recipient, amount) - 许可转账功能（继承自ERC20） 5. balanceOf(account) - 查询账户余额（继承自ERC20） 6. totalSupply() - 获取代币总供应量（继承自ERC20） 7. allowance(owner, spender) - 查询授权额度（继承自ERC20） 8. _mint(account, amount) - 内部铸造函数（继承自ERC20） 9. _burn(account, amount) - 内部销毁函数（继承自ERC20）', '智能合约名称：UniswapV2Library。该合约是Uniswap V2去中心化交易所的核心算法库，提供计算交易对地址、获取流动性储备量、兑换数量计算等核心功能。通过内置数学公式实现自动做市商（AMM）机制，支持代币兑换路径计算并处理0.3%交易手续费。关键功能包括：1. 使用CREATE2预测交易对合约地址 2. 实现恒定乘积公式计算兑换数量 3. 支持多跳交易路径计算 4. 自动处理代币地址排序以防止重复交易对。该库通过精确的数学计算确保链上兑换操作的准确性，为Uniswap V2的兑换路由提供底层算法支持。\n\n函数列表：  \n1. sortTokens：排序两个代币地址并验证有效性  \n2. pairFor：通过CREATE2计算交易对合约地址  \n3. getReserves：获取指定交易对的流动性储备量  \n4. quote：根据储备量计算资产等价兑换量  \n5. getAmountOut：计算给定输入量后的输出资产数量（含手续费）  \n6. getAmountIn：根据期望输出量反推需要的输入资产数量  \n7. getAmountsOut：多跳交易正向计算路径输出量  \n8. getAmountsIn：多跳交易逆向计算路径输入量', '该智能合约命名为IUniswapV2Router01，是Uniswap V2去中心化交易所的路由器接口合约。它定义了代币兑换、流动性管理及价格计算的核心功能模块，为外部合约提供了与Uniswap V2协议交互的标准函数接口。合约主要包含三大功能：流动性池的创建/移除（支持ERC20代币与ETH组合）、多种代币兑换路径的实现（支持ERC20-ERC20、ERC20-ETH互换），以及交易金额计算辅助功能。合约通过严格的参数校验机制确保交易安全性，所有交换操作均设置滑点保护（amountOutMin/amountInMax），并通过deadline参数防范交易延迟风险。\n\n函数列表如下：\nfactory() - 获取Uniswap工厂合约地址\nWETH() - 获取WETH代币合约地址\naddLiquidity() - 为两个ERC20代币创建流动性池\naddLiquidityETH() - 创建ERC20代币与ETH的流动性池（支付ETH）\nremoveLiquidity() - 移除两个ERC20代币的流动性\nremoveLiquidityETH() - 移除ERC20代币与ETH的流动性\nremoveLiquidityWithPermit() - 带签名授权的流动性移除（双代币）\nremoveLiquidityETHWithPermit() - 带签名授权的流动性移除（ETH对）\nswapExactTokensForTokens() - 固定输入量的代币兑换\nswapTokensForExactTokens() - 固定输出量的代币兑换\nswapExactETHForTokens() - ETH兑换为代币（固定输入）\nswapTokensForExactETH() - 代币兑换为ETH（固定输出）\nswapExactTokensForETH() - 代币兑换为ETH（固定输入）\nswapETHForExactTokens() - ETH兑换为代币（固定输出）\nquote() - 根据储备量计算理论兑换量\ngetAmountOut() - 计算给定输入后的输出量\ngetAmountIn() - 计算达成目标输出所需的输入量\ngetAmountsOut() - 计算兑换路径中各环节的输出量\ngetAmountsIn() - 计算兑换路径中各环节的输入量', '智能合约名称：UniswapV2Pair。该合约是Uniswap V2协议的核心交易对合约，用于管理两个ERC20代币的流动性池，实现代币兑换和流动性供应功能。合约继承自UniswapV2ERC20实现流动性代币的铸造与销毁，采用恒定乘积做市商算法维护资金池。核心功能包括添加/移除流动性、代币兑换、储备量更新及手续费计算，通过锁机制防止重入攻击，支持闪电贷式交易回调。关键机制包含首次流动性铸造时永久锁定最小流动性（MINIMUM_LIQUIDITY），价格累积计算使用UQ112x112定点数库，手续费通过_mintFee函数按协议费率动态分配至指定地址。储备量更新函数_update维护价格累积值，swap函数执行代币兑换时验证恒定乘积不变性。\n\n函数列表：\n1. constructor()：初始化工厂地址\n2. initialize(address _token0, address _token1)：设置交易对代币地址（仅工厂可调）\n3. getReserves()：查看当前储备量及时间戳（view）\n4. mint(address to)：铸造流动性代币（lock修饰）\n5. burn(address to)：销毁流动性代币并返还对应资产（lock修饰）\n6. swap(uint amount0Out, uint amount1Out, address to, bytes data)：执行代币兑换（lock修饰，支持回调）\n7. skim(address to)：提取超额代币强制匹配储备（lock修饰）\n8. sync()：强制更新储备量为当前余额（lock修饰）\n9. _safeTransfer(address token, address to, uint value)：安全转账私有方法\n10. _update(uint balance0, uint balance1, uint112 _reserve0, uint112 _reserve1)：更新储备量与价格累积值（私有）\n11. _mintFee(uint112 _reserve0, uint112 _reserve1)：计算铸造手续费（私有）', '智能合约名称：UQ112x112 定点数运算库  \n该智能合约是一个用于处理二进制定点数运算的工具库，采用Q112x112数据格式实现高精度数值计算。核心功能包括将普通整数编码为定点数，以及执行定点数与整数间的除法运算。合约通过固定小数点位置（112位小数位）来避免浮点数运算，适用于需要高精度计算且防止精度丢失的场景，如去中心化交易所的价格计算。  \n\n库中定义常量Q112=2^112作为格式基准，所有数值范围限定在[0, 2^112-1]区间，分辨率达到1/2^112。主要操作包含：  \n1. 编码函数将uint112整数转换为Q112x112格式的定点数，通过位左移112位实现  \n2. 除法函数对Q112x112格式的定点数执行除以uint112整数的运算，结果仍保持Q112x112格式  \n\n函数列表：  \n- encode(uint112 y)：将uint112整数转换为UQ112x112格式定点数，通过将输入值乘以2^112实现  \n- uqdiv(uint224 x, uint112 y)：将UQ112x112格式数x除以uint112整数y，返回UQ112x112格式结果', '智能合约名称：Context。该合约是一个提供当前执行上下文信息的抽象合约，主要用于在中间件或类库合约中间接获取交易发送者及调用数据。合约核心功能是封装对msg.sender和msg.data的直接访问，解决GSN（Gas Station Network）元交易场景中实际发送者与支付账户可能分离的问题。合约通过两个内部视图函数实现：_msgSender()返回当前消息发送者的地址，_msgData()返回原始调用数据。关键设计点包括将函数声明为virtual以便子类重写，以及通过this语句消除Solidity编译器关于状态可变性的警告。此合约通常作为基础合约被继承，例如在ERC20代币或权限管理合约中获取安全的发送者信息，避免直接依赖msg.sender导致元交易兼容性问题。\n\n函数列表：1. 函数名_msgSender，功能描述：内部视图函数，返回当前交易发送者的address payable类型地址。2. 函数名_msgData，功能描述：内部视图函数，返回完整的原始调用数据bytes memory，用于处理需要完整数据包的场景。', '智能合约名称：IUniswapV2Factory接口 该合约是Uniswap V2去中心化交易所的核心工厂合约接口定义，主要负责创建和管理流动性池交易对。合约采用工厂模式动态生成ERC20代币交易对合约，核心功能包括查询交易对地址、创建新交易对、管理协议费用接收地址及权限控制。合约通过维护所有已创建交易对的地址列表实现交易对检索，提供设置协议费用接收地址的功能模块，并包含迁移功能的扩展接口。该接口定义了去中心化交易所底层流动性池的创建机制，为自动做市商（AMM）提供基础设施支持。\n\n函数列表：1. feeTo()：查询协议费用接收地址 2. feeToSetter()：查询协议费用设置权限地址 3. migrator()：查询迁移管理器地址 4. getPair()：根据代币地址查询配对合约地址 5. allPairs()：通过索引获取已创建的交易对地址 6. allPairsLength()：获取已创建交易对总数 7. createPair()：创建新的代币交易对合约 8. setFeeTo()：设置协议费用接收地址 9. setFeeToSetter()：设置协议费用权限管理地址 10. setMigrator()：设置迁移管理器地址', '智能合约名称：EnumerableSet。该合约为一个Solidity库，提供可枚举集合数据结构实现，支持bytes32、address和uint256三种数据类型。核心功能通过内部Set结构体实现，使用_values数组存储元素，配合_indexes映射实现O(1)时间复杂度的元素增删查操作，元素枚举为O(n)时间复杂度但不保证顺序。库通过泛型设计减少代码重复，为不同数据类型封装了对应的结构体（Bytes32Set/AddressSet/UintSet）。主要特性包括：1. 添加元素时自动去重 2. 删除元素采用"swap and pop"优化技术 3. 提供安全的索引访问机制 4. 支持三种常用数据类型的隐式转换。该库常用于需要跟踪唯一值且可能进行枚举操作的场景，如代币持有者列表、唯一ID管理等。\n\n函数列表：\n[内部Set操作]\n_add(Set,bytes32)：添加元素到集合，返回是否成功添加\n_remove(Set,bytes32)：删除集合元素，返回是否成功删除\n_contains(Set,bytes32)：检查元素是否存在集合中\n_length(Set)：获取集合元素总量\n_at(Set,uint256)：通过索引获取集合元素\n\n[Bytes32Set操作]\nadd(Bytes32Set,bytes32)：添加bytes32元素\nremove(Bytes32Set,bytes32)：删除bytes32元素\ncontains(Bytes32Set,bytes32)：检查bytes32元素存在性\nlength(Bytes32Set)：获取集合大小\nat(Bytes32Set,uint256)：通过索引获取bytes32元素\n\n[AddressSet操作]\nadd(AddressSet,address)：添加address元素\nremove(AddressSet,address)：删除address元素\ncontains(AddressSet,address)：检查address元素存在性\nlength(AddressSet)：获取集合大小\nat(AddressSet,uint256)：通过索引获取address元素\n\n[UintSet操作]\nadd(UintSet,uint256)：添加uint256元素\nremove(UintSet,uint256)：删除uint256元素\ncontains(UintSet,uint256)：检查uint256元素存在性\nlength(UintSet)：获取集合大小\nat(UintSet,uint256)：通过索引获取uint256元素', '智能合约名称：UniswapV2Router02。该合约是Uniswap V2协议的核心路由合约，主要负责处理流动性添加/移除、代币兑换及ETH-WETH转换功能。合约通过工厂模式管理交易对，支持普通代币与手续费代币两种类型的资产操作，内置滑点保护与交易有效期验证机制。核心功能分为四个部分：1）流动性管理模块通过_addLiquidity计算最优代币数量，自动创建交易对并铸造LP代币；2）移除流动性时支持直接撤回和带签名的许可撤回两种模式；3）提供8种兑换函数处理代币与ETH之间的精确输入/输出兑换，采用链式路径交易模式；4）集成SafeMath数学库与TransferHelper安全转账工具，所有交易操作均包含最后期限校验修饰器ensure。合约特别处理WETH与ETH的相互转换，所有ETH操作均通过WETH合约进行封装。\n\n函数列表：\n1. 构造函数：初始化工厂地址和WETH地址\n2. receive：接收ETH的回退函数\n3. _addLiquidity（内部）：计算添加流动性的最优代币数量\n4. addLiquidity：添加两个ERC20代币的流动性\n5. addLiquidityETH：添加ETH与ERC20代币的流动性\n6. removeLiquidity：移除两个ERC20代币的流动性\n7. removeLiquidityETH：移除ETH与ERC20代币的流动性\n8. removeLiquidityWithPermit：带签名许可的流动性移除\n9. removeLiquidityETHWithPermit：带签名许可的ETH流动性移除\n10. removeLiquidityETHSupportingFeeOnTransferTokens：支持手续费代币的ETH流动性移除\n11. removeLiquidityETHWithPermitSupportingFeeOnTransferTokens：带签名许可的手续费代币ETH流动性移除\n12. _swap（内部）：执行多路径代币兑换\n13. swapExactTokensForTokens：精确输入代币兑换\n14. swapTokensForExactTokens：精确输出代币兑换\n15. swapExactETHForTokens：精确ETH输入兑换代币\n16. swapTokensForExactETH：精确代币兑换ETH输出\n17. swapExactTokensForETH：精确代币兑换ETH\n18. swapETHForExactTokens：精确ETH兑换代币输出\n19. _swapSupportingFeeOnTransferTokens（内部）：支持手续费代币的兑换\n20. swapExactTokensForTokensSupportingFeeOnTransferTokens：精确输入手续费代币兑换\n21. swapExactETHForTokensSupportingFeeOnTransferTokens：精确ETH兑换手续费代币\n22. swapExactTokensForETHSupportingFeeOnTransferTokens：精确手续费代币兑换ETH\n23. quote：报价代币兑换比例\n24. getAmountOut：计算输出代币数量\n25. getAmountIn：计算所需输入代币数量\n26. getAmountsOut：获取多路径兑换输出数组\n27. getAmountsIn：获取多路径兑换输入数组', '智能合约名称：IWETH（Wrapped Ether 接口合约）该合约是 Wrapped Ether（WETH）标准的接口定义，用于实现 ETH 与 ERC20 标准代币的相互转换功能。作为接口合约，它定义了其他合约与 WETH 代币交互时必须实现的三个核心功能：1. deposit() 函数实现 ETH 的包装功能，允许用户通过发送 ETH 生成等量的 WETH 代币。2. transfer() 提供标准的代币转账功能，符合 ERC20 代币标准。3. withdraw() 实现逆向解包功能，允许用户销毁 WETH 代币并赎回等量 ETH。该接口采用 Solidity 0.5.0 及以上版本编译，通过标准化函数定义确保了与各类 WETH 实现合约的兼容性，主要应用于去中心化交易所、跨链桥等需要 ETH 与 ERC20 代币互换的场景。函数列表：1. deposit() external payable - 接收 ETH 并铸造等量 WETH 代币2. transfer(address to, uint value) external returns (bool) - 向指定地址转移 WETH 代币3. withdraw(uint) external - 销毁指定数量的 WETH 并赎回等量 ETH', '智能合约名称：ERC20 标准代币合约。该合约是遵循 ERC20 标准的代币基础实现，基于 OpenZeppelin 库构建，提供代币基本功能与安全机制。核心功能包括代币转账、余额查询、授权管理及供应量控制。合约采用 SafeMath 数学库防止算术溢出，并通过事件记录转账和授权操作。代币名称、符号和默认小数位数（18）在构造函数初始化且不可更改，但提供内部函数 _setupDecimals 调整小数位数（不推荐使用）。关键特性包含转账前钩子函数 _beforeTokenTransfer 供扩展功能，代币铸造与销毁功能仅开放给内部调用，需在派生合约中实现具体供应机制。该合约实现了 ERC20 标准接口，并增加 allowance 安全操作方法，通过 increaseAllowance 和 decreaseAllowance 函数避免授权竞争条件问题。\n\n函数列表如下：\n1. constructor：初始化代币名称、符号和小数位。\n2. name：返回代币名称。\n3. symbol：返回代币符号。\n4. decimals：返回代币小数位数。\n5. totalSupply：返回代币总供应量。\n6. balanceOf：查询指定地址余额。\n7. transfer：执行代币转账。\n8. allowance：查询授权额度。\n9. approve：设置代币操作授权。\n10. transferFrom：从授权地址执行代币转账。\n11. increaseAllowance：增加授权额度。\n12. decreaseAllowance：减少授权额度。\n13. _transfer：内部转账逻辑处理。\n14. _mint：内部代币铸造函数。\n15. _burn：内部代币销毁函数。\n16. _approve：内部授权逻辑处理。\n17. _setupDecimals：内部设置小数位数。\n18. _beforeTokenTransfer：转账前钩子函数（需子类实现）。', 'SafeERC20 库智能合约总结：该合约是 OpenZeppelin 提供的 SafeERC20 安全操作库，用于增强 ERC20 代币操作的安全性。主要解决 ERC20 代币在 transfer/approve 等操作中不同实现标准不一致的问题，通过封装安全校验逻辑防止常见错误。核心功能包括：1. 对 transfer 和 transferFrom 操作添加返回值校验，强制要求代币合约返回布尔值 2. 对 approve 操作增加零值安全检查，防止先修改非零授权值的风险场景 3. 提供安全增减授权额度函数 safeIncreaseAllowance/safeDecreaseAllowance 替代直接 approve 操作 4. 通过低阶 call 调用实现兼容性处理，支持无返回值代币合约。该库采用 SafeMath 做算术校验，结合 Address 工具库进行合约调用验证，确保所有 ERC20 操作在失败时会 revert 交易，为上层合约提供标准化的安全代币操作接口。\n\n函数列表：\n1. safeTransfer(IERC20,address,uint256) - 安全转账函数，执行 ERC20 的 transfer 调用并验证结果\n2. safeTransferFrom(IERC20,address,address,uint256) - 安全转账函数，执行 transferFrom 调用并验证结果\n3. safeApprove(IERC20,address,uint256) - 带安全检查的授权函数（已弃用）\n4. safeIncreaseAllowance(IERC20,address,uint256) - 安全增加授权额度函数\n5. safeDecreaseAllowance(IERC20,address,uint256) - 安全减少授权额度函数\n6. _callOptionalReturn(IERC20,bytes) - 内部方法，执行底层代币合约调用并验证结果', 'IERC20接口合约总结：该智能合约为遵循ERC20标准的代币接口，并扩展支持EIP-2612的离线授权功能。合约定义了代币的基础功能，包括查询代币总供应量(totalSupply)、查询账户余额(balanceOf)、查询授权额度(allowance)、执行授权操作(approve)以及通过签名实现无gas费授权的permit函数。合约包含两个事件：Transfer用于记录转账行为，Approval用于记录授权操作。其中permit函数是EIP-2612的核心扩展，允许用户通过链下签名方式完成授权，避免直接发送交易消耗gas，提升了代币交互的用户体验。  \n  \n函数列表：  \ntotalSupply() – 查询代币总供应量  \nbalanceOf(address) – 获取指定地址的代币余额  \nallowance(address,address) – 查询所有者到操作者的授权额度  \napprove(address,uint256) – 授权给指定地址特定数量的代币操作权限  \npermit(address,address,uint256,uint256,uint8,bytes32,bytes32) – 通过签名实现离线授权操作  \nTransfer事件 – 记录代币转账交易日志  \nApproval事件 – 记录代币授权操作日志', '智能合约名称：BoringOwnable。该合约是基于OpenZeppelin的Ownable合约改进的所有权管理合约，提供两种所有权转移方式和权限控制机制。核心功能包括：1. 通过构造函数初始化部署者为初始所有者；2. 支持直接转移所有权或分两步转移（先设定待定所有者再声明）；3. 包含权限修饰器确保只有所有者能操作关键功能；4. 通过事件记录所有权变更过程。合约采用分层设计，将数据存储与逻辑分离，BoringOwnableData合约专门存储所有者地址状态变量，BoringOwnable主合约实现业务逻辑。安全机制包括地址有效性校验、调用者身份验证，并支持通过renounce参数允许转让零地址实现主动放弃所有权。函数列表：1. transferOwnership(地址新所有者,bool是否直接转移,bool是否放弃所有权) - 执行所有权转移操作，直接模式立即生效，非直接模式设定待定所有者；2. claimOwnership() - 待定所有者正式声明获得所有权；3. onlyOwner修饰器 - 限制仅合约所有者可访问被修饰函数。', '智能合约命名为Ownable。该合约为一个提供基本权限管理的抽象合约，用于实现合约函数的所有者控制机制。核心功能是通过`onlyOwner`修饰符限制特定函数仅允许合约所有者调用，支持所有权转移和放弃操作。合约在部署时将部署者设为初始所有者，并允许当前所有者通过`transferOwnership`将权限转移至新地址，或通过`renounceOwnership`彻底放弃所有权。合约内部通过地址状态变量`_owner`跟踪当前所有者，并在所有权变更时触发`OwnershipTransferred`事件。关键代码逻辑包括构造函数初始化、权限验证修饰符、以及所有权变更函数的安全检查（如新地址非零验证）。\n\n函数列表如下：\n1. 构造函数：初始化合约，将部署者设置为初始所有者。\n2. `owner()`：视图函数，返回当前所有者地址。\n3. `onlyOwner`修饰符：验证调用者为所有者，否则回滚交易。\n4. `renounceOwnership()`：仅所有者调用，将所有者设为零地址，彻底放弃所有权。\n5. `transferOwnership(address newOwner)`：仅所有者调用，将所有权转移到非零地址的新所有者。', '智能合约名称：BoringERC20 库。该合约是一个用于安全处理 ERC20 代币操作的辅助库，通过封装底层调用逻辑增强与代币合约交互的健壮性。主要功能包括安全获取代币信息（符号、名称、小数位）和执行代币转账操作，针对非标准 ERC20 实现进行了兼容性处理。其核心特点是采用静态调用+选择器验证机制：1. 通过固定函数选择器直接调用代币合约的特定方法（如 0x95d89b41 对应 symbol()），2. 对所有调用结果进行双重验证（success 状态码与返回数据长度），3. 为信息查询方法提供失败默认值（如小数位失败返回 18，符号/名称返回"???"），4. 转账操作通过 require 强制校验确保交易原子性。该库特别适用于需要兼容多种 ERC20 变体的场景，通过标准化异常处理降低集成风险。\n\n函数列表：\n1. safeSymbol(IERC20) 视图函数，安全获取代币符号，失败返回???\n2. safeName(IERC20) 视图函数，安全获取代币名称，失败返回???\n3. safeDecimals(IERC20) 公共视图函数，安全获取代币小数位，失败返回18\n4. safeTransfer(IERC20,address,uint256) 内部函数，执行代币转账，强制校验交易结果\n5. safeTransferFrom(IERC20,address,uint256) 内部函数，执行代币授权转账，强制校验交易结果', '智能合约名称：Math 库。该合约是一个提供数学运算功能的工具库，主要用于处理无符号整数的基本运算，包含最小值计算和平方根计算两大核心功能。关键代码分析：1. min() 函数采用三元运算符实现两数取最小值的简洁逻辑；2. sqrt() 函数基于巴比伦迭代法实现平方根运算，通过条件判断分别处理输入值大于3、等于0以及1-3三种情况，使用循环迭代逼近精确结果。代码特点表现为纯函数设计（pure修饰符），无状态修改且节省gas消耗，适用于其他合约的数学计算辅助场景。函数列表：1. min(uint x, uint y) - 比较两个无符号整数返回较小值；2. sqrt(uint y) - 通过巴比伦方法计算输入值的平方根。', '智能合约名称：SushiToken。该合约是基于 ERC20 标准的治理代币合约，结合了代币基础功能与投票权委托机制，主要用于实现去中心化治理功能。合约继承自 OpenZeppelin 的 ERC20 和 Ownable，核心特性包括代币铸造权限制、链上投票委托系统及历史投票记录查询功能。关键特性如下：1. 代币发行仅允许合约所有者（MasterChef）通过 mint 函数执行，铸造时自动同步更新委托投票数据；2. 采用类似 Compound 的委托治理模型，通过检查点(checkpoints)结构记录区块投票数变化；3. 支持通过普通交易或离线签名两种方式进行投票委托；4. 提供当前投票权重和历史区块投票权重查询功能，为治理提案提供时间维度数据支持。合约通过 _moveDelegates 内部函数维护委托关系变更时的投票权转移逻辑，并使用 EIP-712 标准实现离线签名验证。\n\n函数列表：1. mint(地址_接收方, 数量)：所有者专属代币铸造函数，触发投票权变更。2. delegates(委托方地址)：查询指定地址的当前委托对象。3. delegate(被委托方地址)：发起投票委托的标准函数。4. delegateBySig(被委托方地址, nonce, 有效期, v/r/s 签名参数)：支持通过离线签名完成委托的扩展函数。5. getCurrentVotes(账户地址)：获取指定账户当前有效投票权重。6. getPriorVotes(账户地址, 区块号)：查询指定账户在历史区块高度时的投票权重。7. _delegate(委托方, 被委托方)：处理委托关系变更的内部逻辑。8. _moveDelegates(原代表, 新代表, 数量)：更新委托投票权变更的核心内部函数。9. _writeCheckpoint(代表地址, 检查点数量, 旧票数, 新票数)：记录投票权变更检查点的底层函数。10. safe32(数值, 错误信息)：数值安全转换工具函数。11. getChainId()：获取当前链ID的辅助函数。', 'SushiSwapFactoryMock 智能合约总结：该合约是基于 UniswapV2Factory 的模拟版本，核心功能是创建代币交易对并管理手续费相关权限设置。合约通过继承方式完整复用了 UniswapV2Factory 的逻辑，未添加新功能。其核心价值在于通过构造函数初始化 feeToSetter 地址（手续费管理权限账户），该地址拥有设置平台手续费接收账户的权限。关键代码体现在构造函数对父类初始化参数的传递，保持与原生工厂合约一致的特性，适用于测试环境或需要兼容 UniswapV2 协议的场景。\n\n函数列表：\n1. constructor(_feeToSetter) - 初始化合约并设置手续费权限管理员地址\n2. createPair(tokenA, tokenB) - 创建两个 ERC20 代币的交易对合约\n3. setFeeTo(_feeTo) - 设置平台手续费接收地址（仅 feeToSetter 可调用）\n4. setFeeToSetter(_feeToSetter) - 转移手续费权限管理权（仅当前 feeToSetter 可调用）\n5. getPair(tokenA, tokenB) - 查询两个代币对应的交易对合约地址\n6. allPairs(uint) - 通过索引获取已创建的交易对地址\n7. allPairsLength() - 获取已创建交易对的总数量\n8. feeTo() - 查询当前手续费接收地址\n9. feeToSetter() - 查询当前手续费权限管理员地址', '智能合约命名为 TransferHelper 库。该合约是一个用于简化 ERC20 代币和以太币转账操作的工具库，主要解决不同代币在转账函数返回值不一致时的兼容性问题。它通过封装底层调用并统一校验交易结果，为开发者提供安全的代币授权、转账及 ETH 转账功能。核心特点是采用低级 call 方法执行代币操作，并通过 require 语句强制验证交易结果，当交易失败时会返回特定错误信息中断执行。\n\n关键代码逻辑包括：1. 使用 abi.encodeWithSelector 硬编码 ERC20 函数选择器，直接调用代币合约的函数。2. 对返回数据做双重验证，既要求调用成功，同时要求返回数据长度为 0 或解码为 true。3. ETH 转账采用空字节数据调用，避免 gas 消耗问题。4. 所有函数声明为 internal 可见性，说明这是供其他合约调用的基础库。\n\n函数列表：\nsafeApprove(address token, address to, uint value)：安全授权函数，允许目标地址操作指定数量的代币\nsafeTransfer(address token, address to, uint value)：安全转账函数，向指定地址发送代币\nsafeTransferFrom(address token, address from, address to, uint value)：安全转账函数，从源地址向目标地址转移代币\nsafeTransferETH(address to, uint value)：安全以太币转账函数，向指定地址发送 ETH', '智能合约名称：SafeMathUniswap 库。该合约是一个用于算术运算安全校验的辅助库，主要功能是通过检查数值溢出/下溢情况确保加减乘操作的安全性，适用于旧版本 Solidity（0.6.x）的智能合约开发环境。该库包含三个核心函数，分别处理加法、减法和乘法的安全运算，通过 require 语句在运算后验证结果有效性，若计算结果超出 uint 类型范围将回滚交易并返回特定错误信息。该库代码源自 DappHub 的 ds-math 项目，属于 Uniswap 项目中常用的基础安全模块。\n\n函数列表如下：\n1. add(uint x, uint y)：执行安全加法运算，检查结果是否大于等于 x 以防止溢出\n2. sub(uint x, uint y)：执行安全减法运算，检查结果是否小于等于 x 以防止下溢\n3. mul(uint x, uint y)：执行安全乘法运算，通过反向除法验证乘积结果的有效性防止溢出', '智能合约名称：Timelock（时间锁合约）。该合约用于管理交易的延迟执行，通过时间锁定机制确保链上操作的安全性。核心功能包括设置交易队列、强制执行延迟期、权限管理（管理员交接）及交易取消机制。合约通过最小2天、最大30天的延迟参数与14天宽限期约束交易执行时间，防止恶意操作。关键代码逻辑涉及交易哈希计算、时间戳验证及权限校验，确保只有管理员可发起交易且满足时间条件才能执行。合约采用OpenZeppelin的SafeMath库防止数值溢出，并通过事件记录所有关键操作。\n\n函数列表：\n1. 构造函数constructor：初始化管理员地址与延迟时间，验证初始延迟合规性。\n2. receive：接收ETH的fallback函数。\n3. setDelay：由合约自身调用，修改交易执行延迟时间，需在合法范围内。\n4. acceptAdmin：待定管理员调用以确认成为正式管理员。\n5. setPendingAdmin：设置待定管理员地址，首次部署可由当前管理员直接设置，后续需通过合约提案。\n6. queueTransaction：管理员将交易加入队列，生成交易哈希并记录预计执行时间。\n7. cancelTransaction：管理员取消已排队交易，更新交易哈希状态。\n8. executeTransaction：管理员执行已到期的队列交易，验证时间有效性后调用目标合约。\n9. getBlockTimestamp：内部函数返回当前区块时间戳。']], 'uris': None, 'data': None, 'metadatas': [[{'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}, {'address': '0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50'}]], 'distances': [[0.3216843605041504, 0.3238765597343445, 0.3489410877227783, 0.34983599185943604, 0.37084150314331055, 0.3845040202140808, 0.388766884803772, 0.39392608404159546, 0.3941119909286499, 0.3978077173233032, 0.4027244448661804, 0.40315061807632446, 0.404471218585968, 0.4073238968849182, 0.41541510820388794, 0.41632306575775146, 0.4247029423713684, 0.4350459575653076, 0.4430057406425476, 0.44659489393234253, 0.4535796642303467, 0.45604240894317627, 0.4583430886268616, 0.4732213616371155, 0.47962814569473267, 0.48002785444259644, 0.48357659578323364, 0.4875867962837219, 0.4912087917327881, 0.49420660734176636, 0.5017443895339966, 0.503752589225769, 0.5067626237869263, 0.519659698009491, 0.5441238284111023, 0.5550817251205444, 0.5724846124649048]], 'included': [<IncludeEnum.distances: 'distances'>, <IncludeEnum.documents: 'documents'>, <IncludeEnum.metadatas: 'metadatas'>]}
+------------------------------------------------
+重排序结果：
+['SushiSwap-UniswapV2Factory.sol', 'SushiSwap-SushiMaker.sol', 'SushiSwap-IUniswapV2Router02.sol', 'SushiSwap-MasterChef.sol', 'SushiSwap-IUniswapV2Pair.sol', 'SushiSwap-IUniswapV2ERC20.sol', 'SushiSwap-BoringMath.sol', 'SushiSwap-Address.sol', 'SushiSwap-Migrator.sol', 'SushiSwap-UniswapV2ERC20.sol', 'SushiSwap-SushiMakerExploitMock.sol', 'SushiSwap-ERC20Mock.sol', 'SushiSwap-UniswapV2Library.sol', 'SushiSwap-IUniswapV2Router01.sol', 'SushiSwap-UniswapV2Pair.sol']
+------------------------------------------------
+函数切片：
+
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Factory.sol-constructor-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Factory.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_feeToSetter', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Factory.sol', 'external_calls': [], 'state_vars': {'read': ['feeToSetter'], 'written': []}, 'src': '18#20'}"}
+函数切片:
+    constructor(address _feeToSetter) public {
+        feeToSetter = _feeToSetter;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Factory.sol-allPairsLength-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Factory.sol', 'is_fault': False, 'message': "{'name': 'allPairsLength', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Factory.sol', 'external_calls': [], 'state_vars': {'read': ['allPairs'], 'written': []}, 'src': '22#24'}"}
+函数切片:
+    function allPairsLength() external override view returns (uint) {
+        return allPairs.length;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Factory.sol-pairCodeHash-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Factory.sol', 'is_fault': False, 'message': "{'name': 'pairCodeHash', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Factory.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#28'}"}
+函数切片:
+    function pairCodeHash() external pure returns (bytes32) {
+        return keccak256(type(UniswapV2Pair).creationCode);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Factory.sol-createPair-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Factory.sol', 'is_fault': False, 'message': "{'name': 'createPair', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'tokenA', 'type': 'address'}, {'name': 'tokenB', 'type': 'address'}], 'returns': [{'name': 'pair', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': ['PairCreated'], 'errors': ['UniswapV2: IDENTICAL_ADDRESSES', 'UniswapV2: ZERO_ADDRESS', 'UniswapV2: PAIR_EXISTS'], 'contract': 'SushiSwap-UniswapV2Factory.sol', 'external_calls': [], 'state_vars': {'read': ['getPair', 'getPair', 'getPair', 'allPairs', 'allPairs'], 'written': []}, 'src': '30#45'}"}
+函数切片:
+    function createPair(address tokenA, address tokenB) external override returns (address pair) {
+        require(tokenA != tokenB, 'UniswapV2: IDENTICAL_ADDRESSES');
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+        require(token0 != address(0), 'UniswapV2: ZERO_ADDRESS');
+        require(getPair[token0][token1] == address(0), 'UniswapV2: PAIR_EXISTS'); // single check is sufficient
+        bytes memory bytecode = type(UniswapV2Pair).creationCode;
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        assembly {
+            pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
+        }
+        UniswapV2Pair(pair).initialize(token0, token1);
+        getPair[token0][token1] = pair;
+        getPair[token1][token0] = pair; // populate mapping in the reverse direction
+        allPairs.push(pair);
+        emit PairCreated(token0, token1, pair, allPairs.length);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Factory.sol-setFeeTo-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Factory.sol', 'is_fault': False, 'message': "{'name': 'setFeeTo', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_feeTo', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2: FORBIDDEN'], 'contract': 'SushiSwap-UniswapV2Factory.sol', 'external_calls': [], 'state_vars': {'read': ['feeToSetter', 'feeTo'], 'written': []}, 'src': '47#50'}"}
+函数切片:
+    function setFeeTo(address _feeTo) external override {
+        require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+        feeTo = _feeTo;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Factory.sol-setMigrator-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Factory.sol', 'is_fault': False, 'message': "{'name': 'setMigrator', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_migrator', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2: FORBIDDEN'], 'contract': 'SushiSwap-UniswapV2Factory.sol', 'external_calls': [], 'state_vars': {'read': ['feeToSetter', 'migrator'], 'written': []}, 'src': '52#55'}"}
+函数切片:
+    function setMigrator(address _migrator) external override {
+        require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+        migrator = _migrator;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Factory.sol-setFeeToSetter-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Factory.sol', 'is_fault': False, 'message': "{'name': 'setFeeToSetter', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_feeToSetter', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2: FORBIDDEN'], 'contract': 'SushiSwap-UniswapV2Factory.sol', 'external_calls': [], 'state_vars': {'read': ['feeToSetter', 'feeToSetter'], 'written': []}, 'src': '57#60'}"}
+函数切片:
+    function setFeeToSetter(address _feeToSetter) external override {
+        require(msg.sender == feeToSetter, 'UniswapV2: FORBIDDEN');
+        feeToSetter = _feeToSetter;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-constructor-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_factory', 'type': 'address'}, {'name': '_bar', 'type': 'address'}, {'name': '_sushi', 'type': 'address'}, {'name': '_weth', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory', 'bar', 'sushi', 'weth'], 'written': []}, 'src': '43#48'}"}
+函数切片:
+    constructor (address _factory, address _bar, address _sushi, address _weth) public {
+       factory = IUniswapV2Factory(_factory);
+       bar = _bar;
+       sushi = _sushi;
+       weth = _weth;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-bridgeFor-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': True, 'message': "{'name': 'bridgeFor', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'token', 'type': 'address'}], 'returns': [{'name': 'bridge', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['_bridges', 'weth'], 'written': []}, 'src': '52#57'}"}
+函数切片:
+    function bridgeFor(address token) public view returns (address bridge) {
+        bridge = _bridges[token];
+        if (bridge == address(0)) {
+            bridge = weth;
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-setBridge-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'setBridge', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'bridge', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogBridgeSet'], 'errors': ['SushiMaker: Invalid bridge'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'weth', '_bridges'], 'written': []}, 'src': '61#68'}"}
+函数切片:
+    function setBridge(address token, address bridge) external onlyOwner {
+        // Checks
+        require(token != sushi && token != weth && token != bridge, "SushiMaker: Invalid bridge");
+
+        // Effects
+        _bridges[token] = bridge;
+        emit LogBridgeSet(token, bridge);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-onlyEOA-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'onlyEOA', 'type': 'modifier', 'contract': 'SushiSwap-SushiMaker.sol', 'src': '73#77'}"}
+函数切片:
+    modifier onlyEOA() {
+        // Try to make flash-loan exploit harder to do.
+        require(msg.sender == tx.origin, "SushiMaker: must use EOA");
+        _;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-convert-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'convert', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '85#87'}"}
+函数切片:
+    function convert(address token0, address token1) external onlyEOA() {
+        _convert(token0, token1);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-convertMultiple-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': 'convertMultiple', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address[]'}, {'name': 'token1', 'type': 'address[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '92#98'}"}
+函数切片:
+    function convertMultiple(address[] calldata token0, address[] calldata token1) external onlyEOA() {
+        // TODO: This can be optimized a fair bit, but this is safer and simpler for now
+        uint256 len = token0.length;
+        for(uint256 i=0; i < len; i++) {
+            _convert(token0[i], token1[i]);
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_convert-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_convert', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogConvert'], 'errors': ['SushiMaker: Invalid pair'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory'], 'written': []}, 'src': '102#116'}"}
+函数切片:
+    function _convert(address token0, address token1) internal {
+        // Interactions
+        // S1 - S4: OK
+        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(token0, token1));
+        require(address(pair) != address(0), "SushiMaker: Invalid pair");
+        // balanceOf: S1 - S4: OK
+        // transfer: X1 - X5: OK
+        IERC20(address(pair)).safeTransfer(address(pair), pair.balanceOf(address(this)));
+        // X1 - X5: OK
+        (uint256 amount0, uint256 amount1) = pair.burn(address(this));
+        if (token0 != pair.token0()) {
+            (amount0, amount1) = (amount1, amount0);
+        }
+        emit LogConvert(msg.sender, token0, token1, amount0, amount1, _convertStep(token0, token1, amount0, amount1));
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_convertStep-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_convertStep', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}, {'name': 'amount0', 'type': 'uint256'}, {'name': 'amount1', 'type': 'uint256'}], 'returns': [{'name': 'sushiOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'sushi', 'weth', 'weth', 'weth', 'weth', 'weth', 'weth', 'bar', 'sushi', 'bar', 'sushi', 'sushi', 'weth', 'weth', 'bar', 'sushi'], 'written': []}, 'src': '121#165'}"}
+函数切片:
+    function _convertStep(address token0, address token1, uint256 amount0, uint256 amount1) internal returns(uint256 sushiOut) {
+        // Interactions
+        if (token0 == token1) {
+            uint256 amount = amount0.add(amount1);
+            if (token0 == sushi) {
+                IERC20(sushi).safeTransfer(bar, amount);
+                sushiOut = amount;
+            } else if (token0 == weth) {
+                sushiOut = _toSUSHI(weth, amount);
+            } else {
+                address bridge = bridgeFor(token0);
+                amount = _swap(token0, bridge, amount, address(this));
+                sushiOut = _convertStep(bridge, bridge, amount, 0);
+            }
+        } else if (token0 == sushi) { // eg. SUSHI - ETH
+            IERC20(sushi).safeTransfer(bar, amount0);
+            sushiOut = _toSUSHI(token1, amount1).add(amount0);
+        } else if (token1 == sushi) { // eg. USDT - SUSHI
+            IERC20(sushi).safeTransfer(bar, amount1);
+            sushiOut = _toSUSHI(token0, amount0).add(amount1);
+        } else if (token0 == weth) { // eg. ETH - USDC
+            sushiOut = _toSUSHI(weth, _swap(token1, weth, amount1, address(this)).add(amount0));
+        } else if (token1 == weth) { // eg. USDT - ETH
+            sushiOut = _toSUSHI(weth, _swap(token0, weth, amount0, address(this)).add(amount1));
+        } else { // eg. MIC - USDT
+            address bridge0 = bridgeFor(token0);
+            address bridge1 = bridgeFor(token1);
+            if (bridge0 == token1) { // eg. MIC - USDT - and bridgeFor(MIC) = USDT
+                sushiOut = _convertStep(bridge0, token1,
+                    _swap(token0, bridge0, amount0, address(this)),
+                    amount1
+                );
+            } else if (bridge1 == token0) { // eg. WBTC - DSD - and bridgeFor(DSD) = WBTC
+                sushiOut = _convertStep(token0, bridge1,
+                    amount0,
+                    _swap(token1, bridge1, amount1, address(this))
+                );
+            } else {
+                sushiOut = _convertStep(bridge0, bridge1, // eg. USDT - DSD - and bridgeFor(DSD) = WBTC
+                    _swap(token0, bridge0, amount0, address(this)),
+                    _swap(token1, bridge1, amount1, address(this))
+                );
+            }
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_swap-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_swap', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'fromToken', 'type': 'address'}, {'name': 'toToken', 'type': 'address'}, {'name': 'amountIn', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SushiMaker: Cannot convert'], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['factory'], 'written': []}, 'src': '170#191'}"}
+函数切片:
+    function _swap(address fromToken, address toToken, uint256 amountIn, address to) internal returns (uint256 amountOut) {
+        // Checks
+        // X1 - X5: OK
+        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(fromToken, toToken));
+        require(address(pair) != address(0), "SushiMaker: Cannot convert");
+
+        // Interactions
+        // X1 - X5: OK
+        (uint256 reserve0, uint256 reserve1,) = pair.getReserves();
+        uint256 amountInWithFee = amountIn.mul(997);
+        if (fromToken == pair.token0()) {
+            amountOut = amountIn.mul(997).mul(reserve1) / reserve0.mul(1000).add(amountInWithFee);
+            IERC20(fromToken).safeTransfer(address(pair), amountIn);
+            pair.swap(0, amountOut, to, new bytes(0));
+            // TODO: Add maximum slippage?
+        } else {
+            amountOut = amountIn.mul(997).mul(reserve0) / reserve1.mul(1000).add(amountInWithFee);
+            IERC20(fromToken).safeTransfer(address(pair), amountIn);
+            pair.swap(amountOut, 0, to, new bytes(0));
+            // TODO: Add maximum slippage?
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMaker.sol-_toSUSHI-9
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMaker.sol', 'is_fault': False, 'message': "{'name': '_toSUSHI', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'amountIn', 'type': 'uint256'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMaker.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'bar'], 'written': []}, 'src': '195#198'}"}
+函数切片:
+    function _toSUSHI(address token, uint256 amountIn) internal returns(uint256 amountOut) {
+        // X1 - X5: OK
+        amountOut = _swap(token, sushi, amountIn, bar);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router02.sol-removeLiquidityETHSupportingFeeOnTransferTokens-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router02.sol', 'is_fault': False, 'message': "{'name': 'removeLiquidityETHSupportingFeeOnTransferTokens', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'liquidity', 'type': 'uint256'}, {'name': 'amountTokenMin', 'type': 'uint256'}, {'name': 'amountETHMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amountETH', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router02.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '8#15'}"}
+函数切片:
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountETH);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router02.sol-removeLiquidityETHWithPermitSupportingFeeOnTransferTokens-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router02.sol', 'is_fault': False, 'message': "{'name': 'removeLiquidityETHWithPermitSupportingFeeOnTransferTokens', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'liquidity', 'type': 'uint256'}, {'name': 'amountTokenMin', 'type': 'uint256'}, {'name': 'amountETHMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}, {'name': 'approveMax', 'type': 'bool'}, {'name': 'v', 'type': 'uint8'}, {'name': 'r', 'type': 'bytes32'}, {'name': 's', 'type': 'bytes32'}], 'returns': [{'name': 'amountETH', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router02.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#24'}"}
+函数切片:
+    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountETH);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router02.sol', 'is_fault': False, 'message': "{'name': 'swapExactTokensForTokensSupportingFeeOnTransferTokens', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amountIn', 'type': 'uint256'}, {'name': 'amountOutMin', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router02.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#32'}"}
+函数切片:
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router02.sol-swapExactETHForTokensSupportingFeeOnTransferTokens-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router02.sol', 'is_fault': False, 'message': "{'name': 'swapExactETHForTokensSupportingFeeOnTransferTokens', 'visibility': 'external', 'stateMutability': 'payable', 'parameters': [{'name': 'amountOutMin', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router02.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '33#38'}"}
+函数切片:
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external payable;
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router02.sol-swapExactTokensForETHSupportingFeeOnTransferTokens-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router02.sol', 'is_fault': False, 'message': "{'name': 'swapExactTokensForETHSupportingFeeOnTransferTokens', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amountIn', 'type': 'uint256'}, {'name': 'amountOutMin', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router02.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '39#45'}"}
+函数切片:
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-migrate-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'migrate', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}], 'returns': [{'name': '', 'type': 'contract IERC20'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '23#23'}"}
+函数切片:
+    function migrate(IERC20 token) external returns (IERC20);
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-constructor-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_sushi', 'type': 'contract SushiToken'}, {'name': '_devaddr', 'type': 'address'}, {'name': '_sushiPerBlock', 'type': 'uint256'}, {'name': '_startBlock', 'type': 'uint256'}, {'name': '_bonusEndBlock', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'devaddr', 'sushiPerBlock', 'bonusEndBlock', 'startBlock'], 'written': []}, 'src': '88#100'}"}
+函数切片:
+    constructor(
+        SushiToken _sushi,
+        address _devaddr,
+        uint256 _sushiPerBlock,
+        uint256 _startBlock,
+        uint256 _bonusEndBlock
+    ) public {
+        sushi = _sushi;
+        devaddr = _devaddr;
+        sushiPerBlock = _sushiPerBlock;
+        bonusEndBlock = _bonusEndBlock;
+        startBlock = _startBlock;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-poolLength-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'poolLength', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['poolInfo'], 'written': []}, 'src': '102#104'}"}
+函数切片:
+    function poolLength() external view returns (uint256) {
+        return poolInfo.length;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-add-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'add', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_allocPoint', 'type': 'uint256'}, {'name': '_lpToken', 'type': 'contract IERC20'}, {'name': '_withUpdate', 'type': 'bool'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['startBlock', 'startBlock', 'totalAllocPoint', 'totalAllocPoint', 'poolInfo'], 'written': []}, 'src': '108#120'}"}
+函数切片:
+    function add(uint256 _allocPoint, IERC20 _lpToken, bool _withUpdate) public onlyOwner {
+        if (_withUpdate) {
+            massUpdatePools();
+        }
+        uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
+        totalAllocPoint = totalAllocPoint.add(_allocPoint);
+        poolInfo.push(PoolInfo({
+            lpToken: _lpToken,
+            allocPoint: _allocPoint,
+            lastRewardBlock: lastRewardBlock,
+            accSushiPerShare: 0
+        }));
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-set-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'set', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_pid', 'type': 'uint256'}, {'name': '_allocPoint', 'type': 'uint256'}, {'name': '_withUpdate', 'type': 'bool'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['totalAllocPoint', 'poolInfo', 'totalAllocPoint', 'poolInfo'], 'written': []}, 'src': '123#129'}"}
+函数切片:
+    function set(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner {
+        if (_withUpdate) {
+            massUpdatePools();
+        }
+        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
+        poolInfo[_pid].allocPoint = _allocPoint;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-setMigrator-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'setMigrator', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_migrator', 'type': 'contract IMigratorChef'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['migrator'], 'written': []}, 'src': '132#134'}"}
+函数切片:
+    function setMigrator(IMigratorChef _migrator) public onlyOwner {
+        migrator = _migrator;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-migrate-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'migrate', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_pid', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['migrate: no migrator', 'migrate: bad'], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['migrator', 'poolInfo', 'migrator', 'migrator'], 'written': []}, 'src': '137#146'}"}
+函数切片:
+    function migrate(uint256 _pid) public {
+        require(address(migrator) != address(0), "migrate: no migrator");
+        PoolInfo storage pool = poolInfo[_pid];
+        IERC20 lpToken = pool.lpToken;
+        uint256 bal = lpToken.balanceOf(address(this));
+        lpToken.safeApprove(address(migrator), bal);
+        IERC20 newLpToken = migrator.migrate(lpToken);
+        require(bal == newLpToken.balanceOf(address(this)), "migrate: bad");
+        pool.lpToken = newLpToken;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-getMultiplier-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'getMultiplier', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_from', 'type': 'uint256'}, {'name': '_to', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['bonusEndBlock', 'bonusEndBlock', 'bonusEndBlock', 'BONUS_MULTIPLIER', 'bonusEndBlock', 'BONUS_MULTIPLIER'], 'written': []}, 'src': '149#159'}"}
+函数切片:
+    function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
+        if (_to <= bonusEndBlock) {
+            return _to.sub(_from).mul(BONUS_MULTIPLIER);
+        } else if (_from >= bonusEndBlock) {
+            return _to.sub(_from);
+        } else {
+            return bonusEndBlock.sub(_from).mul(BONUS_MULTIPLIER).add(
+                _to.sub(bonusEndBlock)
+            );
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-pendingSushi-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'pendingSushi', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_pid', 'type': 'uint256'}, {'name': '_user', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['poolInfo', 'userInfo', 'totalAllocPoint', 'sushiPerBlock'], 'written': []}, 'src': '162#173'}"}
+函数切片:
+    function pendingSushi(uint256 _pid, address _user) external view returns (uint256) {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][_user];
+        uint256 accSushiPerShare = pool.accSushiPerShare;
+        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
+            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+            uint256 sushiReward = multiplier.mul(sushiPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            accSushiPerShare = accSushiPerShare.add(sushiReward.mul(1e12).div(lpSupply));
+        }
+        return user.amount.mul(accSushiPerShare).div(1e12).sub(user.rewardDebt);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-massUpdatePools-9
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'massUpdatePools', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['poolInfo'], 'written': []}, 'src': '176#181'}"}
+函数切片:
+    function massUpdatePools() public {
+        uint256 length = poolInfo.length;
+        for (uint256 pid = 0; pid < length; ++pid) {
+            updatePool(pid);
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-updatePool-10
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'updatePool', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_pid', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['poolInfo', 'totalAllocPoint', 'sushiPerBlock', 'devaddr', 'sushi', 'sushi'], 'written': []}, 'src': '184#200'}"}
+函数切片:
+    function updatePool(uint256 _pid) public {
+        PoolInfo storage pool = poolInfo[_pid];
+        if (block.number <= pool.lastRewardBlock) {
+            return;
+        }
+        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        if (lpSupply == 0) {
+            pool.lastRewardBlock = block.number;
+            return;
+        }
+        uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+        uint256 sushiReward = multiplier.mul(sushiPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        sushi.mint(devaddr, sushiReward.div(10));
+        sushi.mint(address(this), sushiReward);
+        pool.accSushiPerShare = pool.accSushiPerShare.add(sushiReward.mul(1e12).div(lpSupply));
+        pool.lastRewardBlock = block.number;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-deposit-11
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'deposit', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_pid', 'type': 'uint256'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Deposit'], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['poolInfo', 'userInfo'], 'written': []}, 'src': '203#219'}"}
+函数切片:
+    function deposit(uint256 _pid, uint256 _amount) public {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        updatePool(_pid);
+        if (user.amount > 0) {
+            uint256 pending = user.amount.mul(pool.accSushiPerShare).div(1e12).sub(user.rewardDebt);
+            if(pending > 0) {
+                safeSushiTransfer(msg.sender, pending);
+            }
+        }
+        if(_amount > 0) {
+            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
+            user.amount = user.amount.add(_amount);
+        }
+        user.rewardDebt = user.amount.mul(pool.accSushiPerShare).div(1e12);
+        emit Deposit(msg.sender, _pid, _amount);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-withdraw-12
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'withdraw', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_pid', 'type': 'uint256'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Withdraw'], 'errors': ['withdraw: not good'], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['poolInfo', 'userInfo'], 'written': []}, 'src': '222#237'}"}
+函数切片:
+    function withdraw(uint256 _pid, uint256 _amount) public {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.amount >= _amount, "withdraw: not good");
+        updatePool(_pid);
+        uint256 pending = user.amount.mul(pool.accSushiPerShare).div(1e12).sub(user.rewardDebt);
+        if(pending > 0) {
+            safeSushiTransfer(msg.sender, pending);
+        }
+        if(_amount > 0) {
+            user.amount = user.amount.sub(_amount);
+            pool.lpToken.safeTransfer(address(msg.sender), _amount);
+        }
+        user.rewardDebt = user.amount.mul(pool.accSushiPerShare).div(1e12);
+        emit Withdraw(msg.sender, _pid, _amount);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-emergencyWithdraw-13
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'emergencyWithdraw', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_pid', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['EmergencyWithdraw'], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['poolInfo', 'userInfo'], 'written': []}, 'src': '240#248'}"}
+函数切片:
+    function emergencyWithdraw(uint256 _pid) public {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        uint256 amount = user.amount;
+        user.amount = 0;
+        user.rewardDebt = 0;
+        pool.lpToken.safeTransfer(address(msg.sender), amount);
+        emit EmergencyWithdraw(msg.sender, _pid, amount);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-safeSushiTransfer-14
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'safeSushiTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_to', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['sushi', 'sushi', 'sushi'], 'written': []}, 'src': '251#258'}"}
+函数切片:
+    function safeSushiTransfer(address _to, uint256 _amount) internal {
+        uint256 sushiBal = sushi.balanceOf(address(this));
+        if (_amount > sushiBal) {
+            sushi.transfer(_to, sushiBal);
+        } else {
+            sushi.transfer(_to, _amount);
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-MasterChef.sol-dev-15
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-MasterChef.sol', 'is_fault': False, 'message': "{'name': 'dev', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_devaddr', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['dev: wut?'], 'contract': 'SushiSwap-MasterChef.sol', 'external_calls': [], 'state_vars': {'read': ['devaddr', 'devaddr'], 'written': []}, 'src': '261#264'}"}
+函数切片:
+    function dev(address _devaddr) public {
+        require(msg.sender == devaddr, "dev: wut?");
+        devaddr = _devaddr;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-name-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'name', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '9#9'}"}
+函数切片:
+    function name() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-symbol-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'symbol', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '10#10'}"}
+函数切片:
+    function symbol() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-decimals-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'decimals', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'uint8'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '11#11'}"}
+函数切片:
+    function decimals() external pure returns (uint8);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-totalSupply-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'totalSupply', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '12#12'}"}
+函数切片:
+    function totalSupply() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-balanceOf-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'balanceOf', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#13'}"}
+函数切片:
+    function balanceOf(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-allowance-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'allowance', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '14#14'}"}
+函数切片:
+    function allowance(address owner, address spender) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-approve-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'approve', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#16'}"}
+函数切片:
+    function approve(address spender, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-transfer-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'transfer', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '17#17'}"}
+函数切片:
+    function transfer(address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-transferFrom-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'transferFrom', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '18#18'}"}
+函数切片:
+    function transferFrom(address from, address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-DOMAIN_SEPARATOR-9
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'DOMAIN_SEPARATOR', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '20#20'}"}
+函数切片:
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-PERMIT_TYPEHASH-10
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'PERMIT_TYPEHASH', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '21#21'}"}
+函数切片:
+    function PERMIT_TYPEHASH() external pure returns (bytes32);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-nonces-11
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'nonces', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '22#22'}"}
+函数切片:
+    function nonces(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-permit-12
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'permit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}, {'name': 'deadline', 'type': 'uint256'}, {'name': 'v', 'type': 'uint8'}, {'name': 'r', 'type': 'bytes32'}, {'name': 's', 'type': 'bytes32'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '24#24'}"}
+函数切片:
+    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-MINIMUM_LIQUIDITY-13
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'MINIMUM_LIQUIDITY', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '38#38'}"}
+函数切片:
+    function MINIMUM_LIQUIDITY() external pure returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-factory-14
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'factory', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '39#39'}"}
+函数切片:
+    function factory() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-token0-15
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'token0', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '40#40'}"}
+函数切片:
+    function token0() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-token1-16
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'token1', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '41#41'}"}
+函数切片:
+    function token1() external view returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-getReserves-17
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'getReserves', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': 'reserve0', 'type': 'uint112'}, {'name': 'reserve1', 'type': 'uint112'}, {'name': 'blockTimestampLast', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '42#42'}"}
+函数切片:
+    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-price0CumulativeLast-18
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'price0CumulativeLast', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '43#43'}"}
+函数切片:
+    function price0CumulativeLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-price1CumulativeLast-19
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'price1CumulativeLast', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '44#44'}"}
+函数切片:
+    function price1CumulativeLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-kLast-20
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'kLast', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '45#45'}"}
+函数切片:
+    function kLast() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-mint-21
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'mint', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}], 'returns': [{'name': 'liquidity', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '47#47'}"}
+函数切片:
+    function mint(address to) external returns (uint liquidity);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-burn-22
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'burn', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}], 'returns': [{'name': 'amount0', 'type': 'uint256'}, {'name': 'amount1', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '48#48'}"}
+函数切片:
+    function burn(address to) external returns (uint amount0, uint amount1);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-swap-23
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'swap', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amount0Out', 'type': 'uint256'}, {'name': 'amount1Out', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '49#49'}"}
+函数切片:
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-skim-24
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'skim', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '50#50'}"}
+函数切片:
+    function skim(address to) external;
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-sync-25
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'sync', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '51#51'}"}
+函数切片:
+    function sync() external;
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Pair.sol-initialize-26
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'initialize', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '', 'type': 'address'}, {'name': '', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '53#53'}"}
+函数切片:
+    function initialize(address, address) external;
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-name-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'name', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '9#9'}"}
+函数切片:
+    function name() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-symbol-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'symbol', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '10#10'}"}
+函数切片:
+    function symbol() external pure returns (string memory);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-decimals-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'decimals', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'uint8'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '11#11'}"}
+函数切片:
+    function decimals() external pure returns (uint8);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-totalSupply-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'totalSupply', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '12#12'}"}
+函数切片:
+    function totalSupply() external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-balanceOf-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'balanceOf', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#13'}"}
+函数切片:
+    function balanceOf(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-allowance-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'allowance', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '14#14'}"}
+函数切片:
+    function allowance(address owner, address spender) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-approve-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'approve', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#16'}"}
+函数切片:
+    function approve(address spender, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-transfer-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'transfer', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '17#17'}"}
+函数切片:
+    function transfer(address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-transferFrom-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'transferFrom', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '18#18'}"}
+函数切片:
+    function transferFrom(address from, address to, uint value) external returns (bool);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-DOMAIN_SEPARATOR-9
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'DOMAIN_SEPARATOR', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '20#20'}"}
+函数切片:
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-PERMIT_TYPEHASH-10
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'PERMIT_TYPEHASH', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '21#21'}"}
+函数切片:
+    function PERMIT_TYPEHASH() external pure returns (bytes32);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-nonces-11
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'nonces', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '22#22'}"}
+函数切片:
+    function nonces(address owner) external view returns (uint);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2ERC20.sol-permit-12
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'permit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}, {'name': 'deadline', 'type': 'uint256'}, {'name': 'v', 'type': 'uint8'}, {'name': 'r', 'type': 'bytes32'}, {'name': 's', 'type': 'bytes32'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '24#24'}"}
+函数切片:
+    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+------------------------------------------------
+函数切片ID: SushiSwap-BoringMath.sol-add-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-BoringMath.sol', 'is_fault': False, 'message': "{'name': 'add', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': 'c', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['BoringMath: Add Overflow'], 'contract': 'SushiSwap-BoringMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '5#5'}"}
+函数切片:
+    function add(uint256 a, uint256 b) internal pure returns (uint256 c) {require((c = a + b) >= b, "BoringMath: Add Overflow");}
+------------------------------------------------
+函数切片ID: SushiSwap-BoringMath.sol-sub-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-BoringMath.sol', 'is_fault': False, 'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': 'c', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['BoringMath: Underflow'], 'contract': 'SushiSwap-BoringMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '6#6'}"}
+函数切片:
+    function sub(uint256 a, uint256 b) internal pure returns (uint256 c) {require((c = a - b) <= a, "BoringMath: Underflow");}
+------------------------------------------------
+函数切片ID: SushiSwap-BoringMath.sol-mul-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-BoringMath.sol', 'is_fault': False, 'message': "{'name': 'mul', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': 'c', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['BoringMath: Mul Overflow'], 'contract': 'SushiSwap-BoringMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '7#7'}"}
+函数切片:
+    function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {require(b == 0 || (c = a * b)/b == a, "BoringMath: Mul Overflow");}
+------------------------------------------------
+函数切片ID: SushiSwap-BoringMath.sol-to128-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-BoringMath.sol', 'is_fault': False, 'message': "{'name': 'to128', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}], 'returns': [{'name': 'c', 'type': 'uint128'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['BoringMath: uint128 Overflow'], 'contract': 'SushiSwap-BoringMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '8#11'}"}
+函数切片:
+    function to128(uint256 a) internal pure returns (uint128 c) {
+        require(a <= uint128(-1), "BoringMath: uint128 Overflow");
+        c = uint128(a);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-BoringMath.sol-add-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-BoringMath.sol', 'is_fault': False, 'message': "{'name': 'add', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint128'}, {'name': 'b', 'type': 'uint128'}], 'returns': [{'name': 'c', 'type': 'uint128'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['BoringMath: Add Overflow'], 'contract': 'SushiSwap-BoringMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '15#15'}"}
+函数切片:
+    function add(uint128 a, uint128 b) internal pure returns (uint128 c) {require((c = a + b) >= b, "BoringMath: Add Overflow");}
+------------------------------------------------
+函数切片ID: SushiSwap-BoringMath.sol-sub-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-BoringMath.sol', 'is_fault': False, 'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint128'}, {'name': 'b', 'type': 'uint128'}], 'returns': [{'name': 'c', 'type': 'uint128'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['BoringMath: Underflow'], 'contract': 'SushiSwap-BoringMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#16'}"}
+函数切片:
+    function sub(uint128 a, uint128 b) internal pure returns (uint128 c) {require((c = a - b) <= a, "BoringMath: Underflow");}
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-isContract-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'isContract', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#35'}"}
+函数切片:
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+
+        uint256 size;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { size := extcodesize(account) }
+        return size > 0;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-sendValue-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'sendValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address payable'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance', 'Address: unable to send value, recipient may have reverted'], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '53#59'}"}
+函数切片:
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-functionCall-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '79#81'}"}
+函数切片:
+    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
+      return functionCall(target, data, "Address: low-level call failed");
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-functionCall-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '89#91'}"}
+函数切片:
+    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, 0, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-functionCallWithValue-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '104#106'}"}
+函数切片:
+    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-functionCallWithValue-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance for call', 'Address: call to non-contract'], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '114#121'}"}
+函数切片:
+    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
+        require(address(this).balance >= value, "Address: insufficient balance for call");
+        require(isContract(target), "Address: call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.call{ value: value }(data);
+        return _verifyCallResult(success, returndata, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-functionStaticCall-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'functionStaticCall', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '129#131'}"}
+函数切片:
+    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
+        return functionStaticCall(target, data, "Address: low-level static call failed");
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-functionStaticCall-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': 'functionStaticCall', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: static call to non-contract'], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '139#145'}"}
+函数切片:
+    function functionStaticCall(address target, bytes memory data, string memory errorMessage) internal view returns (bytes memory) {
+        require(isContract(target), "Address: static call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.staticcall(data);
+        return _verifyCallResult(success, returndata, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Address.sol-_verifyCallResult-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Address.sol', 'is_fault': False, 'message': "{'name': '_verifyCallResult', 'visibility': 'private', 'stateMutability': 'pure', 'parameters': [{'name': 'success', 'type': 'bool'}, {'name': 'returndata', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '147#164'}"}
+函数切片:
+    function _verifyCallResult(bool success, bytes memory returndata, string memory errorMessage) private pure returns(bytes memory) {
+        if (success) {
+            return returndata;
+        } else {
+            // Look for revert reason and bubble it up if present
+            if (returndata.length > 0) {
+                // The easiest way to bubble the revert reason is using memory via assembly
+
+                // solhint-disable-next-line no-inline-assembly
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert(errorMessage);
+            }
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Migrator.sol-constructor-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Migrator.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_chef', 'type': 'address'}, {'name': '_oldFactory', 'type': 'address'}, {'name': '_factory', 'type': 'contract IUniswapV2Factory'}, {'name': '_notBeforeBlock', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['chef', 'oldFactory', 'factory', 'notBeforeBlock'], 'written': []}, 'src': '16#26'}"}
+函数切片:
+    constructor(
+        address _chef,
+        address _oldFactory,
+        IUniswapV2Factory _factory,
+        uint256 _notBeforeBlock
+    ) public {
+        chef = _chef;
+        oldFactory = _oldFactory;
+        factory = _factory;
+        notBeforeBlock = _notBeforeBlock;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-Migrator.sol-migrate-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-Migrator.sol', 'is_fault': False, 'message': "{'name': 'migrate', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'orig', 'type': 'contract IUniswapV2Pair'}], 'returns': [{'name': '', 'type': 'contract IUniswapV2Pair'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['not from master chef', 'too early to migrate', 'not from old factory'], 'contract': 'SushiSwap-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['chef', 'notBeforeBlock', 'oldFactory', 'factory', 'factory', 'desiredLiquidity', 'desiredLiquidity'], 'written': []}, 'src': '28#46'}"}
+函数切片:
+    function migrate(IUniswapV2Pair orig) public returns (IUniswapV2Pair) {
+        require(msg.sender == chef, "not from master chef");
+        require(block.number >= notBeforeBlock, "too early to migrate");
+        require(orig.factory() == oldFactory, "not from old factory");
+        address token0 = orig.token0();
+        address token1 = orig.token1();
+        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(token0, token1));
+        if (pair == IUniswapV2Pair(address(0))) {
+            pair = IUniswapV2Pair(factory.createPair(token0, token1));
+        }
+        uint256 lp = orig.balanceOf(msg.sender);
+        if (lp == 0) return pair;
+        desiredLiquidity = lp;
+        orig.transferFrom(msg.sender, address(orig), lp);
+        orig.burn(address(pair));
+        pair.mint(msg.sender);
+        desiredLiquidity = uint256(-1);
+        return pair;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-constructor-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['DOMAIN_SEPARATOR', 'name'], 'written': []}, 'src': '25#39'}"}
+函数切片:
+    constructor() public {
+        uint chainId;
+        assembly {
+            chainId := chainid()
+        }
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
+                keccak256(bytes(name)),
+                keccak256(bytes('1')),
+                chainId,
+                address(this)
+            )
+        );
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-_mint-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': '_mint', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Transfer'], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['totalSupply', 'totalSupply', 'balanceOf', 'balanceOf'], 'written': []}, 'src': '41#45'}"}
+函数切片:
+    function _mint(address to, uint value) internal {
+        totalSupply = totalSupply.add(value);
+        balanceOf[to] = balanceOf[to].add(value);
+        emit Transfer(address(0), to, value);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-_burn-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': '_burn', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Transfer'], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['balanceOf', 'balanceOf', 'totalSupply', 'totalSupply'], 'written': []}, 'src': '47#51'}"}
+函数切片:
+    function _burn(address from, uint value) internal {
+        balanceOf[from] = balanceOf[from].sub(value);
+        totalSupply = totalSupply.sub(value);
+        emit Transfer(from, address(0), value);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-_approve-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': '_approve', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Approval'], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['allowance'], 'written': []}, 'src': '53#56'}"}
+函数切片:
+    function _approve(address owner, address spender, uint value) private {
+        allowance[owner][spender] = value;
+        emit Approval(owner, spender, value);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-_transfer-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': '_transfer', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Transfer'], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['balanceOf', 'balanceOf', 'balanceOf', 'balanceOf'], 'written': []}, 'src': '58#62'}"}
+函数切片:
+    function _transfer(address from, address to, uint value) private {
+        balanceOf[from] = balanceOf[from].sub(value);
+        balanceOf[to] = balanceOf[to].add(value);
+        emit Transfer(from, to, value);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-approve-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'approve', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '64#67'}"}
+函数切片:
+    function approve(address spender, uint value) external returns (bool) {
+        _approve(msg.sender, spender, value);
+        return true;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-transfer-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'transfer', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '69#72'}"}
+函数切片:
+    function transfer(address to, uint value) external returns (bool) {
+        _transfer(msg.sender, to, value);
+        return true;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-transferFrom-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'transferFrom', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['allowance', 'allowance', 'allowance'], 'written': []}, 'src': '74#80'}"}
+函数切片:
+    function transferFrom(address from, address to, uint value) external returns (bool) {
+        if (allowance[from][msg.sender] != uint(-1)) {
+            allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
+        }
+        _transfer(from, to, value);
+        return true;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2ERC20.sol-permit-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2ERC20.sol', 'is_fault': False, 'message': "{'name': 'permit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}, {'name': 'deadline', 'type': 'uint256'}, {'name': 'v', 'type': 'uint8'}, {'name': 'r', 'type': 'bytes32'}, {'name': 's', 'type': 'bytes32'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2: EXPIRED', 'UniswapV2: INVALID_SIGNATURE'], 'contract': 'SushiSwap-UniswapV2ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['DOMAIN_SEPARATOR', 'PERMIT_TYPEHASH', 'nonces'], 'written': []}, 'src': '82#94'}"}
+函数切片:
+    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+        require(deadline >= block.timestamp, 'UniswapV2: EXPIRED');
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
+            )
+        );
+        address recoveredAddress = ecrecover(digest, v, r, s);
+        require(recoveredAddress != address(0) && recoveredAddress == owner, 'UniswapV2: INVALID_SIGNATURE');
+        _approve(owner, spender, value);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMakerExploitMock.sol-constructor-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMakerExploitMock.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_sushiMaker', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMakerExploitMock.sol', 'external_calls': [], 'state_vars': {'read': ['sushiMaker'], 'written': []}, 'src': '9#11'}"}
+函数切片:
+    constructor (address _sushiMaker) public{
+        sushiMaker = SushiMaker(_sushiMaker);
+    } 
+------------------------------------------------
+函数切片ID: SushiSwap-SushiMakerExploitMock.sol-convert-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-SushiMakerExploitMock.sol', 'is_fault': False, 'message': "{'name': 'convert', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-SushiMakerExploitMock.sol', 'external_calls': [], 'state_vars': {'read': ['sushiMaker'], 'written': []}, 'src': '12#14'}"}
+函数切片:
+    function convert(address token0, address token1) external {
+        sushiMaker.convert(token0, token1);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-ERC20Mock.sol-constructor-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-ERC20Mock.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'name', 'type': 'string'}, {'name': 'symbol', 'type': 'string'}, {'name': 'supply', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-ERC20Mock.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '8#14'}"}
+函数切片:
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 supply
+    ) public ERC20(name, symbol) {
+        _mint(msg.sender, supply);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-sortTokens-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'sortTokens', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'tokenA', 'type': 'address'}, {'name': 'tokenB', 'type': 'address'}], 'returns': [{'name': 'token0', 'type': 'address'}, {'name': 'token1', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2Library: IDENTICAL_ADDRESSES', 'UniswapV2Library: ZERO_ADDRESS'], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#17'}"}
+函数切片:
+    function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
+        require(tokenA != tokenB, 'UniswapV2Library: IDENTICAL_ADDRESSES');
+        (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+        require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-pairFor-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'pairFor', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'factory', 'type': 'address'}, {'name': 'tokenA', 'type': 'address'}, {'name': 'tokenB', 'type': 'address'}], 'returns': [{'name': 'pair', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '20#28'}"}
+函数切片:
+    function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
+        (address token0, address token1) = sortTokens(tokenA, tokenB);
+        pair = address(uint(keccak256(abi.encodePacked(
+                hex'ff',
+                factory,
+                keccak256(abi.encodePacked(token0, token1)),
+                hex'e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303' // init code hash
+            ))));
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-getReserves-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'getReserves', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'factory', 'type': 'address'}, {'name': 'tokenA', 'type': 'address'}, {'name': 'tokenB', 'type': 'address'}], 'returns': [{'name': 'reserveA', 'type': 'uint256'}, {'name': 'reserveB', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '31#35'}"}
+函数切片:
+    function getReserves(address factory, address tokenA, address tokenB) internal view returns (uint reserveA, uint reserveB) {
+        (address token0,) = sortTokens(tokenA, tokenB);
+        (uint reserve0, uint reserve1,) = IUniswapV2Pair(pairFor(factory, tokenA, tokenB)).getReserves();
+        (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-quote-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'quote', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'amountA', 'type': 'uint256'}, {'name': 'reserveA', 'type': 'uint256'}, {'name': 'reserveB', 'type': 'uint256'}], 'returns': [{'name': 'amountB', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2Library: INSUFFICIENT_AMOUNT', 'UniswapV2Library: INSUFFICIENT_LIQUIDITY'], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '38#42'}"}
+函数切片:
+    function quote(uint amountA, uint reserveA, uint reserveB) internal pure returns (uint amountB) {
+        require(amountA > 0, 'UniswapV2Library: INSUFFICIENT_AMOUNT');
+        require(reserveA > 0 && reserveB > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+        amountB = amountA.mul(reserveB) / reserveA;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-getAmountOut-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'getAmountOut', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'amountIn', 'type': 'uint256'}, {'name': 'reserveIn', 'type': 'uint256'}, {'name': 'reserveOut', 'type': 'uint256'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT', 'UniswapV2Library: INSUFFICIENT_LIQUIDITY'], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '45#52'}"}
+函数切片:
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) internal pure returns (uint amountOut) {
+        require(amountIn > 0, 'UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+        uint amountInWithFee = amountIn.mul(997);
+        uint numerator = amountInWithFee.mul(reserveOut);
+        uint denominator = reserveIn.mul(1000).add(amountInWithFee);
+        amountOut = numerator / denominator;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-getAmountIn-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'getAmountIn', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'amountOut', 'type': 'uint256'}, {'name': 'reserveIn', 'type': 'uint256'}, {'name': 'reserveOut', 'type': 'uint256'}], 'returns': [{'name': 'amountIn', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT', 'UniswapV2Library: INSUFFICIENT_LIQUIDITY'], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '55#61'}"}
+函数切片:
+    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) internal pure returns (uint amountIn) {
+        require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+        uint numerator = reserveIn.mul(amountOut).mul(1000);
+        uint denominator = reserveOut.sub(amountOut).mul(997);
+        amountIn = (numerator / denominator).add(1);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-getAmountsOut-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'getAmountsOut', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'factory', 'type': 'address'}, {'name': 'amountIn', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2Library: INVALID_PATH'], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '64#72'}"}
+函数切片:
+    function getAmountsOut(address factory, uint amountIn, address[] memory path) internal view returns (uint[] memory amounts) {
+        require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
+        amounts = new uint[](path.length);
+        amounts[0] = amountIn;
+        for (uint i; i < path.length - 1; i++) {
+            (uint reserveIn, uint reserveOut) = getReserves(factory, path[i], path[i + 1]);
+            amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut);
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Library.sol-getAmountsIn-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Library.sol', 'is_fault': False, 'message': "{'name': 'getAmountsIn', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'factory', 'type': 'address'}, {'name': 'amountOut', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2Library: INVALID_PATH'], 'contract': 'SushiSwap-UniswapV2Library.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '75#83'}"}
+函数切片:
+    function getAmountsIn(address factory, uint amountOut, address[] memory path) internal view returns (uint[] memory amounts) {
+        require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
+        amounts = new uint[](path.length);
+        amounts[amounts.length - 1] = amountOut;
+        for (uint i = path.length - 1; i > 0; i--) {
+            (uint reserveIn, uint reserveOut) = getReserves(factory, path[i - 1], path[i]);
+            amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut);
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-factory-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'factory', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '6#6'}"}
+函数切片:
+    function factory() external pure returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-WETH-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'WETH', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '7#7'}"}
+函数切片:
+    function WETH() external pure returns (address);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-addLiquidity-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'addLiquidity', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'tokenA', 'type': 'address'}, {'name': 'tokenB', 'type': 'address'}, {'name': 'amountADesired', 'type': 'uint256'}, {'name': 'amountBDesired', 'type': 'uint256'}, {'name': 'amountAMin', 'type': 'uint256'}, {'name': 'amountBMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amountA', 'type': 'uint256'}, {'name': 'amountB', 'type': 'uint256'}, {'name': 'liquidity', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '9#18'}"}
+函数切片:
+    function addLiquidity(
+        address tokenA,
+        address tokenB,
+        uint amountADesired,
+        uint amountBDesired,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB, uint liquidity);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-addLiquidityETH-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'addLiquidityETH', 'visibility': 'external', 'stateMutability': 'payable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'amountTokenDesired', 'type': 'uint256'}, {'name': 'amountTokenMin', 'type': 'uint256'}, {'name': 'amountETHMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amountToken', 'type': 'uint256'}, {'name': 'amountETH', 'type': 'uint256'}, {'name': 'liquidity', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '19#26'}"}
+函数切片:
+    function addLiquidityETH(
+        address token,
+        uint amountTokenDesired,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-removeLiquidity-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'removeLiquidity', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'tokenA', 'type': 'address'}, {'name': 'tokenB', 'type': 'address'}, {'name': 'liquidity', 'type': 'uint256'}, {'name': 'amountAMin', 'type': 'uint256'}, {'name': 'amountBMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amountA', 'type': 'uint256'}, {'name': 'amountB', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '27#35'}"}
+函数切片:
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-removeLiquidityETH-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'removeLiquidityETH', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'liquidity', 'type': 'uint256'}, {'name': 'amountTokenMin', 'type': 'uint256'}, {'name': 'amountETHMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amountToken', 'type': 'uint256'}, {'name': 'amountETH', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '36#43'}"}
+函数切片:
+    function removeLiquidityETH(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountToken, uint amountETH);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-removeLiquidityWithPermit-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'removeLiquidityWithPermit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'tokenA', 'type': 'address'}, {'name': 'tokenB', 'type': 'address'}, {'name': 'liquidity', 'type': 'uint256'}, {'name': 'amountAMin', 'type': 'uint256'}, {'name': 'amountBMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}, {'name': 'approveMax', 'type': 'bool'}, {'name': 'v', 'type': 'uint8'}, {'name': 'r', 'type': 'bytes32'}, {'name': 's', 'type': 'bytes32'}], 'returns': [{'name': 'amountA', 'type': 'uint256'}, {'name': 'amountB', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '44#53'}"}
+函数切片:
+    function removeLiquidityWithPermit(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountA, uint amountB);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-removeLiquidityETHWithPermit-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'removeLiquidityETHWithPermit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'liquidity', 'type': 'uint256'}, {'name': 'amountTokenMin', 'type': 'uint256'}, {'name': 'amountETHMin', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}, {'name': 'approveMax', 'type': 'bool'}, {'name': 'v', 'type': 'uint8'}, {'name': 'r', 'type': 'bytes32'}, {'name': 's', 'type': 'bytes32'}], 'returns': [{'name': 'amountToken', 'type': 'uint256'}, {'name': 'amountETH', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '54#62'}"}
+函数切片:
+    function removeLiquidityETHWithPermit(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountToken, uint amountETH);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-swapExactTokensForTokens-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'swapExactTokensForTokens', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amountIn', 'type': 'uint256'}, {'name': 'amountOutMin', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '63#69'}"}
+函数切片:
+    function swapExactTokensForTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-swapTokensForExactTokens-9
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'swapTokensForExactTokens', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amountOut', 'type': 'uint256'}, {'name': 'amountInMax', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '70#76'}"}
+函数切片:
+    function swapTokensForExactTokens(
+        uint amountOut,
+        uint amountInMax,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-swapExactETHForTokens-10
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'swapExactETHForTokens', 'visibility': 'external', 'stateMutability': 'payable', 'parameters': [{'name': 'amountOutMin', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '77#80'}"}
+函数切片:
+    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-swapTokensForExactETH-11
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'swapTokensForExactETH', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amountOut', 'type': 'uint256'}, {'name': 'amountInMax', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '81#83'}"}
+函数切片:
+    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-swapExactTokensForETH-12
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'swapExactTokensForETH', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amountIn', 'type': 'uint256'}, {'name': 'amountOutMin', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '84#86'}"}
+函数切片:
+    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-swapETHForExactTokens-13
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'swapETHForExactTokens', 'visibility': 'external', 'stateMutability': 'payable', 'parameters': [{'name': 'amountOut', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}, {'name': 'to', 'type': 'address'}, {'name': 'deadline', 'type': 'uint256'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '87#90'}"}
+函数切片:
+    function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-quote-14
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'quote', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [{'name': 'amountA', 'type': 'uint256'}, {'name': 'reserveA', 'type': 'uint256'}, {'name': 'reserveB', 'type': 'uint256'}], 'returns': [{'name': 'amountB', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '92#92'}"}
+函数切片:
+    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-getAmountOut-15
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'getAmountOut', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [{'name': 'amountIn', 'type': 'uint256'}, {'name': 'reserveIn', 'type': 'uint256'}, {'name': 'reserveOut', 'type': 'uint256'}], 'returns': [{'name': 'amountOut', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '93#93'}"}
+函数切片:
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-getAmountIn-16
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'getAmountIn', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [{'name': 'amountOut', 'type': 'uint256'}, {'name': 'reserveIn', 'type': 'uint256'}, {'name': 'reserveOut', 'type': 'uint256'}], 'returns': [{'name': 'amountIn', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '94#94'}"}
+函数切片:
+    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-getAmountsOut-17
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'getAmountsOut', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'amountIn', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '95#95'}"}
+函数切片:
+    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-IUniswapV2Router01.sol-getAmountsIn-18
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-IUniswapV2Router01.sol', 'is_fault': False, 'message': "{'name': 'getAmountsIn', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'amountOut', 'type': 'uint256'}, {'name': 'path', 'type': 'address[]'}], 'returns': [{'name': 'amounts', 'type': 'uint256[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-IUniswapV2Router01.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '96#96'}"}
+函数切片:
+    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-desiredLiquidity-0
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'desiredLiquidity', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '15#15'}"}
+函数切片:
+    function desiredLiquidity() external view returns (uint256);
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-lock-1
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'lock', 'type': 'modifier', 'contract': 'SushiSwap-UniswapV2Pair.sol', 'src': '38#43'}"}
+函数切片:
+    modifier lock() {
+        require(unlocked == 1, 'UniswapV2: LOCKED');
+        unlocked = 0;
+        _;
+        unlocked = 1;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-getReserves-2
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'getReserves', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '_reserve0', 'type': 'uint112'}, {'name': '_reserve1', 'type': 'uint112'}, {'name': '_blockTimestampLast', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['reserve0', 'reserve1', 'blockTimestampLast'], 'written': []}, 'src': '45#49'}"}
+函数切片:
+    function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
+        _reserve0 = reserve0;
+        _reserve1 = reserve1;
+        _blockTimestampLast = blockTimestampLast;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-_safeTransfer-3
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': '_safeTransfer', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2: TRANSFER_FAILED'], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['SELECTOR'], 'written': []}, 'src': '51#54'}"}
+函数切片:
+    function _safeTransfer(address token, address to, uint value) private {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), 'UniswapV2: TRANSFER_FAILED');
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-constructor-4
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['factory'], 'written': []}, 'src': '68#70'}"}
+函数切片:
+    constructor() public {
+        factory = msg.sender;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-initialize-5
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'initialize', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_token0', 'type': 'address'}, {'name': '_token1', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['UniswapV2: FORBIDDEN'], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['factory', 'token0', 'token1'], 'written': []}, 'src': '73#77'}"}
+函数切片:
+    function initialize(address _token0, address _token1) external {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
+        token0 = _token0;
+        token1 = _token1;
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-_update-6
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': '_update', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'balance0', 'type': 'uint256'}, {'name': 'balance1', 'type': 'uint256'}, {'name': '_reserve0', 'type': 'uint112'}, {'name': '_reserve1', 'type': 'uint112'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Sync'], 'errors': ['UniswapV2: OVERFLOW'], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['blockTimestampLast', 'price0CumulativeLast', 'price1CumulativeLast', 'reserve0', 'reserve1', 'blockTimestampLast', 'reserve0', 'reserve1'], 'written': []}, 'src': '80#93'}"}
+函数切片:
+    function _update(uint balance0, uint balance1, uint112 _reserve0, uint112 _reserve1) private {
+        require(balance0 <= uint112(-1) && balance1 <= uint112(-1), 'UniswapV2: OVERFLOW');
+        uint32 blockTimestamp = uint32(block.timestamp % 2**32);
+        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+        if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
+            // * never overflows, and + overflow is desired
+            price0CumulativeLast += uint(UQ112x112.encode(_reserve1).uqdiv(_reserve0)) * timeElapsed;
+            price1CumulativeLast += uint(UQ112x112.encode(_reserve0).uqdiv(_reserve1)) * timeElapsed;
+        }
+        reserve0 = uint112(balance0);
+        reserve1 = uint112(balance1);
+        blockTimestampLast = blockTimestamp;
+        emit Sync(reserve0, reserve1);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-_mintFee-7
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': '_mintFee', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_reserve0', 'type': 'uint112'}, {'name': '_reserve1', 'type': 'uint112'}], 'returns': [{'name': 'feeOn', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['factory', 'kLast', 'kLast'], 'written': []}, 'src': '96#114'}"}
+函数切片:
+    function _mintFee(uint112 _reserve0, uint112 _reserve1) private returns (bool feeOn) {
+        address feeTo = IUniswapV2Factory(factory).feeTo();
+        feeOn = feeTo != address(0);
+        uint _kLast = kLast; // gas savings
+        if (feeOn) {
+            if (_kLast != 0) {
+                uint rootK = Math.sqrt(uint(_reserve0).mul(_reserve1));
+                uint rootKLast = Math.sqrt(_kLast);
+                if (rootK > rootKLast) {
+                    uint numerator = totalSupply.mul(rootK.sub(rootKLast));
+                    uint denominator = rootK.mul(5).add(rootKLast);
+                    uint liquidity = numerator / denominator;
+                    if (liquidity > 0) _mint(feeTo, liquidity);
+                }
+            }
+        } else if (_kLast != 0) {
+            kLast = 0;
+        }
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-mint-8
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'mint', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}], 'returns': [{'name': 'liquidity', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Mint'], 'errors': ['Must not have migrator', 'Bad desired liquidity', 'UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED'], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['token0', 'token1', 'factory', 'MINIMUM_LIQUIDITY', 'MINIMUM_LIQUIDITY', 'kLast', 'reserve1', 'reserve0'], 'written': []}, 'src': '117#145'}"}
+函数切片:
+    function mint(address to) external lock returns (uint liquidity) {
+        (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
+        uint balance0 = IERC20Uniswap(token0).balanceOf(address(this));
+        uint balance1 = IERC20Uniswap(token1).balanceOf(address(this));
+        uint amount0 = balance0.sub(_reserve0);
+        uint amount1 = balance1.sub(_reserve1);
+
+        bool feeOn = _mintFee(_reserve0, _reserve1);
+        uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        if (_totalSupply == 0) {
+            address migrator = IUniswapV2Factory(factory).migrator();
+            if (msg.sender == migrator) {
+                liquidity = IMigrator(migrator).desiredLiquidity();
+                require(liquidity > 0 && liquidity != uint256(-1), "Bad desired liquidity");
+            } else {
+                require(migrator == address(0), "Must not have migrator");
+                liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
+                _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
+            }
+        } else {
+            liquidity = Math.min(amount0.mul(_totalSupply) / _reserve0, amount1.mul(_totalSupply) / _reserve1);
+        }
+        require(liquidity > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED');
+        _mint(to, liquidity);
+
+        _update(balance0, balance1, _reserve0, _reserve1);
+        if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
+        emit Mint(msg.sender, amount0, amount1);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-burn-9
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'burn', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}], 'returns': [{'name': 'amount0', 'type': 'uint256'}, {'name': 'amount1', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Burn'], 'errors': ['UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED'], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['token0', 'token1', 'kLast', 'reserve1', 'reserve0'], 'written': []}, 'src': '148#170'}"}
+函数切片:
+    function burn(address to) external lock returns (uint amount0, uint amount1) {
+        (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
+        address _token0 = token0;                                // gas savings
+        address _token1 = token1;                                // gas savings
+        uint balance0 = IERC20Uniswap(_token0).balanceOf(address(this));
+        uint balance1 = IERC20Uniswap(_token1).balanceOf(address(this));
+        uint liquidity = balanceOf[address(this)];
+
+        bool feeOn = _mintFee(_reserve0, _reserve1);
+        uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        amount0 = liquidity.mul(balance0) / _totalSupply; // using balances ensures pro-rata distribution
+        amount1 = liquidity.mul(balance1) / _totalSupply; // using balances ensures pro-rata distribution
+        require(amount0 > 0 && amount1 > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED');
+        _burn(address(this), liquidity);
+        _safeTransfer(_token0, to, amount0);
+        _safeTransfer(_token1, to, amount1);
+        balance0 = IERC20Uniswap(_token0).balanceOf(address(this));
+        balance1 = IERC20Uniswap(_token1).balanceOf(address(this));
+
+        _update(balance0, balance1, _reserve0, _reserve1);
+        if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
+        emit Burn(msg.sender, amount0, amount1, to);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-swap-10
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'swap', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amount0Out', 'type': 'uint256'}, {'name': 'amount1Out', 'type': 'uint256'}, {'name': 'to', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Swap'], 'errors': ['UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT', 'UniswapV2: INSUFFICIENT_LIQUIDITY', 'UniswapV2: INVALID_TO', 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT', 'UniswapV2: K'], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['token0', 'token1'], 'written': []}, 'src': '173#201'}"}
+函数切片:
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external lock {
+        require(amount0Out > 0 || amount1Out > 0, 'UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT');
+        (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
+        require(amount0Out < _reserve0 && amount1Out < _reserve1, 'UniswapV2: INSUFFICIENT_LIQUIDITY');
+
+        uint balance0;
+        uint balance1;
+        { // scope for _token{0,1}, avoids stack too deep errors
+        address _token0 = token0;
+        address _token1 = token1;
+        require(to != _token0 && to != _token1, 'UniswapV2: INVALID_TO');
+        if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out); // optimistically transfer tokens
+        if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out); // optimistically transfer tokens
+        if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
+        balance0 = IERC20Uniswap(_token0).balanceOf(address(this));
+        balance1 = IERC20Uniswap(_token1).balanceOf(address(this));
+        }
+        uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
+        uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
+        require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
+        { // scope for reserve{0,1}Adjusted, avoids stack too deep errors
+        uint balance0Adjusted = balance0.mul(1000).sub(amount0In.mul(3));
+        uint balance1Adjusted = balance1.mul(1000).sub(amount1In.mul(3));
+        require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
+        }
+
+        _update(balance0, balance1, _reserve0, _reserve1);
+        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-skim-11
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'skim', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'to', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['token0', 'token1', 'reserve0', 'reserve1'], 'written': []}, 'src': '204#209'}"}
+函数切片:
+    function skim(address to) external lock {
+        address _token0 = token0; // gas savings
+        address _token1 = token1; // gas savings
+        _safeTransfer(_token0, to, IERC20Uniswap(_token0).balanceOf(address(this)).sub(reserve0));
+        _safeTransfer(_token1, to, IERC20Uniswap(_token1).balanceOf(address(this)).sub(reserve1));
+    }
+------------------------------------------------
+函数切片ID: SushiSwap-UniswapV2Pair.sol-sync-12
+所属合约地址0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50
+元数据:{'belong': 'SushiSwap-UniswapV2Pair.sol', 'is_fault': False, 'message': "{'name': 'sync', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'SushiSwap-UniswapV2Pair.sol', 'external_calls': [], 'state_vars': {'read': ['token0', 'token1', 'reserve0', 'reserve1'], 'written': []}, 'src': '212#214'}"}
+函数切片:
+    function sync() external lock {
+        _update(IERC20Uniswap(token0).balanceOf(address(this)), IERC20Uniswap(token1).balanceOf(address(this)), reserve0, reserve1);
+    }
+------------------------------------------------
+故障定位结果：
+根据故障交易分析和提供的函数切片，以下是可能导致漏洞的攻击链条分析：
+
+```json
+{
+    '攻击链条1': [
+        'SushiSwap-UniswapV2Pair.sol-burn-22',
+        'SushiSwap-UniswapV2Pair.sol-swap-10',
+        'SushiSwap-IUniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-2',
+        'SushiSwap-SushiMaker.sol-_swap-8',
+        'SushiSwap-MasterChef.sol-updatePool-10'
+    ],
+    '攻击链条2': [
+        'SushiSwap-UniswapV2Pair.sol-burn-22',
+        'SushiSwap-UniswapV2Pair.sol-sync-12',
+        'SushiSwap-UniswapV2Library.sol-getAmountOut-4',
+        'SushiSwap-IUniswapV2Router02.sol-swapExactETHForTokensSupportingFeeOnTransferTokens-3',
+        'SushiSwap-SushiMaker.sol-_toSUSHI-9'
+    ]
+}
+```
+
+### 攻击链条分析说明
+
+1. **攻击链条1（核心漏洞利用路径）**
+   - **根本原因函数**：`SushiSwap-UniswapV2Pair.sol-burn-22`
+     - 未实现权限控制，允许任意地址销毁流动性代币，直接修改储备数据（符合漏洞分析第3点）
+   - **次级漏洞函数**：`SushiSwap-UniswapV2Pair.sol-swap-10`
+     - 未校验最小输出量（符合漏洞分析第4点），允许异常价格交易
+   - **辅助攻击函数**：`SushiSwap-IUniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-2`
+     - 支持零滑点交易，实现跨池套利
+   - **资金转移函数**：`SushiSwap-SushiMaker.sol-_swap-8`
+     - 未检查交易对有效性，允许异常兑换路径
+   - **最终获利函数**：`SushiSwap-MasterChef.sol-updatePool-10`
+     - SUSHI代币铸造逻辑，完成攻击收益闭环
+
+2. **攻击链条2（备选利用路径）**
+   - **储备操纵函数**：`SushiSwap-UniswapV2Pair.sol-sync-12`
+     - 强制同步错误储备数据，增强价格操纵效果
+   - **价格计算函数**：`SushiSwap-UniswapV2Library.sol-getAmountOut-4`
+     - 使用被操纵的储备数据计算异常兑换比例
+   - **跨链攻击函数**：`SushiSwap-IUniswapV2Router02.sol-swapExactETHForTokensSupportingFeeOnTransferTokens-3`
+     - 实现ETH与目标代币的异常兑换
+   - **收益转换函数**：`SushiSwap-SushiMaker.sol-_toSUSHI-9`
+     - 将套利所得转换为SUSHI代币
+
+### 函数漏洞可能性排序
+1. **SushiSwap-UniswapV2Pair.sol-burn-22**（根本原因）：
+   - 直接允许任意地址销毁流动性代币，破坏K值恒定机制
+
+2. **SushiSwap-UniswapV2Pair.sol-swap-10**（关键漏洞）：
+   - 缺少 `require(amountOut >= minAmount)` 校验，允许零价值交易
+
+3. **SushiSwap-IUniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-2**（攻击放大器）：
+   - 支持无滑点保护的跨池交易，放大价格偏差收益
+
+4. **SushiSwap-UniswapV2Library.sol-getAmountOut-4**（计算漏洞）：
+   - 依赖被操纵的储备数据进行价格计算，产生异常输出量
+
+5. **SushiSwap-MasterChef.sol-updatePool-10**（收益实现）：
+   - SUSHI代币铸造未与真实流动性挂钩，允许虚假流动性获利

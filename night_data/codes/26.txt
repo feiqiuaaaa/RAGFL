@@ -1,0 +1,118 @@
+
+-----------------------------------------
+正在处理dapp：PancakeHunny.json~
+address list = {'0xb9b0090aaa81f374d66d94a8138d80caa2002950', '0x109ea28dbdea5e6ec126fbc8c33845dfe812a300'}
+0xb9b0090aaa81f374d66d94a8138d80caa2002950获取的源代码为空！
+0x109ea28dbdea5e6ec126fbc8c33845dfe812a300获取的源代码为空！
+
+-----------------------------------------
+PancakeHunny.json已经处理完成！
+
+['PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：QubitFinance.json~
+address list = {'0xe9fdf2c0f6e9f769dfd092d390d3b39eb31fe401', '0x89722239ec21d01e991ae9366b93ad9df1cecfe7', '0x20e5e35ba29dc3b540a1aee781d0814d5c77bce6'}
+0xe9fdf2c0f6e9f769dfd092d390d3b39eb31fe401获取的源代码为空！
+0x89722239ec21d01e991ae9366b93ad9df1cecfe7获取的源代码为空！
+
+-----------------------------------------
+QubitFinance.json已经处理完成！
+
+['PunkProtocol.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：RikkeiFinance.json~
+address list = {'0xe6df12a9f33605f2271d2a2ddc92e509e54e6b5f', '0xd55f01b4b51b7f48912cd8ca3cdd8070a1a9dba5'}
+0xe6df12a9f33605f2271d2a2ddc92e509e54e6b5f获取的源代码为空！
+------------------------------------------------
+合约ID：Rikkei Finance-SimplePriceOracle.sol
+合约总结：
+SimplePriceOracle 智能合约总结：该合约是一个基于 Chainlink 预言机的价格预言机实现，主要用于获取 RToken 代币的底层资产价格。核心功能是通过配置 Chainlink 预言机数据源，自动转换价格精度并返回标准化价格数据。合约包含预言机地址映射配置功能，支持动态设置不同 RToken 对应的 Chainlink 预言机实例。关键特点包括：1. 通过 latestRoundData 获取最新价格数据 2. 自动处理不同精度代币的价格转换（统一转换为 18 位精度）3. 提供预言机数据源管理功能。合约未实现本地价格存储功能，完全依赖外部预言机数据源，当前代码中 prices 映射和 PricePosted 事件未被实际使用。
+
+函数列表：
+1. constructor()：空构造函数，初始化合约
+2. setOracleData(address rToken, oracleChainlink _oracle)：配置特定 RToken 对应的 Chainlink 预言机地址
+3. getUnderlyingPrice(RToken rToken)：核心功能函数，查询指定 RToken 的底层资产价格，通过关联的 Chainlink 预言机获取最新价格数据并自动进行精度换算0xd55f01b4b51b7f48912cd8ca3cdd8070a1a9dba5编译结果 ast 为空
+
+-----------------------------------------
+RikkeiFinance.json已经处理完成！
+
+['PunkProtocol.json', 'RevestFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：SashimiSwap.json~
+
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 711, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 1007, in _prepare_proxy
+    conn.connect()
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connection.py", line 419, in connect
+    self.sock = ssl_wrap_socket(
+                ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 449, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 493, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 517, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1075, in _create
+    self.do_handshake()
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1346, in do_handshake
+    self._sslobj.do_handshake()
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 798, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0xa9aaccb54872a5bb213a9a3118d0d0a9065c312e9a1f2cc4efb1b61239d4f1ff&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 164, in <module>
+    asyncio.run(handler.process(file))
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 67, in process
+    address = get_contract_address_from_tx(_hash, _platform)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\get_source_code.py", line 27, in get_contract_address_from_tx
+    response = requests.get(url)
+               ^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 513, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0xa9aaccb54872a5bb213a9a3118d0d0a9065c312e9a1f2cc4efb1b61239d4f1ff&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))

@@ -1,0 +1,136 @@
+
+-----------------------------------------
+正在处理dapp：Nmbplatform.json~
+address list = {'0x3aa2b9de4ce397d93e11699c3f07b769b210bbd5', '0x3c4e5b099f3c02122079d124138377e1b9048629'}
+------------------------------------------------
+合约ID：Nmbplatform-StakingRewardsFixedAPY.sol
+合约总结：
+智能合约名称：StakingRewardFixedAPY。该合约是基于固定年利率的质押奖励系统，允许用户质押代币获取奖励，支持多质押批次管理和动态APY调整。核心功能包括：1. 用户质押代币并累计奖励 2. 支持通过价格预言机或路由进行代币兑换计算 3. 允许按批次提取质押本金 4. 管理员可调整APY率、支付代币类型和安全参数。合约采用防重入保护和暂停机制，通过nonce系统记录每个用户的多次质押记录，奖励计算基于质押时间和动态变化的APY。关键特性包含代币兑换的两种模式（价格预言机或DEX路由）、ERC20代币救援功能、以及灵活的奖励支付代币切换能力。
+
+函数列表：
+constructor - 初始化合约基础参数
+totalSupply - 返回总质押量
+totalSupplyRewardEquivalent - 返回奖励等价总质押量
+balanceOf - 查询用户质押余额
+balanceOfRewardEquivalent - 查询用户奖励等价余额
+earnedByNonce - 按质押批次计算应得奖励
+earned - 计算用户总奖励
+stakeWithPermit - 带许可签名的质押方法
+stake - 普通质押入口
+stakeFor - 为他人质押
+_stake - 内部质押处理逻辑
+withdraw - 按批次提取质押
+getReward - 领取用户奖励
+getRewardForUser - 管理员代领用户奖励
+withdrawAndGetReward - 提取本金同时领取奖励
+getTokenAmountForToken - 计算代币兑换数量
+exit - 完全退出所有质押并领奖
+getEquivalentAmount - 计算奖励等价金额
+setPaused - 设置合约暂停状态
+updateRewardRate - 更新APY奖励率
+updateSwapRouter - 更换兑换路由器
+updateRewardsPaymentToken - 更新奖励支付代币
+updatePriceFeed - 更新价格预言机
+updateUsePriceFeeds - 切换价格源使用模式
+rescueEIP20 - 救援误转ERC20代币0x3aa2b9de4ce397d93e11699c3f07b769b210bbd5编译结果 ast 为空
+0x3c4e5b099f3c02122079d124138377e1b9048629获取的源代码为空！
+
+-----------------------------------------
+Nmbplatform.json已经处理完成！
+
+['PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：PopsicleFinance.json~
+address list = {'0x98d149e227c75d38f623a9aa9f030fb222b3faa3', '0xe22eacac57a1adfa38dca1100ef17654e91efd35', '0x0a8143ef65b0ce4c2fad195165ef13772ff6cca0', '0xdd90112eaf865e4e0030000803ebbb4d84f14617', '0x6f3f35a268b3af45331471eabf3f9881b601f5aa', '0xdfb6fab7f4bc9512d5620e679e90d1c91c4eade6', '0xd63b340f6e9cccf0c997c83c8d036fa53b113546', '0xb53dc33bb39efe6e9db36d7ef290d6679facbec7', '0xc4ff55a4329f84f9bf0f5619998ab570481ebb48'}
+0x98d149e227c75d38f623a9aa9f030fb222b3faa3获取的源代码为空！
+0xe22eacac57a1adfa38dca1100ef17654e91efd35获取的源代码为空！
+0x0a8143ef65b0ce4c2fad195165ef13772ff6cca0获取的源代码为空！
+0xdd90112eaf865e4e0030000803ebbb4d84f14617获取的源代码为空！
+0x6f3f35a268b3af45331471eabf3f9881b601f5aa获取的源代码为空！
+0xdfb6fab7f4bc9512d5620e679e90d1c91c4eade6获取的源代码为空！
+0xd63b340f6e9cccf0c997c83c8d036fa53b113546获取的源代码为空！
+0xb53dc33bb39efe6e9db36d7ef290d6679facbec7获取的源代码为空！
+0xc4ff55a4329f84f9bf0f5619998ab570481ebb48获取的源代码为空！
+
+-----------------------------------------
+PopsicleFinance.json已经处理完成！
+
+['PancakeHunny.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：QubitFinance.json~
+
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 711, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 1007, in _prepare_proxy
+    conn.connect()
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connection.py", line 419, in connect
+    self.sock = ssl_wrap_socket(
+                ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 449, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 493, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 517, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1075, in _create
+    self.do_handshake()
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1346, in do_handshake
+    self._sslobj.do_handshake()
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 798, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0x8461a2ea5ba8fa2ce39db22492c4469b71312400aa467b1b8082e390d7c68415&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 164, in <module>
+    asyncio.run(handler.process(file))
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 67, in process
+    address = get_contract_address_from_tx(_hash, _platform)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\get_source_code.py", line 27, in get_contract_address_from_tx
+    response = requests.get(url)
+               ^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 513, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0x8461a2ea5ba8fa2ce39db22492c4469b71312400aa467b1b8082e390d7c68415&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))

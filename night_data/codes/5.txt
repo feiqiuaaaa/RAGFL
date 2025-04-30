@@ -1,0 +1,1404 @@
+
+-----------------------------------------
+正在处理dapp：Bearn.json~
+address list = {'0x7ce9f1a8e494d49e59a72fd0443d378448151b9c', '0x21125d94cfe886e7179c8d2fe8c1ea8d57c73e0e', '0xb390b07fcf76678089cb12d8e615d5fe494b01fb', '0xef39f14213714001456e2e89eddbdf8c850c3be6'}
+0x7ce9f1a8e494d49e59a72fd0443d378448151b9c获取的源代码为空！
+0x21125d94cfe886e7179c8d2fe8c1ea8d57c73e0e获取的源代码为空！
+0xb390b07fcf76678089cb12d8e615d5fe494b01fb获取的源代码为空！
+0xef39f14213714001456e2e89eddbdf8c850c3be6获取的源代码为空！
+
+-----------------------------------------
+Bearn.json已经处理完成！
+
+['bZx.json', 'Cover.json', 'DODO.json', 'ElevenFinance.json', 'FEGtoken.json', 'ForceDAO.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：Cover.json~
+address list = {'0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f', '0x5d8d9f5b96f4438195be9b99eee6118ed4304286', '0x000000002605006ff4ad30ac969f0726821ebd7c', '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5', '0x111111125434b319222cdbf8c261674adb56f3ae'}
+0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f获取的源代码为空！
+0x000000002605006ff4ad30ac969f0726821ebd7c获取的源代码为空！
+
+故障函数！
+0x111111125434b319222cdbf8c261674adb56f3ae获取的源代码为空！
+
+-----------------------------------------
+Cover.json已经处理完成！
+
+['bZx.json', 'DODO.json', 'ElevenFinance.json', 'FEGtoken.json', 'ForceDAO.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：ElevenFinance.json~
+address list = {'0x27dd6e51bf715cfc0e2fe96af26fc9ded89e4be8', '0x8b2979d88be70ba1b0c48691bdcae7909d084401', '0x01eae4e246dfae08a4ef5c3d8f31d0668686eab3', '0x87e950c3b749ee1585c066b78930f7c0cfc465ce'}
+0x27dd6e51bf715cfc0e2fe96af26fc9ded89e4be8获取的源代码为空！
+0x8b2979d88be70ba1b0c48691bdcae7909d084401获取的源代码为空！
+0x01eae4e246dfae08a4ef5c3d8f31d0668686eab3获取的源代码为空！
+0x87e950c3b749ee1585c066b78930f7c0cfc465ce获取的源代码为空！
+
+-----------------------------------------
+ElevenFinance.json已经处理完成！
+
+['bZx.json', 'DODO.json', 'FEGtoken.json', 'ForceDAO.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：ForceDAO.json~
+address list = {'0xe7f445b93eb9cdabfe76541cc43ff8de930a58e6', '0x6dc02fc80f070daa5188ad410587e5502ddb3c63'}
+0xe7f445b93eb9cdabfe76541cc43ff8de930a58e6编译结果 ast 为空
+
+-----------------------------------------
+ForceDAO.json已经处理完成！
+
+['bZx.json', 'DODO.json', 'FEGtoken.json', 'FormationFi.json', 'FortressProtocol.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：FortressProtocol.json~
+address list = {'0xc11b687cd6061a6516e23769e4657b6efa25d78e', '0xcd337b920678cf35143322ab31ab8977c3463a45'}
+------------------------------------------------
+合约ID：Fortress Protocol-Chain.sol
+合约总结：
+Chain 智能合约总结：该合约是基于 BaseChain 构建的区块链核心合约，主要负责处理区块提交、验证者管理和领导者选举功能。核心功能包含三个部分：(1) 通过质押银行合约（IStakingBank）管理验证者列表及其质押余额；(2) 实现区块提交机制，要求验证者通过数字签名达成共识；(3) 采用时间轮转算法选举区块生产者。合约通过记录数据时间戳、默克尔根和第一类数据（FCD）维护链状态，设置最小签名数要求确保安全性，并通过时间填充机制防止区块生成过快。关键特性包括动态验证者权重计算、未来区块领导地址预测，以及防重复签名检测机制。
+
+函数列表：
+1. 构造函数：初始化合约注册表地址、时间填充参数和最小签名要求，绑定质押银行合约
+2. isForeign：返回布尔值标识是否外部链（固定返回false）
+3. getName：返回合约名称"Chain"
+4. getStatus：返回包含区块号、时间填充、最新数据时间戳、验证者列表、质押总量等完整链状态数据
+5. getNextLeaderAddress：获取下一时间段领导验证者地址
+6. getLeaderAddress：获取当前时间段领导验证者地址
+7. submit：核心提交函数，处理新区块数据提交，验证签名并更新链状态
+8. getLeaderIndex：计算指定时间戳对应的验证者索引
+9. getLeaderAddressAtTime：根据给定时间戳获取对应领导验证者地址------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-constructor-0
+函数元数据：
+{'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_contractRegistry', 'type': 'address'}, {'name': '_padding', 'type': 'uint16'}, {'name': '_requiredSignatures', 'type': 'uint16'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': ['stakingBank'], 'written': []}, 'src': '22#29'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  constructor(
+    address _contractRegistry,
+    uint16 _padding,
+    uint16 _requiredSignatures
+  ) public BaseChain(_contractRegistry, _padding, _requiredSignatures) {
+    // we not changing SB address that often, so lets save it once, it will save 10% gas
+    stakingBank = stakingBankContract();
+  }------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-isForeign-1
+函数元数据：
+{'message': "{'name': 'isForeign', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '33#35'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function isForeign() override external pure returns (bool) {
+    return false;
+  }------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-getName-2
+函数元数据：
+{'message': "{'name': 'getName', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '37#39'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function getName() override external pure returns (bytes32) {
+    return "Chain";
+  }------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-getStatus-3
+函数元数据：
+{'message': "{'name': 'getStatus', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': 'blockNumber', 'type': 'uint256'}, {'name': 'timePadding', 'type': 'uint16'}, {'name': 'lastDataTimestamp', 'type': 'uint32'}, {'name': 'lastBlockId', 'type': 'uint32'}, {'name': 'nextLeader', 'type': 'address'}, {'name': 'nextBlockId', 'type': 'uint32'}, {'name': 'validators', 'type': 'address[]'}, {'name': 'powers', 'type': 'uint256[]'}, {'name': 'locations', 'type': 'string[]'}, {'name': 'staked', 'type': 'uint256'}, {'name': 'minSignatures', 'type': 'uint16'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': ['stakingBank', 'stakingBank', 'stakingBank', 'stakingBank', 'stakingBank'], 'written': []}, 'src': '41#77'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function getStatus() external view returns(
+    uint256 blockNumber,
+    uint16 timePadding,
+    uint32 lastDataTimestamp,
+    uint32 lastBlockId,
+    address nextLeader,
+    uint32 nextBlockId,
+    address[] memory validators,
+    uint256[] memory powers,
+    string[] memory locations,
+    uint256 staked,
+    uint16 minSignatures
+  ) {
+    blockNumber = block.number;
+    timePadding = padding;
+    lastBlockId = getLatestBlockId();
+    lastDataTimestamp = squashedRoots[lastBlockId].extractTimestamp();
+    minSignatures = requiredSignatures;
+
+    staked = stakingBank.totalSupply();
+    uint256 numberOfValidators = stakingBank.getNumberOfValidators();
+    powers = new uint256[](numberOfValidators);
+    validators = new address[](numberOfValidators);
+    locations = new string[](numberOfValidators);
+
+    for (uint256 i = 0; i < numberOfValidators; i++) {
+      validators[i] = stakingBank.addresses(i);
+      (, locations[i]) = stakingBank.validators(validators[i]);
+      powers[i] = stakingBank.balanceOf(validators[i]);
+    }
+
+    nextBlockId = getBlockIdAtTimestamp(block.timestamp + 1);
+
+    nextLeader = numberOfValidators > 0
+      ? validators[getLeaderIndex(numberOfValidators, block.timestamp + 1)]
+      : address(0);
+  }------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-getNextLeaderAddress-4
+函数元数据：
+{'message': "{'name': 'getNextLeaderAddress', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '79#81'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function getNextLeaderAddress() external view returns (address) {
+    return getLeaderAddressAtTime(block.timestamp + 1);
+  }------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-getLeaderAddress-5
+函数元数据：
+{'message': "{'name': 'getLeaderAddress', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '83#85'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function getLeaderAddress() external view returns (address) {
+    return getLeaderAddressAtTime(block.timestamp);
+  }
+故障函数！
+------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-submit-6
+函数元数据：
+{'message': "{'name': 'submit', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_dataTimestamp', 'type': 'uint32'}, {'name': '_root', 'type': 'bytes32'}, {'name': '_keys', 'type': 'bytes32[]'}, {'name': '_values', 'type': 'uint256[]'}, {'name': '_v', 'type': 'uint8[]'}, {'name': '_r', 'type': 'bytes32[]'}, {'name': '_s', 'type': 'bytes32[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogVoter', 'LogMint'], 'errors': ['do not spam', 'can NOT submit older data', 'numbers of keys and values not the same', 'FCD overflow', 'validator included more than once', 'not enough signatures'], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': ['stakingBank', 'stakingBank'], 'written': []}, 'src': '90#148'}", 'is_fault': True, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function submit(
+    uint32 _dataTimestamp,
+    bytes32 _root,
+    bytes32[] memory _keys,
+    uint256[] memory _values,
+    uint8[] memory _v,
+    bytes32[] memory _r,
+    bytes32[] memory _s
+  ) public { // it could be external, but for external we got stack too deep
+    uint32 lastBlockId = getLatestBlockId();
+    uint32 dataTimestamp = squashedRoots[lastBlockId].extractTimestamp();
+
+    require(dataTimestamp + padding < block.timestamp, "do not spam");
+    require(dataTimestamp < _dataTimestamp, "can NOT submit older data");
+    // we can't expect minter will have exactly the same timestamp
+    // but for sure we can demand not to be off by a lot, that's why +3sec
+    // temporary remove this condition, because recently on ropsten we see cases when minter/node
+    // can be even 100sec behind
+    // require(_dataTimestamp <= block.timestamp + 3,
+    //   string(abi.encodePacked("oh, so you can predict the future:", _dataTimestamp - block.timestamp + 48)));
+    require(_keys.length == _values.length, "numbers of keys and values not the same");
+
+    bytes memory testimony = abi.encodePacked(_dataTimestamp, _root);
+
+    for (uint256 i = 0; i < _keys.length; i++) {
+      require(uint224(_values[i]) == _values[i], "FCD overflow");
+      fcds[_keys[i]] = FirstClassData(uint224(_values[i]), _dataTimestamp);
+      testimony = abi.encodePacked(testimony, _keys[i], _values[i]);
+    }
+
+    bytes32 affidavit = keccak256(testimony);
+    uint256 power = 0;
+
+    uint256 staked = stakingBank.totalSupply();
+    address prevSigner = address(0x0);
+
+    uint256 i = 0;
+
+    for (; i < _v.length; i++) {
+      address signer = recoverSigner(affidavit, _v[i], _r[i], _s[i]);
+      uint256 balance = stakingBank.balanceOf(signer);
+
+      require(prevSigner < signer, "validator included more than once");
+      prevSigner = signer;
+      if (balance == 0) continue;
+
+      emit LogVoter(lastBlockId + 1, signer, balance);
+      power += balance; // no need for safe math, if we overflow then we will not have enough power
+    }
+
+    require(i >= requiredSignatures, "not enough signatures");
+    // we turn on power once we have proper DPoS
+    // require(power * 100 / staked >= 66, "not enough power was gathered");
+
+    squashedRoots[lastBlockId + 1] = _root.makeSquashedRoot(_dataTimestamp);
+    blocksCount++;
+
+    emit LogMint(msg.sender, lastBlockId + 1, staked, power);
+  }------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-getLeaderIndex-7
+函数元数据：
+{'message': "{'name': 'getLeaderIndex', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_numberOfValidators', 'type': 'uint256'}, {'name': '_timestamp', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '150#158'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function getLeaderIndex(uint256 _numberOfValidators, uint256 _timestamp) public view returns (uint256) {
+    uint32 latestBlockId = getLatestBlockId();
+
+    // timePadding + 1 => because padding is a space between blocks, so next round starts on first block after padding
+    uint256 validatorIndex = latestBlockId +
+      (_timestamp - squashedRoots[latestBlockId].extractTimestamp()) / (padding + 1);
+
+    return uint16(validatorIndex % _numberOfValidators);
+  }------------------------------------------------
+函数ID：Fortress Protocol-Chain.sol-getLeaderAddressAtTime-8
+函数元数据：
+{'message': "{'name': 'getLeaderAddressAtTime', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_timestamp', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Chain.sol', 'external_calls': [], 'state_vars': {'read': ['stakingBank', 'stakingBank'], 'written': []}, 'src': '161#171'}", 'is_fault': False, 'belong': 'Fortress Protocol-Chain.sol'}
+函数切片：
+  function getLeaderAddressAtTime(uint256 _timestamp) public view returns (address) {
+    uint256 numberOfValidators = stakingBank.getNumberOfValidators();
+
+    if (numberOfValidators == 0) {
+      return address(0x0);
+    }
+
+    uint256 validatorIndex = getLeaderIndex(numberOfValidators, _timestamp);
+
+    return stakingBank.addresses(validatorIndex);
+  }------------------------------------------------
+合约ID：Fortress Protocol-Ownable.sol
+合约总结：
+智能合约名称：Ownable（所有权管理合约）。该合约用于实现基本的权限控制机制，允许合约部署者作为初始所有者，并通过函数限制确保特定功能仅所有者可访问。合约核心功能围绕所有权转移和权限验证展开，主要特点包括：1. 部署合约时自动将部署者设为初始所有者；2. 提供onlyOwner修饰器用于限制关键函数调用权限；3. 支持所有权转移和主动放弃所有权两种操作模式。关键代码逻辑体现在通过地址比对验证调用者身份，当执行所有权变更时均会触发OwnershipTransferred事件记录操作日志。需特别注意：renounceOwnership函数将永久使合约失去所有者，导致所有带onlyOwner限制的函数永久失效。该合约通过继承机制为其他合约提供基础权限控制功能，属于可复用的权限管理模块。
+
+函数列表：
+1. 构造函数constructor()：初始化合约，设置部署者为所有者并触发事件
+2. owner()：视图函数，返回当前所有者地址
+3. renounceOwnership()：销毁所有者权限，将所有者设为零地址（仅所有者可调用）
+4. transferOwnership(address newOwner)：转移所有权到指定新地址（仅所有者可调用，且新地址不能为零地址）------------------------------------------------
+函数ID：Fortress Protocol-Ownable.sol-constructor-0
+函数元数据：
+{'message': "{'name': 'constructor', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': [], 'contract': 'Fortress Protocol-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner'], 'written': []}, 'src': '26#30'}", 'is_fault': False, 'belong': 'Fortress Protocol-Ownable.sol'}
+函数切片：
+    constructor () internal {
+        address msgSender = _msgSender();
+        _owner = msgSender;
+        emit OwnershipTransferred(address(0), msgSender);
+    }------------------------------------------------
+函数ID：Fortress Protocol-Ownable.sol-owner-1
+函数元数据：
+{'message': "{'name': 'owner', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner'], 'written': []}, 'src': '35#37'}", 'is_fault': False, 'belong': 'Fortress Protocol-Ownable.sol'}
+函数切片：
+    function owner() public view returns (address) {
+        return _owner;
+    }------------------------------------------------
+函数ID：Fortress Protocol-Ownable.sol-onlyOwner-2
+函数元数据：
+{'message': "{'name': 'onlyOwner', 'type': 'modifier', 'contract': 'Fortress Protocol-Ownable.sol', 'src': '42#45'}", 'is_fault': False, 'belong': 'Fortress Protocol-Ownable.sol'}
+函数切片：
+    modifier onlyOwner() {
+        require(_owner == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }------------------------------------------------
+函数ID：Fortress Protocol-Ownable.sol-renounceOwnership-3
+函数元数据：
+{'message': "{'name': 'renounceOwnership', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': [], 'contract': 'Fortress Protocol-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '54#57'}", 'is_fault': False, 'belong': 'Fortress Protocol-Ownable.sol'}
+函数切片：
+    function renounceOwnership() public virtual onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
+    }------------------------------------------------
+函数ID：Fortress Protocol-Ownable.sol-transferOwnership-4
+函数元数据：
+{'message': "{'name': 'transferOwnership', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'newOwner', 'type': 'address'}], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': ['Ownable: new owner is the zero address'], 'contract': 'Fortress Protocol-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '63#67'}", 'is_fault': False, 'belong': 'Fortress Protocol-Ownable.sol'}
+函数切片：
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
+    }------------------------------------------------
+合约ID：Fortress Protocol-ValueDecoder.sol
+合约总结：
+ValueDecoder 库总结：该智能合约是一个用于字节数据解码的工具库，提供将 bytes 和 bytes32 类型数据转换为 uint256 的基础功能。核心实现采用内联汇编方式直接操作内存数据，通过 mload 指令从内存中加载前 32 字节数据实现高效转换。适用于需要将字节数据快速转换为整数字面值的场景，常见于数据解析、参数解码等需求场景，可作为基础工具库被其他合约调用。
+
+函数列表：
+1. toUint(bytes memory _bytes)：将动态字节数组转换为 uint256 类型，通过读取内存中起始地址后 32 字节数据实现
+2. toUint(bytes32 _bytes)：将固定长度字节数据转换为 uint256 类型，直接返回底层字节数据的整数值------------------------------------------------
+函数ID：Fortress Protocol-ValueDecoder.sol-toUint-0
+函数元数据：
+{'message': "{'name': 'toUint', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': '_bytes', 'type': 'bytes'}], 'returns': [{'name': 'value', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ValueDecoder.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '5#9'}", 'is_fault': False, 'belong': 'Fortress Protocol-ValueDecoder.sol'}
+函数切片：
+  function toUint(bytes memory _bytes) internal pure returns (uint256 value) {
+    assembly {
+      value := mload(add(_bytes, 32))
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-ValueDecoder.sol-toUint-1
+函数元数据：
+{'message': "{'name': 'toUint', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': '_bytes', 'type': 'bytes32'}], 'returns': [{'name': 'value', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ValueDecoder.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '11#15'}", 'is_fault': False, 'belong': 'Fortress Protocol-ValueDecoder.sol'}
+函数切片：
+  function toUint(bytes32 _bytes) internal pure returns (uint256 value) {
+    assembly {
+      value := _bytes
+    }
+  }------------------------------------------------
+合约ID：Fortress Protocol-IStakingBank.sol
+合约总结：
+质押银行验证器管理接口（IStakingBank）该智能合约是一个基于ERC20标准扩展的质押银行管理接口，主要用于管理验证器节点及其质押资产。合约继承自IERC20接口，具备代币基础功能的同时，增加了针对验证器注册、质押操作和节点信息查询的扩展功能。核心功能包含验证器身份管理（创建/更新节点地址与元数据）、质押资产存取控制（授权转账与提现操作）、验证器列表查询三大模块，支持通过索引遍历验证器地址，并实时获取当前网络验证器总数。
+
+函数列表如下：
+1. receiveApproval：处理来自用户的代币授权请求，完成质押资金划转
+2. withdraw：执行用户质押代币的提取操作
+3. create：注册新的验证器节点，绑定地址与元数据
+4. update：更新已存在验证器节点的元数据信息
+5. addresses：通过索引编号查询已注册验证器地址
+6. validators：根据地址查询验证器完整信息（地址+元数据）
+7. getNumberOfValidators：获取当前网络验证器总数------------------------------------------------
+函数ID：Fortress Protocol-IStakingBank.sol-receiveApproval-0
+函数元数据：
+{'message': "{'name': 'receiveApproval', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_from', 'type': 'address'}], 'returns': [{'name': 'success', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IStakingBank.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '7#7'}", 'is_fault': False, 'belong': 'Fortress Protocol-IStakingBank.sol'}
+函数切片：
+  function receiveApproval(address _from) external returns (bool success);------------------------------------------------
+函数ID：Fortress Protocol-IStakingBank.sol-withdraw-1
+函数元数据：
+{'message': "{'name': 'withdraw', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_value', 'type': 'uint256'}], 'returns': [{'name': 'success', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IStakingBank.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '9#9'}", 'is_fault': False, 'belong': 'Fortress Protocol-IStakingBank.sol'}
+函数切片：
+  function withdraw(uint256 _value) external returns (bool success);------------------------------------------------
+函数ID：Fortress Protocol-IStakingBank.sol-create-2
+函数元数据：
+{'message': "{'name': 'create', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_id', 'type': 'address'}, {'name': '_location', 'type': 'string'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IStakingBank.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '11#11'}", 'is_fault': False, 'belong': 'Fortress Protocol-IStakingBank.sol'}
+函数切片：
+  function create(address _id, string calldata _location) external;------------------------------------------------
+函数ID：Fortress Protocol-IStakingBank.sol-update-3
+函数元数据：
+{'message': "{'name': 'update', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_id', 'type': 'address'}, {'name': '_location', 'type': 'string'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IStakingBank.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#13'}", 'is_fault': False, 'belong': 'Fortress Protocol-IStakingBank.sol'}
+函数切片：
+  function update(address _id, string calldata _location) external;------------------------------------------------
+函数ID：Fortress Protocol-IStakingBank.sol-addresses-4
+函数元数据：
+{'message': "{'name': 'addresses', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_ix', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IStakingBank.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '15#15'}", 'is_fault': False, 'belong': 'Fortress Protocol-IStakingBank.sol'}
+函数切片：
+  function addresses(uint256 _ix) external view returns (address);------------------------------------------------
+函数ID：Fortress Protocol-IStakingBank.sol-validators-5
+函数元数据：
+{'message': "{'name': 'validators', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_id', 'type': 'address'}], 'returns': [{'name': 'id', 'type': 'address'}, {'name': 'location', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IStakingBank.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '17#17'}", 'is_fault': False, 'belong': 'Fortress Protocol-IStakingBank.sol'}
+函数切片：
+  function validators(address _id) external view returns (address id, string memory location);------------------------------------------------
+函数ID：Fortress Protocol-IStakingBank.sol-getNumberOfValidators-6
+函数元数据：
+{'message': "{'name': 'getNumberOfValidators', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IStakingBank.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '19#19'}", 'is_fault': False, 'belong': 'Fortress Protocol-IStakingBank.sol'}
+函数切片：
+  function getNumberOfValidators() external view returns (uint256);------------------------------------------------
+合约ID：Fortress Protocol-BaseChain.sol
+合约总结：
+BaseChain合约总结：该合约是一个抽象基础链合约，用于管理区块链数据验证和状态维护。核心功能包括：1. 通过Merkle证明验证数据完整性；2. 管理区块根哈希与时间戳的映射关系；3. 存储和查询第一手数据（FCD）；4. 处理多签名验证与区块ID计算逻辑。合约采用可注册架构设计，支持通过合约注册表进行地址管理，包含与旧链数据的兼容性处理机制，提供区块时间戳计算、数据证明批量验证等功能，同时允许所有者调整时间填充参数。
+
+函数列表：
+1. setPadding：由所有者设置时间填充参数
+2. isForeign：抽象函数判断是否为外部链
+3. recoverSigner：通过签名参数恢复签名者地址
+4. blocks：获取指定区块ID的区块数据
+5. getBlockId：获取当前时间对应的区块ID
+6. getBlockIdAtTimestamp：计算指定时间戳对应的区块ID
+7. getLatestBlockId：获取最新区块ID
+8. verifyProof：验证单个Merkle证明
+9. hashLeaf：计算键值对的叶子节点哈希
+10. verifyProofForBlock：验证指定区块的Merkle证明
+11. bytesToBytes32Array：将字节数据转换为bytes32数组
+12. verifyProofs：批量验证多个Merkle证明
+13. getBlockRoot：获取区块的原始根哈希
+14. getBlockTimestamp：获取区块时间戳
+15. getCurrentValues：批量获取指定键的当前值和时间戳
+16. getCurrentValue：获取指定键的数值和时间戳
+17. getCurrentIntValue：获取指定键的整型数值和时间戳
+18. testToInt：测试将uint224转换为int256------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-constructor-0
+函数元数据：
+{'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_contractRegistry', 'type': 'address'}, {'name': '_padding', 'type': 'uint16'}, {'name': '_requiredSignatures', 'type': 'uint16'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['padding', 'requiredSignatures', 'blocksCountOffset'], 'written': []}, 'src': '44#57'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  constructor(
+    address _contractRegistry,
+    uint16 _padding,
+    uint16 _requiredSignatures // we have a plan to use signatures also in foreign Chains so lets keep it in base
+  ) public Registrable(_contractRegistry) {
+    padding = _padding;
+    requiredSignatures = _requiredSignatures;
+    BaseChain oldChain = BaseChain(Registry(_contractRegistry).getAddress("Chain"));
+
+    blocksCountOffset = address(oldChain) != address(0x0)
+      // +1 because it might be situation when tx is already in progress in old contract
+      ? oldChain.blocksCount() + oldChain.blocksCountOffset() + 1
+      : 0;
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-setPadding-1
+函数元数据：
+{'message': "{'name': 'setPadding', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_padding', 'type': 'uint16'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogPadding'], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['padding'], 'written': []}, 'src': '61#64'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function setPadding(uint16 _padding) external onlyOwner {
+    padding = _padding;
+    emit LogPadding(msg.sender, _padding);
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-isForeign-2
+函数元数据：
+{'message': "{'name': 'isForeign', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '68#68'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function isForeign() virtual external pure returns (bool);------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-recoverSigner-3
+函数元数据：
+{'message': "{'name': 'recoverSigner', 'visibility': 'public', 'stateMutability': 'pure', 'parameters': [{'name': '_affidavit', 'type': 'bytes32'}, {'name': '_v', 'type': 'uint8'}, {'name': '_r', 'type': 'bytes32'}, {'name': '_s', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['ETH_PREFIX'], 'written': []}, 'src': '70#73'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function recoverSigner(bytes32 _affidavit, uint8 _v, bytes32 _r, bytes32 _s) public pure returns (address) {
+    bytes32 hash = keccak256(abi.encodePacked(ETH_PREFIX, _affidavit));
+    return ecrecover(hash, _v, _r, _s);
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-blocks-4
+函数元数据：
+{'message': "{'name': 'blocks', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_blockId', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'struct BaseChain.Block'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['squashedRoots'], 'written': []}, 'src': '75#78'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function blocks(uint256 _blockId) external view returns (Block memory) {
+    bytes32 root = squashedRoots[_blockId];
+    return Block(root, root.extractTimestamp());
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getBlockId-5
+函数元数据：
+{'message': "{'name': 'getBlockId', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '80#82'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getBlockId() public view returns (uint32) {
+    return getBlockIdAtTimestamp(block.timestamp);
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getBlockIdAtTimestamp-6
+函数元数据：
+{'message': "{'name': 'getBlockIdAtTimestamp', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_timestamp', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['blocksCount', 'blocksCountOffset', 'squashedRoots', 'padding'], 'written': []}, 'src': '85#97'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getBlockIdAtTimestamp(uint256 _timestamp) virtual public view returns (uint32) {
+    uint32 _blocksCount = blocksCount + blocksCountOffset;
+
+    if (_blocksCount == 0) {
+      return 0;
+    }
+
+    if (squashedRoots[_blocksCount - 1].extractTimestamp() + padding < _timestamp) {
+      return _blocksCount;
+    }
+
+    return _blocksCount - 1;
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getLatestBlockId-7
+函数元数据：
+{'message': "{'name': 'getLatestBlockId', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['blocksCount', 'blocksCountOffset'], 'written': []}, 'src': '99#101'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getLatestBlockId() virtual public view returns (uint32) {
+    return blocksCount + blocksCountOffset - 1;
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-verifyProof-8
+函数元数据：
+{'message': "{'name': 'verifyProof', 'visibility': 'public', 'stateMutability': 'pure', 'parameters': [{'name': '_proof', 'type': 'bytes32[]'}, {'name': '_root', 'type': 'bytes32'}, {'name': '_leaf', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '103#109'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function verifyProof(bytes32[] memory _proof, bytes32 _root, bytes32 _leaf) public pure returns (bool) {
+    if (_root == bytes32(0)) {
+      return false;
+    }
+
+    return _root.verify(_proof, _leaf);
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-hashLeaf-9
+函数元数据：
+{'message': "{'name': 'hashLeaf', 'visibility': 'public', 'stateMutability': 'pure', 'parameters': [{'name': '_key', 'type': 'bytes'}, {'name': '_value', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '111#113'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function hashLeaf(bytes memory _key, bytes memory _value) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_key, _value));
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-verifyProofForBlock-10
+函数元数据：
+{'message': "{'name': 'verifyProofForBlock', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_blockId', 'type': 'uint256'}, {'name': '_proof', 'type': 'bytes32[]'}, {'name': '_key', 'type': 'bytes'}, {'name': '_value', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['squashedRoots'], 'written': []}, 'src': '115#122'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function verifyProofForBlock(
+    uint256 _blockId,
+    bytes32[] memory _proof,
+    bytes memory _key,
+    bytes memory _value
+  ) public view returns (bool) {
+    return squashedRoots[_blockId].verifySquashedRoot(_proof, keccak256(abi.encodePacked(_key, _value)));
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-bytesToBytes32Array-11
+函数元数据：
+{'message': "{'name': 'bytesToBytes32Array', 'visibility': 'public', 'stateMutability': 'pure', 'parameters': [{'name': '_data', 'type': 'bytes'}, {'name': '_offset', 'type': 'uint256'}, {'name': '_items', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bytes32[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '124#144'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function bytesToBytes32Array(
+    bytes memory _data,
+    uint256 _offset,
+    uint256 _items
+  ) public pure returns (bytes32[] memory) {
+    bytes32[] memory dataList = new bytes32[](_items);
+
+    for (uint256 i = 0; i < _items; i++) {
+      bytes32 temp;
+      uint256 idx = (i + 1 + _offset) * 32;
+
+      // solhint-disable-next-line no-inline-assembly
+      assembly {
+        temp := mload(add(_data, idx))
+      }
+
+      dataList[i] = temp;
+    }
+
+    return (dataList);
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-verifyProofs-12
+函数元数据：
+{'message': "{'name': 'verifyProofs', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_blockIds', 'type': 'uint32[]'}, {'name': '_proofs', 'type': 'bytes'}, {'name': '_proofItemsCounter', 'type': 'uint256[]'}, {'name': '_leaves', 'type': 'bytes32[]'}], 'returns': [{'name': 'results', 'type': 'bool[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['squashedRoots'], 'written': []}, 'src': '146#162'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function verifyProofs(
+    uint32[] memory _blockIds,
+    bytes memory _proofs,
+    uint256[] memory _proofItemsCounter,
+    bytes32[] memory _leaves
+  ) public view returns (bool[] memory results) {
+    results = new bool[](_leaves.length);
+    uint256 offset = 0;
+
+    for (uint256 i = 0; i < _leaves.length; i++) {
+      results[i] = squashedRoots[_blockIds[i]].verifySquashedRoot(
+        bytesToBytes32Array(_proofs, offset, _proofItemsCounter[i]), _leaves[i]
+      );
+
+      offset += _proofItemsCounter[i];
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getBlockRoot-13
+函数元数据：
+{'message': "{'name': 'getBlockRoot', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_blockId', 'type': 'uint32'}], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['squashedRoots'], 'written': []}, 'src': '164#166'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getBlockRoot(uint32 _blockId) external view returns (bytes32) {
+    return squashedRoots[_blockId].extractRoot();
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getBlockTimestamp-14
+函数元数据：
+{'message': "{'name': 'getBlockTimestamp', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_blockId', 'type': 'uint32'}], 'returns': [{'name': '', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['squashedRoots'], 'written': []}, 'src': '168#170'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getBlockTimestamp(uint32 _blockId) external view returns (uint32) {
+    return squashedRoots[_blockId].extractTimestamp();
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getCurrentValues-15
+函数元数据：
+{'message': "{'name': 'getCurrentValues', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_keys', 'type': 'bytes32[]'}], 'returns': [{'name': 'values', 'type': 'uint256[]'}, {'name': 'timestamps', 'type': 'uint32[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['fcds'], 'written': []}, 'src': '172#182'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getCurrentValues(bytes32[] calldata _keys)
+  external view returns (uint256[] memory values, uint32[] memory timestamps) {
+    timestamps = new uint32[](_keys.length);
+    values = new uint256[](_keys.length);
+
+    for (uint i=0; i<_keys.length; i++) {
+      FirstClassData storage numericFCD = fcds[_keys[i]];
+      values[i] = uint256(numericFCD.value);
+      timestamps[i] = numericFCD.dataTimestamp;
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getCurrentValue-16
+函数元数据：
+{'message': "{'name': 'getCurrentValue', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_key', 'type': 'bytes32'}], 'returns': [{'name': 'value', 'type': 'uint256'}, {'name': 'timestamp', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['fcds'], 'written': []}, 'src': '184#187'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getCurrentValue(bytes32 _key) external view returns (uint256 value, uint256 timestamp) {
+    FirstClassData storage numericFCD = fcds[_key];
+    return (uint256(numericFCD.value), numericFCD.dataTimestamp);
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-getCurrentIntValue-17
+函数元数据：
+{'message': "{'name': 'getCurrentIntValue', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_key', 'type': 'bytes32'}], 'returns': [{'name': 'value', 'type': 'int256'}, {'name': 'timestamp', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': ['fcds'], 'written': []}, 'src': '189#192'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function getCurrentIntValue(bytes32 _key) external view returns (int256 value, uint256 timestamp) {
+    FirstClassData storage numericFCD = fcds[_key];
+    return (numericFCD.value.toInt(), numericFCD.dataTimestamp);
+  }------------------------------------------------
+函数ID：Fortress Protocol-BaseChain.sol-testToInt-18
+函数元数据：
+{'message': "{'name': 'testToInt', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [{'name': 'u', 'type': 'uint224'}], 'returns': [{'name': '', 'type': 'int256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-BaseChain.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '195#197'}", 'is_fault': False, 'belong': 'Fortress Protocol-BaseChain.sol'}
+函数切片：
+  function testToInt(uint224 u) external pure returns (int256) {
+    return u.toInt();
+  }------------------------------------------------
+合约ID：Fortress Protocol-Context.sol
+合约总结：
+智能合约名称：Context（上下文信息抽象合约）。该合约旨在为其他合约提供当前执行上下文的基本信息，主要面向需要处理GSN（Gas Station Network）元交易的中介合约或类库合约。它通过抽象层封装了交易发送者地址和原始交易数据的获取方式，避免子合约直接访问msg.sender和msg.data，从而解决元交易场景中实际支付gas费的账户与逻辑发送者账户可能不一致的问题。合约包含两个核心视图函数：_msgSender()返回经过virtual修饰的可重写交易发送方地址，_msgData()返回完整的交易调用数据。特别值得注意的是，_msgData()函数内通过this语句的巧妙运用，规避了Solidity编译器对未使用状态变量的警告，同时保持函数的状态可变性为view。该合约作为基础模块，可为支持元交易功能的智能合约提供标准化上下文访问接口。
+
+函数列表包含：1. _msgSender() 函数，功能为获取交易发起者的地址，返回address payable类型数据；2. _msgData() 函数，功能为获取完整的原始交易数据字节数组，返回bytes memory类型数据。两个函数均被声明为internal可见性和view状态可变性，表明它们仅供合约内部或继承合约调用且不会修改链上状态。------------------------------------------------
+函数ID：Fortress Protocol-Context.sol-_msgSender-0
+函数元数据：
+{'message': "{'name': '_msgSender', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address payable'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Context.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#18'}", 'is_fault': False, 'belong': 'Fortress Protocol-Context.sol'}
+函数切片：
+    function _msgSender() internal view virtual returns (address payable) {
+        return msg.sender;
+    }------------------------------------------------
+函数ID：Fortress Protocol-Context.sol-_msgData-1
+函数元数据：
+{'message': "{'name': '_msgData', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Context.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '20#23'}", 'is_fault': False, 'belong': 'Fortress Protocol-Context.sol'}
+函数切片：
+    function _msgData() internal view virtual returns (bytes memory) {
+        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
+        return msg.data;
+    }------------------------------------------------
+合约ID：Fortress Protocol-IERC20.sol
+合约总结：
+智能合约名称：IERC20 接口合约。该合约是 ERC20 代币标准的接口定义，规定了实现 ERC20 代币必须包含的基础函数和事件。合约作为其他代币合约的交互模板，定义了代币供应量查询、余额查询、转账功能、授权额度管理三大核心功能模块。关键代码包含 totalSupply 函数用于获取代币总供应量，balanceOf 函数实现地址余额查询，transfer 函数处理基础转账逻辑。合约还通过 allowance 函数和 approve 函数实现代币授权机制，允许第三方在授权额度内操作代币。transferFrom 函数提供了基于授权额度进行间接转账的功能。合约内定义了两个事件：Transfer 事件在转账操作时触发，Approval 事件在设置授权额度时触发。该接口不包含具体实现代码，仅为 ERC20 标准的功能规范。  
+
+函数列表：  
+1. totalSupply()：获取代币总供应量  
+2. balanceOf(address)：查询指定地址的代币余额  
+3. transfer(address, uint256)：向指定地址转账代币  
+4. allowance(address, address)：查询所有者给操作者设置的授权额度  
+5. approve(address, uint256)：设置第三方可操作代币的授权额度  
+6. transferFrom(address, address, uint256)：使用授权额度执行代币转账  
+事件列表：  
+1. Transfer(address, address, uint256)：代币转账时触发的事件  
+2. Approval(address, address, uint256)：授权额度变更时触发的事件------------------------------------------------
+函数ID：Fortress Protocol-IERC20.sol-totalSupply-0
+函数元数据：
+{'message': "{'name': 'totalSupply', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '12#12'}", 'is_fault': False, 'belong': 'Fortress Protocol-IERC20.sol'}
+函数切片：
+    function totalSupply() external view returns (uint256);------------------------------------------------
+函数ID：Fortress Protocol-IERC20.sol-balanceOf-1
+函数元数据：
+{'message': "{'name': 'balanceOf', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '17#17'}", 'is_fault': False, 'belong': 'Fortress Protocol-IERC20.sol'}
+函数切片：
+    function balanceOf(address account) external view returns (uint256);------------------------------------------------
+函数ID：Fortress Protocol-IERC20.sol-transfer-2
+函数元数据：
+{'message': "{'name': 'transfer', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#26'}", 'is_fault': False, 'belong': 'Fortress Protocol-IERC20.sol'}
+函数切片：
+    function transfer(address recipient, uint256 amount) external returns (bool);------------------------------------------------
+函数ID：Fortress Protocol-IERC20.sol-allowance-3
+函数元数据：
+{'message': "{'name': 'allowance', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '35#35'}", 'is_fault': False, 'belong': 'Fortress Protocol-IERC20.sol'}
+函数切片：
+    function allowance(address owner, address spender) external view returns (uint256);------------------------------------------------
+函数ID：Fortress Protocol-IERC20.sol-approve-4
+函数元数据：
+{'message': "{'name': 'approve', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '51#51'}", 'is_fault': False, 'belong': 'Fortress Protocol-IERC20.sol'}
+函数切片：
+    function approve(address spender, uint256 amount) external returns (bool);------------------------------------------------
+函数ID：Fortress Protocol-IERC20.sol-transferFrom-5
+函数元数据：
+{'message': "{'name': 'transferFrom', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '62#62'}", 'is_fault': False, 'belong': 'Fortress Protocol-IERC20.sol'}
+函数切片：
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);------------------------------------------------
+合约ID：Fortress Protocol-MerkleProof.sol
+合约总结：
+MerkleProof库合约总结：该智能合约是一个用于处理带时间戳压缩的Merkle树验证工具库。基于OpenZeppelin的MerkleProof实现进行改造，核心功能是通过掩码操作将32字节的Merkle根与4字节时间戳合并存储，实现数据压缩。合约提供数据解压缩、根验证、哈希计算等基础功能，支持从压缩数据中分离原始Merkle根和时间戳，同时保留标准Merkle证明验证能力。通过位运算优化存储空间，在保持向后兼容性的前提下新增时间戳融合特性，适用于需要附加元数据的Merkle验证场景。
+
+函数列表：
+1. extractSquashedData：从压缩数据中同时提取Merkle根和时间戳
+2. extractRoot：从压缩数据中单独提取Merkle根
+3. extractTimestamp：从压缩数据中单独提取时间戳
+4. makeSquashedRoot：将原始Merkle根与时间戳组合成压缩数据
+5. verifySquashedRoot：验证带压缩根的Merkle证明有效性
+6. verify：验证标准Merkle证明有效性
+7. computeRoot：通过叶子节点和证明路径计算Merkle根哈希值------------------------------------------------
+函数ID：Fortress Protocol-MerkleProof.sol-extractSquashedData-0
+函数元数据：
+{'message': "{'name': 'extractSquashedData', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': '_rootTimestamp', 'type': 'bytes32'}], 'returns': [{'name': 'root', 'type': 'bytes32'}, {'name': 'dataTimestamp', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#19'}", 'is_fault': False, 'belong': 'Fortress Protocol-MerkleProof.sol'}
+函数切片：
+  function extractSquashedData(bytes32 _rootTimestamp) internal pure returns (bytes32 root, uint32 dataTimestamp) {
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      root := and(_rootTimestamp, ROOT_MASK)
+      dataTimestamp := and(_rootTimestamp, TIMESTAMP_MASK)
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-MerkleProof.sol-extractRoot-1
+函数元数据：
+{'message': "{'name': 'extractRoot', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': '_rootTimestamp', 'type': 'bytes32'}], 'returns': [{'name': 'root', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '21#26'}", 'is_fault': False, 'belong': 'Fortress Protocol-MerkleProof.sol'}
+函数切片：
+  function extractRoot(bytes32 _rootTimestamp) internal pure returns (bytes32 root) {
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      root := and(_rootTimestamp, ROOT_MASK)
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-MerkleProof.sol-extractTimestamp-2
+函数元数据：
+{'message': "{'name': 'extractTimestamp', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': '_rootTimestamp', 'type': 'bytes32'}], 'returns': [{'name': 'dataTimestamp', 'type': 'uint32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '28#33'}", 'is_fault': False, 'belong': 'Fortress Protocol-MerkleProof.sol'}
+函数切片：
+  function extractTimestamp(bytes32 _rootTimestamp) internal pure returns (uint32 dataTimestamp) {
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      dataTimestamp := and(_rootTimestamp, TIMESTAMP_MASK)
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-MerkleProof.sol-makeSquashedRoot-3
+函数元数据：
+{'message': "{'name': 'makeSquashedRoot', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': '_root', 'type': 'bytes32'}, {'name': '_timestamp', 'type': 'uint32'}], 'returns': [{'name': 'rootTimestamp', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '35#40'}", 'is_fault': False, 'belong': 'Fortress Protocol-MerkleProof.sol'}
+函数切片：
+  function makeSquashedRoot(bytes32 _root, uint32 _timestamp) internal pure returns (bytes32 rootTimestamp) {
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      rootTimestamp := or(and(_root, ROOT_MASK), _timestamp)
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-MerkleProof.sol-verifySquashedRoot-4
+函数元数据：
+{'message': "{'name': 'verifySquashedRoot', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'squashedRoot', 'type': 'bytes32'}, {'name': 'proof', 'type': 'bytes32[]'}, {'name': 'leaf', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '48#50'}", 'is_fault': False, 'belong': 'Fortress Protocol-MerkleProof.sol'}
+函数切片：
+  function verifySquashedRoot(bytes32 squashedRoot, bytes32[] memory proof, bytes32 leaf) internal pure returns (bool) {
+    return extractRoot(computeRoot(proof, leaf)) == extractRoot(squashedRoot);
+  }------------------------------------------------
+函数ID：Fortress Protocol-MerkleProof.sol-verify-5
+函数元数据：
+{'message': "{'name': 'verify', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'root', 'type': 'bytes32'}, {'name': 'proof', 'type': 'bytes32[]'}, {'name': 'leaf', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '52#54'}", 'is_fault': False, 'belong': 'Fortress Protocol-MerkleProof.sol'}
+函数切片：
+  function verify(bytes32 root, bytes32[] memory proof, bytes32 leaf) internal pure returns (bool) {
+    return computeRoot(proof, leaf) == root;
+  }------------------------------------------------
+函数ID：Fortress Protocol-MerkleProof.sol-computeRoot-6
+函数元数据：
+{'message': "{'name': 'computeRoot', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'proof', 'type': 'bytes32[]'}, {'name': 'leaf', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '56#73'}", 'is_fault': False, 'belong': 'Fortress Protocol-MerkleProof.sol'}
+函数切片：
+  function computeRoot(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
+    bytes32 computedHash = leaf;
+
+    for (uint256 i = 0; i < proof.length; i++) {
+      bytes32 proofElement = proof[i];
+
+      if (computedHash <= proofElement) {
+        // Hash(current computed hash + current element of the proof)
+        computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
+      } else {
+        // Hash(current element of the proof + current computed hash)
+        computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
+      }
+    }
+
+    // Check if the computed hash (root) is equal to the provided root
+    return computedHash;
+  }------------------------------------------------
+合约ID：Fortress Protocol-Registrable.sol
+合约总结：
+Registrable智能合约总结：该合约为抽象合约，提供基于注册表（Registry）的基础功能集成机制，主要用于管理外部合约地址的依赖关系与权限控制。合约通过构造函数注入Registry地址，实现核心功能包括：(1) 通过修饰器onlyFromContract验证调用方是否为注册表中指定的合约地址，确保跨合约调用的安全性；(2) 提供stakingBankContract和tokenContract视图函数，分别获取StakingBank质押合约与UMB代币合约实例；(3) 声明可继承的register/unregister虚函数，为子链合约(如ForeignChain)预留注册/注销功能扩展点；(4) 集成注册表状态校验修饰器withRegistrySetUp，防止未初始化状态下的非法操作。合约作为基础设施，重点解决跨合约地址依赖管理问题，通过中心化注册表实现合约间的松耦合交互。
+
+函数列表：
+1. 构造函数：初始化合约注册表地址，进行非空校验
+2. register()：虚函数，预留外部注册接口（当前为空实现）
+3. unregister()：虚函数，预留外部注销接口（当前为空实现）
+4. getName()：虚函数，需子合约实现返回合约名称
+5. stakingBankContract()：查询并返回StakingBank合约实例
+6. tokenContract()：查询并返回UMB代币合约实例------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-constructor-0
+函数元数据：
+{'message': "{'name': 'constructor', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_contractRegistry', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['_registry is empty'], 'contract': 'Fortress Protocol-Registrable.sol', 'external_calls': [], 'state_vars': {'read': ['contractRegistry'], 'written': []}, 'src': '13#16'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  constructor(address _contractRegistry) internal {
+    require(_contractRegistry != address(0x0), "_registry is empty");
+    contractRegistry = IRegistry(_contractRegistry);
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-onlyFromContract-1
+函数元数据：
+{'message': "{'name': 'onlyFromContract', 'type': 'modifier', 'contract': 'Fortress Protocol-Registrable.sol', 'src': '20#26'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  modifier onlyFromContract(address _msgSender, bytes32 _contractName) {
+    require(
+      contractRegistry.getAddress(_contractName) == _msgSender,
+        string(abi.encodePacked("caller is not ", _contractName))
+    );
+    _;
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-withRegistrySetUp-2
+函数元数据：
+{'message': "{'name': 'withRegistrySetUp', 'type': 'modifier', 'contract': 'Fortress Protocol-Registrable.sol', 'src': '28#31'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  modifier withRegistrySetUp() {
+    require(address(contractRegistry) != address(0x0), "_registry is empty");
+    _;
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-register-3
+函数元数据：
+{'message': "{'name': 'register', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registrable.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '35#39'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  function register() virtual external {
+    // this is required only for ForeignChain
+    // but for backward compatibility the body is implemented as empty
+    // also note, that in order to use this method, we need new registry
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-unregister-4
+函数元数据：
+{'message': "{'name': 'unregister', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registrable.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '41#45'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  function unregister() virtual external {
+    // this is required only for ForeignChain
+    // but for backward compatibility the body is implemented as empty
+    // also note, that in order to use this method, we need new registry
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-getName-5
+函数元数据：
+{'message': "{'name': 'getName', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registrable.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '49#49'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  function getName() virtual external pure returns (bytes32);------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-stakingBankContract-6
+函数元数据：
+{'message': "{'name': 'stakingBankContract', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'contract IStakingBank'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registrable.sol', 'external_calls': [], 'state_vars': {'read': ['contractRegistry'], 'written': []}, 'src': '51#53'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  function stakingBankContract() public view returns (IStakingBank) {
+    return IStakingBank(contractRegistry.requireAndGetAddress("StakingBank"));
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registrable.sol-tokenContract-7
+函数元数据：
+{'message': "{'name': 'tokenContract', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'contract ERC20'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registrable.sol', 'external_calls': [], 'state_vars': {'read': ['contractRegistry'], 'written': []}, 'src': '55#57'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registrable.sol'}
+函数切片：
+  function tokenContract() public view withRegistrySetUp returns (ERC20) {
+    return ERC20(contractRegistry.requireAndGetAddress("UMB"));
+  }------------------------------------------------
+合约ID：Fortress Protocol-Registry.sol
+合约总结：
+Registry 智能合约总结：该合约是一个基于 OpenZeppelin 可拥有权限的注册中心管理合约，主要用于维护不同合约地址的注册表。合约通过 bytes32 类型键名映射地址的方式存储注册信息，支持批量导入地址、自动获取合约名称注册、原子化更新合约等功能。核心功能包含三种管理操作（需所有者权限）：1）直接导入名称-地址对 2）通过合约接口自动获取名称注册 3）带注册/注销流程的原子更新。提供四种地址查询方式：严格校验存在性的地址获取、直接映射查询、字符串转字节查询及转换工具函数。合约通过事件记录注册操作，继承 Ownable 实现权限控制，并依赖 Registrable 接口实现自动化名称获取与注册状态管理。
+
+函数列表：importAddresses（批量导入名称-地址对）、importContracts（通过合约接口自动注册）、atomicUpdate（带状态迁移的原子更新）、requireAndGetAddress（带存在性校验的地址获取）、getAddress（直接地址查询）、getAddressByString（字符串参数地址查询）、stringToBytes32（字符串转字节32工具函数）。------------------------------------------------
+函数ID：Fortress Protocol-Registry.sol-importAddresses-0
+函数元数据：
+{'message': "{'name': 'importAddresses', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_names', 'type': 'bytes32[]'}, {'name': '_destinations', 'type': 'address[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogRegistered'], 'errors': ['Input lengths must match'], 'contract': 'Fortress Protocol-Registry.sol', 'external_calls': [], 'state_vars': {'read': ['registry'], 'written': []}, 'src': '18#25'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registry.sol'}
+函数切片：
+  function importAddresses(bytes32[] calldata _names, address[] calldata _destinations) external onlyOwner {
+    require(_names.length == _destinations.length, "Input lengths must match");
+
+    for (uint i = 0; i < _names.length; i++) {
+      registry[_names[i]] = _destinations[i];
+      emit LogRegistered(_destinations[i], _names[i]);
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registry.sol-importContracts-1
+函数元数据：
+{'message': "{'name': 'importContracts', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_destinations', 'type': 'address[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogRegistered'], 'errors': [], 'contract': 'Fortress Protocol-Registry.sol', 'external_calls': [], 'state_vars': {'read': ['registry'], 'written': []}, 'src': '27#33'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registry.sol'}
+函数切片：
+  function importContracts(address[] calldata _destinations) external onlyOwner {
+    for (uint i = 0; i < _destinations.length; i++) {
+      bytes32 name = Registrable(_destinations[i]).getName();
+      registry[name] = _destinations[i];
+      emit LogRegistered(_destinations[i], name);
+    }
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registry.sol-atomicUpdate-2
+函数元数据：
+{'message': "{'name': 'atomicUpdate', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newContract', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['LogRegistered'], 'errors': [], 'contract': 'Fortress Protocol-Registry.sol', 'external_calls': [], 'state_vars': {'read': ['registry', 'registry'], 'written': []}, 'src': '35#45'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registry.sol'}
+函数切片：
+  function atomicUpdate(address _newContract) external onlyOwner {
+    Registrable(_newContract).register();
+
+    bytes32 name = Registrable(_newContract).getName();
+    address oldContract = registry[name];
+    registry[name] = _newContract;
+
+    Registrable(oldContract).unregister();
+
+    emit LogRegistered(_newContract, name);
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registry.sol-requireAndGetAddress-3
+函数元数据：
+{'message': "{'name': 'requireAndGetAddress', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'name', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registry.sol', 'external_calls': [], 'state_vars': {'read': ['registry'], 'written': []}, 'src': '49#53'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registry.sol'}
+函数切片：
+  function requireAndGetAddress(bytes32 name) external view returns (address) {
+    address _foundAddress = registry[name];
+    require(_foundAddress != address(0), string(abi.encodePacked("Name not registered: ", name)));
+    return _foundAddress;
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registry.sol-getAddress-4
+函数元数据：
+{'message': "{'name': 'getAddress', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_bytes', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registry.sol', 'external_calls': [], 'state_vars': {'read': ['registry'], 'written': []}, 'src': '55#57'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registry.sol'}
+函数切片：
+  function getAddress(bytes32 _bytes) external view returns (address) {
+    return registry[_bytes];
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registry.sol-getAddressByString-5
+函数元数据：
+{'message': "{'name': 'getAddressByString', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_name', 'type': 'string'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registry.sol', 'external_calls': [], 'state_vars': {'read': ['registry'], 'written': []}, 'src': '59#61'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registry.sol'}
+函数切片：
+  function getAddressByString(string memory _name) public view returns (address) {
+    return registry[stringToBytes32(_name)];
+  }------------------------------------------------
+函数ID：Fortress Protocol-Registry.sol-stringToBytes32-6
+函数元数据：
+{'message': "{'name': 'stringToBytes32', 'visibility': 'public', 'stateMutability': 'pure', 'parameters': [{'name': '_string', 'type': 'string'}], 'returns': [{'name': 'result', 'type': 'bytes32'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Registry.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '63#74'}", 'is_fault': False, 'belong': 'Fortress Protocol-Registry.sol'}
+函数切片：
+  function stringToBytes32(string memory _string) public pure returns (bytes32 result) {
+    bytes memory tempEmptyStringTest = bytes(_string);
+
+    if (tempEmptyStringTest.length == 0) {
+      return 0x0;
+    }
+
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      result := mload(add(_string, 32))
+    }
+  }------------------------------------------------
+合约ID：Fortress Protocol-Decoder.sol
+合约总结：
+Decoder库智能合约总结：该智能合约实现了一个用于数值类型转换的工具库，主要功能是将无符号整数转换为有符号整数并遵循二进制补码规则。核心逻辑是通过内联汇编操作实现uint224到int256的类型转换，重点处理了无符号整数超过正数范围时的负数转换场景。合约采用分治法处理两种数值情况：当输入值小于等于最大正数值时直接转换，超过阈值时通过汇编指令进行二进制补码转换。关键点包含底层二进制操作实现、Solidity类型边界处理以及汇编语言优化转换过程，适用于需要精确处理数值编码解码的场景，如链下数据验证或跨协议数据交互。
+
+函数列表：包含1个函数 toInt(uint224 u)，功能为将uint224无符号整数转换为int256有符号整数，通过二进制补码规则处理正负值转换，使用汇编指令优化转换过程。------------------------------------------------
+函数ID：Fortress Protocol-Decoder.sol-toInt-0
+函数元数据：
+{'message': "{'name': 'toInt', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'u', 'type': 'uint224'}], 'returns': [{'name': '', 'type': 'int256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Decoder.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '7#25'}", 'is_fault': False, 'belong': 'Fortress Protocol-Decoder.sol'}
+函数切片：
+  function toInt(uint224 u) internal pure returns (int256) {
+    int224 i;
+    uint224 max = type(uint224).max;
+
+    if (u <= (max - 1) / 2) { // positive values
+    assembly {
+        // for some reason I wasn't able simply mload, so this is the trick
+        i := add(u, 0)
+      }
+
+      return i;
+    } else { // negative values
+      assembly {
+        i := sub(sub(u, max), 1)
+      }
+    }
+
+    return i;
+  }------------------------------------------------
+合约ID：Fortress Protocol-ERC20.sol
+合约总结：
+智能合约名称：ERC20 标准代币合约。该合约是符合 ERC20 标准的代币基础实现，提供代币发行、转账、余额查询和授权管理等核心功能。合约采用 OpenZeppelin 标准模板构建，包含防止算术溢出的 SafeMath 库，并通过地址校验增强安全性。核心功能包括代币转账（transfer）、授权额度管理（approve/transferFrom）、代币铸造销毁（内部 _mint/_burn）等机制，其中通过 increaseAllowance 和 decreaseAllowance 函数优化了授权操作的安全性。合约初始化时设置代币名称、符号和 18 位默认小数精度，并通过 _beforeTokenTransfer 钩子函数预留了转账前的逻辑扩展点。该合约作为基础模板，需要继承扩展才能实现完整的代币供应机制。
+
+函数列表：
+1. constructor：初始化代币名称和符号
+2. name：查询代币名称
+3. symbol：查询代币符号
+4. decimals：查询代币小数位
+5. totalSupply：查询总供应量
+6. balanceOf：查询指定地址余额
+7. transfer：执行代币转账
+8. allowance：查询授权额度
+9. approve：设置授权额度
+10. transferFrom：使用授权额度执行转账
+11. increaseAllowance：增加授权额度
+12. decreaseAllowance：减少授权额度
+13. _transfer：内部转账逻辑
+14. _mint：内部代币铸造
+15. _burn：内部代币销毁
+16. _approve：内部授权设置
+17. _setupDecimals：设置小数位数（仅构造阶段）
+18. _beforeTokenTransfer：转账前触发钩子函数------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-constructor-0
+函数元数据：
+{'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'name', 'type': 'string'}, {'name': 'symbol', 'type': 'string'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name', '_symbol', '_decimals'], 'written': []}, 'src': '57#61'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    constructor (string memory name, string memory symbol) public {
+        _name = name;
+        _symbol = symbol;
+        _decimals = 18;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-name-1
+函数元数据：
+{'message': "{'name': 'name', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name'], 'written': []}, 'src': '66#68'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function name() public view returns (string memory) {
+        return _name;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-symbol-2
+函数元数据：
+{'message': "{'name': 'symbol', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_symbol'], 'written': []}, 'src': '74#76'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-decimals-3
+函数元数据：
+{'message': "{'name': 'decimals', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint8'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_decimals'], 'written': []}, 'src': '91#93'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-totalSupply-4
+函数元数据：
+{'message': "{'name': 'totalSupply', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply'], 'written': []}, 'src': '98#100'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function totalSupply() public view override returns (uint256) {
+        return _totalSupply;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-balanceOf-5
+函数元数据：
+{'message': "{'name': 'balanceOf', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances'], 'written': []}, 'src': '105#107'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function balanceOf(address account) public view override returns (uint256) {
+        return _balances[account];
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-transfer-6
+函数元数据：
+{'message': "{'name': 'transfer', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '117#120'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-allowance-7
+函数元数据：
+{'message': "{'name': 'allowance', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '125#127'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function allowance(address owner, address spender) public view virtual override returns (uint256) {
+        return _allowances[owner][spender];
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-approve-8
+函数元数据：
+{'message': "{'name': 'approve', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '136#139'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-transferFrom-9
+函数元数据：
+{'message': "{'name': 'transferFrom', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '153#157'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        return true;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-increaseAllowance-10
+函数元数据：
+{'message': "{'name': 'increaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'addedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '171#174'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+        return true;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-decreaseAllowance-11
+函数元数据：
+{'message': "{'name': 'decreaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'subtractedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '190#193'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        return true;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-_transfer-12
+函数元数据：
+{'message': "{'name': '_transfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: transfer from the zero address', 'ERC20: transfer to the zero address'], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', '_balances', '_balances', '_balances'], 'written': []}, 'src': '209#218'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+
+        _beforeTokenTransfer(sender, recipient, amount);
+
+        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+        _balances[recipient] = _balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-_mint-13
+函数元数据：
+{'message': "{'name': '_mint', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: mint to the zero address'], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply', '_totalSupply', '_balances', '_balances'], 'written': []}, 'src': '229#237'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function _mint(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: mint to the zero address");
+
+        _beforeTokenTransfer(address(0), account, amount);
+
+        _totalSupply = _totalSupply.add(amount);
+        _balances[account] = _balances[account].add(amount);
+        emit Transfer(address(0), account, amount);
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-_burn-14
+函数元数据：
+{'message': "{'name': '_burn', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: burn from the zero address'], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', '_balances', '_totalSupply', '_totalSupply'], 'written': []}, 'src': '250#258'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function _burn(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address");
+
+        _beforeTokenTransfer(account, address(0), amount);
+
+        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
+        _totalSupply = _totalSupply.sub(amount);
+        emit Transfer(account, address(0), amount);
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-_approve-15
+函数元数据：
+{'message': "{'name': '_approve', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: approve from the zero address', 'ERC20: approve to the zero address'], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '273#279'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function _approve(address owner, address spender, uint256 amount) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-_setupDecimals-16
+函数元数据：
+{'message': "{'name': '_setupDecimals', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'decimals_', 'type': 'uint8'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_decimals'], 'written': []}, 'src': '288#290'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function _setupDecimals(uint8 decimals_) internal {
+        _decimals = decimals_;
+    }------------------------------------------------
+函数ID：Fortress Protocol-ERC20.sol-_beforeTokenTransfer-17
+函数元数据：
+{'message': "{'name': '_beforeTokenTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '306#306'}", 'is_fault': False, 'belong': 'Fortress Protocol-ERC20.sol'}
+函数切片：
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }------------------------------------------------
+合约ID：Fortress Protocol-IRegistry.sol
+合约总结：
+智能合约名称：IRegistry接口 该智能合约是一个名为IRegistry的接口合约，定义了与外部合约地址注册表交互的标准函数。合约核心功能是通过字节32类型的名称标识符获取对应的合约地址，适用于模块化系统中各合约组件间的解耦式寻址。接口包含两个关键函数：getAddress函数提供基础地址查询功能，允许返回空地址；requireAndGetAddress函数增加了有效性验证机制，当查询不到有效地址时将触发回滚操作，确保依赖的必要合约地址必须存在于注册表中。该接口典型应用场景是作为可升级系统架构中的地址解析器，实现合约间的动态依赖管理。
+
+函数列表：1. getAddress(bytes32 name)：根据给定的字节32名称参数查询对应的合约地址，返回address类型结果，允许返回空地址。2. requireAndGetAddress(bytes32 name)：在getAddress基础上增加有效性验证，当返回地址为0地址时自动回滚交易，确保必须获取到有效合约地址。------------------------------------------------
+函数ID：Fortress Protocol-IRegistry.sol-getAddress-0
+函数元数据：
+{'message': "{'name': 'getAddress', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'name', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IRegistry.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '6#6'}", 'is_fault': False, 'belong': 'Fortress Protocol-IRegistry.sol'}
+函数切片：
+    function getAddress(bytes32 name) external view returns (address);------------------------------------------------
+函数ID：Fortress Protocol-IRegistry.sol-requireAndGetAddress-1
+函数元数据：
+{'message': "{'name': 'requireAndGetAddress', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'name', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-IRegistry.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '8#8'}", 'is_fault': False, 'belong': 'Fortress Protocol-IRegistry.sol'}
+函数切片：
+    function requireAndGetAddress(bytes32 name) external view returns (address);------------------------------------------------
+合约ID：Fortress Protocol-SafeMath.sol
+合约总结：
+智能合约名称：SafeMath。该合约是一个数学运算安全库，旨在提供安全的算术操作，防止整数溢出和下溢问题。合约通过封装基础的加减乘除及取模运算，在执行运算前进行溢出检查，当检测到异常情况时会自动回滚交易，从而避免因算术错误导致的合约漏洞。该库适用于Solidity 0.6.0版本，所有函数均为内部纯函数（internal pure），不涉及状态变量修改，主要用于增强其他合约的数值计算安全性。核心功能包括加法溢出校验、减法下溢校验、乘法溢出校验、除零错误拦截以及取模运算的除零保护。关键代码通过require语句实现条件检查，例如在加法操作中验证结果是否大于等于原值以判断溢出，乘法中通过逆运算验证结果正确性。该库是OpenZeppelin合约标准库的组成部分，常用于代币合约等需要高安全性算术的场景。
+
+函数列表：
+1. add(uint256 a, uint256 b)：执行安全加法，当结果溢出时回滚并提示"addition overflow"。
+2. sub(uint256 a, uint256 b)：执行安全减法，基础版本在结果下溢时返回"subtraction overflow"错误。
+3. sub(uint256 a, uint256 b, string errorMessage)：带自定义错误信息的安全减法，当被减数小于减数时触发错误。
+4. mul(uint256 a, uint256 b)：安全乘法运算，通过验证乘积除以乘数等于被乘数来检测溢出。
+5. div(uint256 a, uint256 b)：安全除法，基础版本检测除零错误并返回"division by zero"提示。
+6. div(uint256 a, uint256 b, string errorMessage)：支持自定义错误信息的除法，确保除数不为零。
+7. mod(uint256 a, uint256 b)：安全取模运算，基础版本检查模数零错误。
+8. mod(uint256 a, uint256 b, string errorMessage)：带自定义错误信息的取模操作，验证模数非零。------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-add-0
+函数元数据：
+{'message': "{'name': 'add', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: addition overflow'], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '29#34'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-sub-1
+函数元数据：
+{'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '46#48'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-sub-2
+函数元数据：
+{'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '60#65'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-mul-3
+函数元数据：
+{'message': "{'name': 'mul', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: multiplication overflow'], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '77#89'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-div-4
+函数元数据：
+{'message': "{'name': 'div', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '103#105'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-div-5
+函数元数据：
+{'message': "{'name': 'div', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '119#125'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-mod-6
+函数元数据：
+{'message': "{'name': 'mod', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '139#141'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }------------------------------------------------
+函数ID：Fortress Protocol-SafeMath.sol-mod-7
+函数元数据：
+{'message': "{'name': 'mod', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '155#158'}", 'is_fault': False, 'belong': 'Fortress Protocol-SafeMath.sol'}
+函数切片：
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }------------------------------------------------
+合约ID：Fortress Protocol-Address.sol
+合约总结：
+Address 库合约总结：该智能合约为名为 Address 的 Solidity 工具库，主要提供与地址类型相关的底层操作功能。核心功能分为地址类型检测、ETH 安全转账和智能合约调用三个模块，重点解决了传统 transfer 方法的 gas 限制问题，并增强了合约调用的安全性。通过内联汇编实现地址类型检测，使用 call 方法替代 transfer 以避免 2300 gas 限制，同时封装了带错误处理的合约调用方法。合约包含多个安全校验机制，包括余额检查、合约地址验证和错误信息回传，特别针对合约构造期间的地址状态、调用失败时的错误信息提取等边界情况做了处理。该库合约被设计为可复用组件，常用于 ERC20 代币转账、代理合约调用等场景，需配合重入锁等安全机制使用。  
+
+函数列表：  
+1. isContract(address)：通过 extcodesize 检测地址是否为合约账户  
+2. sendValue(address payable, uint256)：向指定地址发送 ETH，突破 2300 gas 限制  
+3. functionCall(address, bytes)：执行底层合约调用，携带默认错误信息  
+4. functionCall(address, bytes, string)：带自定义错误信息的合约调用  
+5. functionCallWithValue(address, bytes, uint256)：附带 ETH 转账的合约调用  
+6. functionCallWithValue(address, bytes, uint256, string)：附带 ETH 和自定义错误信息的合约调用  
+7. _functionCallWithValue(address, bytes, uint256, string)：内部实现的带 ETH 转账和错误处理的底层调用------------------------------------------------
+函数ID：Fortress Protocol-Address.sol-isContract-0
+函数元数据：
+{'message': "{'name': 'isContract', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#35'}", 'is_fault': False, 'belong': 'Fortress Protocol-Address.sol'}
+函数切片：
+    function isContract(address account) internal view returns (bool) {
+        // This method relies in extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+
+        uint256 size;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { size := extcodesize(account) }
+        return size > 0;
+    }------------------------------------------------
+函数ID：Fortress Protocol-Address.sol-sendValue-1
+函数元数据：
+{'message': "{'name': 'sendValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address payable'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance', 'Address: unable to send value, recipient may have reverted'], 'contract': 'Fortress Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '53#59'}", 'is_fault': False, 'belong': 'Fortress Protocol-Address.sol'}
+函数切片：
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }------------------------------------------------
+函数ID：Fortress Protocol-Address.sol-functionCall-2
+函数元数据：
+{'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '79#81'}", 'is_fault': False, 'belong': 'Fortress Protocol-Address.sol'}
+函数切片：
+    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
+      return functionCall(target, data, "Address: low-level call failed");
+    }------------------------------------------------
+函数ID：Fortress Protocol-Address.sol-functionCall-3
+函数元数据：
+{'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '89#91'}", 'is_fault': False, 'belong': 'Fortress Protocol-Address.sol'}
+函数切片：
+    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+        return _functionCallWithValue(target, data, 0, errorMessage);
+    }------------------------------------------------
+函数ID：Fortress Protocol-Address.sol-functionCallWithValue-4
+函数元数据：
+{'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Fortress Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '104#106'}", 'is_fault': False, 'belong': 'Fortress Protocol-Address.sol'}
+函数切片：
+    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    }------------------------------------------------
+函数ID：Fortress Protocol-Address.sol-functionCallWithValue-5
+函数元数据：
+{'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance for call'], 'contract': 'Fortress Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '114#117'}", 'is_fault': False, 'belong': 'Fortress Protocol-Address.sol'}
+函数切片：
+    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
+        require(address(this).balance >= value, "Address: insufficient balance for call");
+        return _functionCallWithValue(target, data, value, errorMessage);
+    }------------------------------------------------
+函数ID：Fortress Protocol-Address.sol-_functionCallWithValue-6
+函数元数据：
+{'message': "{'name': '_functionCallWithValue', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'weiValue', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: call to non-contract'], 'contract': 'Fortress Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '119#140'}", 'is_fault': False, 'belong': 'Fortress Protocol-Address.sol'}
+函数切片：
+    function _functionCallWithValue(address target, bytes memory data, uint256 weiValue, string memory errorMessage) private returns (bytes memory) {
+        require(isContract(target), "Address: call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.call{ value: weiValue }(data);
+        if (success) {
+            return returndata;
+        } else {
+            // Look for revert reason and bubble it up if present
+            if (returndata.length > 0) {
+                // The easiest way to bubble the revert reason is using memory via assembly
+
+                // solhint-disable-next-line no-inline-assembly
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert(errorMessage);
+            }
+        }
+    }0xcd337b920678cf35143322ab31ab8977c3463a45获取的源代码为空！
+
+-----------------------------------------
+FortressProtocol.json已经处理完成！
+
+['bZx.json', 'DODO.json', 'FEGtoken.json', 'FormationFi.json', 'Hegic.json', 'IndexedFinance.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：IndexedFinance.json~
+address list = {'0xfbc2e6b188013fc5eacd9944e6b8ced2c467464a', '0x7a250d5630b4cf539739df2c5dacb4c659f2488d', '0xc040afa5d1c50b8970ececfb3fdfaec2fe44f9e5', '0xec001d0000004536cad29291f4000000d029abb2', '0xfa6de2697d59e88ed7fc4dfe5a33dac43565ea41', '0x429302c74a0350410fc8b43e4839d459dec4d050', '0x277e851587eb5da22b52a10f4788576e68150277', '0xc46e0e7ecb3efcc417f6f89b940ffaff72556382', '0x0000000000007f150bd6f54c40a34d7c3d5e9f56'}
+0xfbc2e6b188013fc5eacd9944e6b8ced2c467464a获取的源代码为空！
+0x7a250d5630b4cf539739df2c5dacb4c659f2488d获取的源代码为空！
+0xc040afa5d1c50b8970ececfb3fdfaec2fe44f9e5获取的源代码为空！
+0xec001d0000004536cad29291f4000000d029abb2获取的源代码为空！
+0x277e851587eb5da22b52a10f4788576e68150277获取的源代码为空！
+0x0000000000007f150bd6f54c40a34d7c3d5e9f56获取的源代码为空！
+
+-----------------------------------------
+IndexedFinance.json已经处理完成！
+
+['bZx.json', 'DODO.json', 'FEGtoken.json', 'FormationFi.json', 'Hegic.json', 'InverseFinance.json', 'JAY.json', 'LiFi.json', 'MerlinLab.json', 'MonoX.json', 'NBANFT.json', 'Nmbplatform.json', 'PancakeHunny.json', 'PopsicleFinance.json', 'PunkProtocol.json', 'QubitFinance.json', 'RevestFinance.json', 'RikkeiFinance.json', 'SaddleFinance.json', 'SashimiSwap.json', 'Soda.json', 'SpaceGodzilla.json', 'SushiSwap.json', 'UmbrellaNetwork.json', 'UraniumFinance.json', 'VisorFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：JAY.json~
+
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 711, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 1007, in _prepare_proxy
+    conn.connect()
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connection.py", line 419, in connect
+    self.sock = ssl_wrap_socket(
+                ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 449, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\ssl_.py", line 493, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 517, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1075, in _create
+    self.do_handshake()
+  File "D:\anaconda3\envs\pytorch\Lib\ssl.py", line 1346, in do_handshake
+    self._sslobj.do_handshake()
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\connectionpool.py", line 798, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\urllib3\util\retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0xd4fafa1261f6e4f9c8543228a67caf9d02811e4ad3058a2714323964a8db61f6&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 164, in <module>
+    asyncio.run(handler.process(file))
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\asyncio\base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\code_process.py", line 67, in process
+    address = get_contract_address_from_tx(_hash, _platform)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\get_source_code.py", line 27, in get_contract_address_from_tx
+    response = requests.get(url)
+               ^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\requests\adapters.py", line 513, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.etherscan.io', port=443): Max retries exceeded with url: /api?module=proxy&action=eth_getTransactionReceipt&txhash=0xd4fafa1261f6e4f9c8543228a67caf9d02811e4ad3058a2714323964a8db61f6&apikey=4QP6SY9V7XXDJDEJBGC1NAI3KXRIU5CDEE (Caused by ProxyError('Cannot connect to proxy.', ConnectionAbortedError(10053, '你的主机中的软件中止了一个已建立的连接。', None, 10053, None)))

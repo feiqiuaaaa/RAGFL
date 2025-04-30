@@ -1,0 +1,54 @@
+
+-----------------------------------------
+正在处理dapp：Soda.json~
+address list = {'0x86207a87fd89fe3396c9cf8267f2960494c21102'}
+0x86207a87fd89fe3396c9cf8267f2960494c21102获取的源代码为空！
+
+-----------------------------------------
+Soda.json已经处理完成！
+
+['SushiSwap.json', 'UraniumFinance.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：UraniumFinance.json~
+address list = {'0x0fbb9456e929f66853973ba12109d9569d2d4966', '0x9b9bad4c6513e0ff3fb77c739359d59601c7caff', '0x04536fb62db86ccf3c7b9b9ddd6dc10fedc92148', '0xdd0c4a96a43b36d91f4fedf83489b954c287886a', '0xa08c4571b395f81fbd3755d44eaf9a25c9399a4a', '0x2b528a28451e9853f51616f3b0f6d82af8bea6ae'}
+------------------------------------------------
+合约ID：Uranium Finance-UraniumERC20.sol
+合约总结：
+智能合约名称：UraniumERC20（标准ERC20代币扩展版）总结：该合约是基于ERC20标准的流动性池代币合约，具备代币基础功能与元交易签名支持。核心功能包括代币转账、授权燃烧铸造机制，并集成EIP-712标准实现离线授权签名功能。合约通过SafeMath库确保数值运算安全，设置固定代币名称"Uranium LPs"和符号"RADS-LP"，支持18位小数精度。创新点在于permit函数允许用户通过数字签名完成授权操作，规避链上交易gas消耗，同时通过DOMAIN_SEPARATOR实现跨链签名隔离，nonces机制防止签名重放攻击。
+
+函数列表：
+1. 构造函数()：初始化EIP-712域名分隔符
+2. _mint(内部)：向指定地址铸造代币
+3. _burn(内部)：销毁指定地址代币
+4. _approve(私有)：执行授权额度设置
+5. _transfer(私有)：执行底层转账逻辑
+6. approve(外部)：公开授权接口
+7. transfer(外部)：直接转账方法
+8. transferFrom(外部)：授权转账方法
+9. permit(外部)：签名授权功能，支持离线授权操作
+
+（注：合约还包含ERC20标准自动生成的公共变量getter函数，如name()、symbol()、decimals()、totalSupply()等）0x0fbb9456e929f66853973ba12109d9569d2d4966编译结果 ast 为空
+0x9b9bad4c6513e0ff3fb77c739359d59601c7caff编译结果 ast 为空
+0x04536fb62db86ccf3c7b9b9ddd6dc10fedc92148编译结果 ast 为空
+0xdd0c4a96a43b36d91f4fedf83489b954c287886a编译结果 ast 为空
+0xa08c4571b395f81fbd3755d44eaf9a25c9399a4a编译结果 ast 为空
+0x2b528a28451e9853f51616f3b0f6d82af8bea6ae获取的源代码为空！
+
+-----------------------------------------
+UraniumFinance.json已经处理完成！
+
+['SushiSwap.json', 'WaultFinance.json', 'WildCredit.json', 'XCarnival.json']
+
+-----------------------------------------
+正在处理dapp：WildCredit.json~
+address list = {'0x7b3b69eab43c1aa677df04b4b65f0d169fcdc6ca', '0xa57bd00134b2850b2a1c55860c9e9ea100fdd6cf', '0xee4a03318005930ed7ba9f561d2daaee496a3110', '0x06831e896731afc290c53ab5261b2fddc5cf57bd'}
+0x7b3b69eab43c1aa677df04b4b65f0d169fcdc6ca获取的源代码为空！
+0xa57bd00134b2850b2a1c55860c9e9ea100fdd6cf获取的源代码为空！
+0xee4a03318005930ed7ba9f561d2daaee496a3110获取的源代码为空！
+0x06831e896731afc290c53ab5261b2fddc5cf57bd获取的源代码为空！
+
+-----------------------------------------
+WildCredit.json已经处理完成！
+
+['SushiSwap.json', 'WaultFinance.json', 'XCarnival.json']

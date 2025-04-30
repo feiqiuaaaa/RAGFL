@@ -1,0 +1,51 @@
+
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\online_search.py", line 175, in <module>
+    searcher.process(fault_hash, faultless_hash, file)
+  File "D:\python\PycharmCodes\RAG\online_search.py", line 51, in process
+    tx_summary = llm.get_summary_from_llm(system_prompt, user_prompt)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\llm.py", line 21, in get_summary_from_llm
+    response = call_deepseek_reasoner(client, system_prompt, user_prompt)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\llm.py", line 37, in call_deepseek_reasoner
+    return client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\resources\chat\completions\completions.py", line 879, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 1290, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 967, in request
+    return self._request(
+           ^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 1073, in _request
+    return self._process_response(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 1172, in _process_response
+    return api_response.parse()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_response.py", line 323, in parse
+    parsed = self._parse(to=to)
+             ^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_response.py", line 265, in _parse
+    data = response.json()
+           ^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\httpx\_models.py", line 832, in json
+    return jsonlib.loads(self.content, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 10 column 1 (char 9)

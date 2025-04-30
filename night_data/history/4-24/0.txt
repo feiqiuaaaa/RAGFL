@@ -1,0 +1,12 @@
+
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\online_search.py", line 175, in <module>
+    searcher.process(fault_hash, faultless_hash, file)
+  File "D:\python\PycharmCodes\RAG\online_search.py", line 27, in process
+    loader = GraphLoader()
+             ^^^^^^^^^^^^^
+  File "D:\python\PycharmCodes\RAG\nx.py", line 19, in __init__
+    assert w3.is_connected(), "Failed to connect to Ethereum node!"
+AssertionError: Failed to connect to Ethereum node!

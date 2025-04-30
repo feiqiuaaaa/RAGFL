@@ -1,0 +1,11 @@
+
+-----------------------------------------
+正在处理dapp：WaultFinance.json~
+address list = {'0xa79fe386b88fbee6e492eeb76ec48517d1ec759a', '0xaa895873a268a387e38bd841c51d2804071197a1'}
+0xa79fe386b88fbee6e492eeb76ec48517d1ec759a获取的源代码为空！
+0xaa895873a268a387e38bd841c51d2804071197a1获取的源代码为空！
+
+-----------------------------------------
+WaultFinance.json已经处理完成！
+
+['XCarnival.json']

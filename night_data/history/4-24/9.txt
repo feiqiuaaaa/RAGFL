@@ -1,0 +1,45 @@
+------------------------------------------------
+交易故障分析：
+问题/异常点：故障交易中攻击者通过多个流动性池操作，利用代币精度差异（如DIGG代币精度为9位）和路由合约的兑换逻辑漏洞，以极低的WETH成本（8.85枚）套取了高价值资产（0.337 WBTC及15.3亿DIGG）。异常点集中在代币数量转换时的精度未正确校准，导致兑换比例被恶意放大。
+
+原因分析：根本原因是代币精度处理缺陷与流动性池同步漏洞的结合利用。具体如下：
+1. **精度转换错误**：DIGG代币精度为9位，但路由合约在处理时可能错误采用18位标准精度，导致输入数量被放大10^9倍。攻击者在调用swap函数时，利用此偏差将微量DIGG转换为超额WETH。
+2. **流动性池价格操纵**：攻击前通过Burn事件销毁流动性代币，人为降低池中WBTC/DIGG的储备比例，使后续swap操作能以扭曲的价格完成兑换。
+3. **跨池套利路径**：通过路由合约串联多个流动性池（如WBTC-DIGG、DIGG-WETH），利用各池的独立价格机制，在低精度代币池中触发大额输出，而在高精度池中完成最终套现。
+4. **未验证代币元数据**：合约未校验代币的decimals属性，直接依赖外部传入的数值，使攻击者可伪造高精度代币进行兑换。
+
+攻击链：销毁流动性→扭曲储备比例→发起低精度代币大额兑换→跨池套利→提取高价值资产。
+
+trace调用链：0xe11fc0b43ab98eb91e9836129d1ee7c3bc95df50（路由合约）→0x9a13867048e01c663ce8ce2fe0cdae69ff9f35e3（WBTC-DIGG池）→0xceff51756c56ceffca006cd410b03ffc46dd3a58（WBTC-WETH池）→0xf41e354eb138b328d56957b36b7f814826708724（DIGG-WETH池）→0x795065dcc9f64b5614c407a6efdc400da6221fb0（SUSHI路由）。
+
+--- 异常信息 ---
+Traceback (most recent call last):
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\chromadb\api\base_http_client.py", line 99, in _raise_chroma_error
+    resp.raise_for_status()
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Server error '502 Bad Gateway' for url 'http://47.102.102.136:8000/api/v2/tenants/default_tenant/databases/default_database/collections/3a90d188-1e20-4cec-8796-00ada558507f/query'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\python\PycharmCodes\RAG\online_search.py", line 175, in <module>
+    searcher.process(fault_hash, faultless_hash, file)
+  File "D:\python\PycharmCodes\RAG\online_search.py", line 84, in process
+    query_results = contract_collection.query(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\chromadb\api\models\Collection.py", line 222, in query
+    query_results = self._client._query(
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\chromadb\telemetry\opentelemetry\__init__.py", line 150, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\chromadb\api\fastapi.py", line 557, in _query
+    resp_json = self._make_request(
+                ^^^^^^^^^^^^^^^^^^^
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\chromadb\api\fastapi.py", line 90, in _make_request
+    BaseHTTPClient._raise_chroma_error(response)
+  File "D:\anaconda3\envs\pytorch\Lib\site-packages\chromadb\api\base_http_client.py", line 104, in _raise_chroma_error
+    raise (Exception(resp.text))
+Exception
