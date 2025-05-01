@@ -253,7 +253,7 @@ if __name__ == '__main__':
     searcher = OnlineSearcher()
     fault_hash = '0x90fb0c9976361f537330a5617a404045ffb3fef5972cf67b531386014eeae7a9'
     faultless_hash = '0x7df39084b561ee2e7809e690f11e8e258dc65b6128399acbacf1f2433308de6a,0xddd734c1f3e097d3d1cdd7d4c0ffae166b39992a1d055008bf6660b8c0b7582e,0x5c1d151599bbacc19a09dfee888d3be2ccf3e2fa781679b9e0970e18b3300e44'
-    for i in range(30):
+    for i in range(40):
         print("第" + str(i) + "次运行实验: \n")
         file_path = "night_data/" + str(i) + ".txt"
         try:
