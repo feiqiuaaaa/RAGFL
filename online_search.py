@@ -1,5 +1,6 @@
 import csv
 import json
+import time
 import traceback
 from io import StringIO
 from typing import Set
@@ -115,7 +116,8 @@ class OnlineSearcher:
         _id_list = query_results['ids']
         metadata_list = query_results['metadatas']
         for _id, code_summary, metadata in zip(_id_list[0], code_summary_list[0], metadata_list[0]):
-            code_summary_list_str = code_summary_list_str + "\n-----------------------------\n" + _id + ":\n" + "合约地址: " + str(metadata['address']) + "\n" + code_summary
+            code_summary_list_str = code_summary_list_str + "\n-----------------------------\n" + _id + ":\n" + "合约地址: " + str(
+                metadata['address']) + "\n" + code_summary
 
         rerank_variables = {
             "bug_summary": bug_summary,
@@ -251,15 +253,33 @@ class OnlineSearcher:
 
 if __name__ == '__main__':
     searcher = OnlineSearcher()
-    fault_hash = '0x90fb0c9976361f537330a5617a404045ffb3fef5972cf67b531386014eeae7a9'
-    faultless_hash = '0x7df39084b561ee2e7809e690f11e8e258dc65b6128399acbacf1f2433308de6a,0xddd734c1f3e097d3d1cdd7d4c0ffae166b39992a1d055008bf6660b8c0b7582e,0x5c1d151599bbacc19a09dfee888d3be2ccf3e2fa781679b9e0970e18b3300e44'
-    for i in range(40):
+    # SushiSwap
+    # fault_hash = '0x90fb0c9976361f537330a5617a404045ffb3fef5972cf67b531386014eeae7a9'
+    # faultless_hash = '0x7df39084b561ee2e7809e690f11e8e258dc65b6128399acbacf1f2433308de6a,0xddd734c1f3e097d3d1cdd7d4c0ffae166b39992a1d055008bf6660b8c0b7582e,0x5c1d151599bbacc19a09dfee888d3be2ccf3e2fa781679b9e0970e18b3300e44'
+
+    # Alchemix
+    # fault_hash = '0x3e86045bb9cde8f8cfcb5d943df531c7e68370c2d71cd631b1cee0950cf068f5,0xed3ea69b36024afb5389c3b940d46108a13fd31212992229d5c8257769cf8eeb,0x73df02bb2372d5a1f4278eb84d8222f90e12e4d0c9131c5831d0e62587bbe1bb,0x4fa64411ccd2982c43947a54b8e780ea6523da5c7e0c9545bf85697422b21577,0x3cc071f9f40294bb250fc7b9aa6b2d7e6ca5707ce4d6d222157d7a0feef618b3,0x38ecc8363836e43aca99d994bb9325a8f3770d7a1d1fffd62c82cf5230525836'
+    # faultless_hash = '0x115f9ad8c58e5019a8bbd77202970b9306ec3bff66b9861a14e92d099e3c2336'
+
+    # Cover
+    # fault_hash = '0xd721b0ef2886f14b75548b70d2d1fd82bea085ca24f5de29b833a64cfd8f7a50,0xadf27f5dd052482d46fdf69a5208a27cc7352522c7c19bbde5aee18f6ea4373b'
+    # faultless_hash = '0x3b3800548aa30b098c1f917ee70bd971b1d9eee2c786b8e8deddba220a65e441,0x326ed6982d3969f91f7817f75dd1754ff25c9556cc6d6bc80d6871b9185e676d'
+
+    # Formation.Fi
+    fault_hash = '0xa992b28ecf2eed778d20d5200946ea341b950be0c3d78b1f2237a4d8d795de95'
+    faultless_hash = '0x94beaa5113b61e99677ec4039928c52b406a021e2b8845e32f4461ca29739665,0x9286c5ef4abf97bc0d9e2aa7fbd8187f7484985da5a285bac9516b4b89709b77,0x97681e7949557faa35caacbee7105ca4a749e8a838f9d30caa2a39a521125b4a'
+
+    for i in range(60):
         print("第" + str(i) + "次运行实验: \n")
         file_path = "night_data/" + str(i) + ".txt"
         try:
             # 主逻辑代码
             with open(file_path, "w", encoding="utf-8") as file:
+                start_time = time.time()  # 开始计时！
                 searcher.process(fault_hash, faultless_hash, file, "Ethereum")
+                end_time = time.time()  # 结束计时！
+                elapsed_time = end_time - start_time  # 计算经过的时间
+                file.write('\n------------------------------------\n运行时间:' + str(elapsed_time) + 'seconds')
         except Exception as e:
             try:
                 # 异常处理代码（尝试写入异常信息到文件）

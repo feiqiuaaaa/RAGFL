@@ -17,6 +17,27 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\BlockchainSpider\data\SushiSwap\Token20TransferItem.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\SushiSwap\TokenPropertyItem.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\BlockchainSpider\data\SushiSwap\TraceItem.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\BlockchainSpider\data\Token20TransferItem.csv">
           <value>
             <Attribute>
@@ -263,13 +284,6 @@
           </value>
         </entry>
         <entry key="\BlockchainSpider\venv\Lib\site-packages\numpy\random\tests\data\sfc64-testset-2.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\subgraph_nodes.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

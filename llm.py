@@ -28,7 +28,7 @@ def get_summary_from_llm(system_prompt: str, user_prompt: str, call_type=0) -> [
         return None
     choice = response.choices[0]
     finish_reason = choice.finish_reason.strip()
-    if finish_reason != 'stop':
+    if finish_reason != 'stop' and finish_reason != 'length':
         return [finish_reason, ""]
     return [finish_reason, choice.message.content]
 
