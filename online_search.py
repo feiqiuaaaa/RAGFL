@@ -262,14 +262,14 @@ if __name__ == '__main__':
     # faultless_hash = '0x115f9ad8c58e5019a8bbd77202970b9306ec3bff66b9861a14e92d099e3c2336'
 
     # Cover
-    # fault_hash = '0xd721b0ef2886f14b75548b70d2d1fd82bea085ca24f5de29b833a64cfd8f7a50,0xadf27f5dd052482d46fdf69a5208a27cc7352522c7c19bbde5aee18f6ea4373b'
-    # faultless_hash = '0x3b3800548aa30b098c1f917ee70bd971b1d9eee2c786b8e8deddba220a65e441,0x326ed6982d3969f91f7817f75dd1754ff25c9556cc6d6bc80d6871b9185e676d'
+    fault_hash = '0xd721b0ef2886f14b75548b70d2d1fd82bea085ca24f5de29b833a64cfd8f7a50,0xadf27f5dd052482d46fdf69a5208a27cc7352522c7c19bbde5aee18f6ea4373b'
+    faultless_hash = '0x3b3800548aa30b098c1f917ee70bd971b1d9eee2c786b8e8deddba220a65e441,0x326ed6982d3969f91f7817f75dd1754ff25c9556cc6d6bc80d6871b9185e676d'
 
     # Formation.Fi
-    fault_hash = '0xa992b28ecf2eed778d20d5200946ea341b950be0c3d78b1f2237a4d8d795de95'
-    faultless_hash = '0x94beaa5113b61e99677ec4039928c52b406a021e2b8845e32f4461ca29739665,0x9286c5ef4abf97bc0d9e2aa7fbd8187f7484985da5a285bac9516b4b89709b77,0x97681e7949557faa35caacbee7105ca4a749e8a838f9d30caa2a39a521125b4a'
+    # fault_hash = '0xa992b28ecf2eed778d20d5200946ea341b950be0c3d78b1f2237a4d8d795de95'
+    # faultless_hash = '0x94beaa5113b61e99677ec4039928c52b406a021e2b8845e32f4461ca29739665,0x9286c5ef4abf97bc0d9e2aa7fbd8187f7484985da5a285bac9516b4b89709b77,0x97681e7949557faa35caacbee7105ca4a749e8a838f9d30caa2a39a521125b4a'
 
-    for i in range(60):
+    for i in range(40):
         print("第" + str(i) + "次运行实验: \n")
         file_path = "night_data/" + str(i) + ".txt"
         try:
