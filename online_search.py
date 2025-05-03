@@ -1,8 +1,6 @@
-import csv
 import json
 import time
 import traceback
-from io import StringIO
 from typing import Set
 
 import chromadb
@@ -156,6 +154,7 @@ class OnlineSearcher:
             metadatas = function_list.get('metadatas')
             documents = function_list.get('documents')
             for fid, metadata, document in zip(ids, metadatas, documents):
+                metadata['is_fault'] = ''
                 function_str += "\n------------------------------------------------\n函数切片ID: " + fid + "\n所属合约地址" + address + "\n元数据:" + str(
                     metadata) + "\n函数切片:\n" + document
 
@@ -262,14 +261,26 @@ if __name__ == '__main__':
     # faultless_hash = '0x115f9ad8c58e5019a8bbd77202970b9306ec3bff66b9861a14e92d099e3c2336'
 
     # Cover
-    fault_hash = '0xd721b0ef2886f14b75548b70d2d1fd82bea085ca24f5de29b833a64cfd8f7a50,0xadf27f5dd052482d46fdf69a5208a27cc7352522c7c19bbde5aee18f6ea4373b'
-    faultless_hash = '0x3b3800548aa30b098c1f917ee70bd971b1d9eee2c786b8e8deddba220a65e441,0x326ed6982d3969f91f7817f75dd1754ff25c9556cc6d6bc80d6871b9185e676d'
+    # fault_hash = '0xd721b0ef2886f14b75548b70d2d1fd82bea085ca24f5de29b833a64cfd8f7a50,0xadf27f5dd052482d46fdf69a5208a27cc7352522c7c19bbde5aee18f6ea4373b'
+    # faultless_hash = '0x3b3800548aa30b098c1f917ee70bd971b1d9eee2c786b8e8deddba220a65e441,0x326ed6982d3969f91f7817f75dd1754ff25c9556cc6d6bc80d6871b9185e676d'
 
     # Formation.Fi
     # fault_hash = '0xa992b28ecf2eed778d20d5200946ea341b950be0c3d78b1f2237a4d8d795de95'
     # faultless_hash = '0x94beaa5113b61e99677ec4039928c52b406a021e2b8845e32f4461ca29739665,0x9286c5ef4abf97bc0d9e2aa7fbd8187f7484985da5a285bac9516b4b89709b77,0x97681e7949557faa35caacbee7105ca4a749e8a838f9d30caa2a39a521125b4a'
 
-    for i in range(40):
+    # Visor Finance
+    fault_hash = '0x27f2210536553392cf180c0b37055b3dc92094a5d585d7d2a51f790c9145e47c,0x69272d8c84d67d1da2f6425b339192fa472898dce936f24818fda415c1c1ff3f'
+    faultless_hash = '0x24e276cfc0cbd280a71da775ae35da39a107b97f819a3b2cd7cb40e9cc3afb82,0xcf762a8f4502cbeb4ab79626cc5a7c65c6dde5b487c8fa9b58f421e10e4807e8'
+
+    # Umbrella Network
+    # fault_hash = '0x33479bcfbc792aa0f8103ab0d7a3784788b5b0e1467c81ffbed1b7682660b4fa'
+    # faultless_hash = '0xa2c40c7c1dce77c4290ecab357fc930dcdf524351767ebfa6faa9e19667d7c87,0x935ca4702e375fb713a67cf55a68600a6a094c3ed17953d7a267490d3bd99f90,0x7792a175c1ec0c7541d0e58b9b107641b4c506daeb651c3f0eb4e7b96625cfdf'
+
+    # Fortress Protocol
+    # fault_hash = '0x13d19809b19ac512da6d110764caee75e2157ea62cb70937c8d9471afcb061bf'
+    # faultless_hash = '0x3805353291c4195347c84ec69d041bfffd233048e83eeaf75a5a5c9133774cc7,0x1201f84fbac94b8b494c53c6ab654777f9cf10c7228a215dc61b7fafe2eb770d,0x988f458a492ba28455afd4a038860e4cb2ee2484b41e60e1f8283bfcea9ee241'
+
+    for i in range(60):
         print("第" + str(i) + "次运行实验: \n")
         file_path = "night_data/" + str(i) + ".txt"
         try:

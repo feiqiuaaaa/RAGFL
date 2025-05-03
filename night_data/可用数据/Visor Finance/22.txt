@@ -1,0 +1,791 @@
+------------------------------------------------
+交易故障分析：
+一、关键异常点 1. 故障交易中合约0x10c509aa9ab291c76c45414e7cdbd375e1d5ace8发生异常所有权转移至自身地址。2. 故障交易0x69272d...触发两次相同代币铸造事件，向攻击者地址0x8efab8...铸造总计2.4e+24个vVISR代币（总供应量的545倍）。3. 故障交易调用路径中频繁出现0x40c10f19函数签名（ERC20 mint方法）且无权限校验。4. 异常铸造的代币vVISR与正常交易中销毁的代币为同一合约地址0x3a84ad5d16adbe566baa6b3dafe39db3d5e261e5。
+
+二、漏洞原因分析 根本原因为合约权限控制失效与重入攻击组合漏洞。合约0xc9f27a50f82571c1c8423a42970613b8dbda14ef作为核心控制器存在以下问题：1. 未对mint函数设置有效的权限校验，允许任意地址调用0x40c10f19进行代币铸造。2. 在0x2e88fb97函数中存在回调机制，攻击者通过构造恶意参数触发重复铸造。3. 所有权转移函数未设置时间锁或多签验证，攻击者通过0x27f221...交易将合约所有权转移至自身地址后获得系统控制权。4. 合约调用链中存在DELEGATECALL操作（地址0x8daed2da38f4a4eb0c46f2e0e6811f63b7c7752c），可能引入代理合约的存储冲突漏洞。
+
+三、攻击路径还原 1. 攻击者通过0x27f221...交易将核心合约0x10c509...所有权转移至攻击地址。2. 调用合约0xc9f27a...的0x2e88fb97函数触发跨合约交互。3. 恶意参数诱导合约通过STATICCALL查询代币余额后，通过CALL指令执行0x40c10f19进行代币铸造。4. 利用回调机制重复触发铸造操作，通过trace调用链可见同一笔交易中连续执行4次mint操作。5. 最终将异常铸造的vVISR代币通过后续交易转移套现。
+
+四、trace调用链（故障交易） 0x8efab89b497b887cdaa2fb08ff71e4b3827774b2 -> 0x10c509aa9ab291c76c45414e7cdbd375e1d5ace8 -> 0xc9f27a50f82571c1c8423a42970613b8dbda14ef -> [STATICCALL]0x3a84ad5d16adbe566baa6b3dafe39db3d5e261e5 -> [CALL]0x3a84ad5d16adbe566baa6b3dafe39db3d5e261e5:0x40c10f19 -> 重复铸造操作。完整调用地址链：0x8efab89b497b887cdaa2fb08ff71e4b3827774b2→0x10c509aa9ab291c76c45414e7cdbd375e1d5ace8→0xc9f27a50f82571c1c8423a42970613b8dbda14ef→0x3a84ad5d16adbe566baa6b3dafe39db3d5e261e5→0xf938424f7210f31df2aee3011291b658f872e91e→0x0789e77c19cf95faf2adf17502a817fcd33517f7→0xe2696f3dda0c4bb8b53da3951d6acb005094502d→0xae03233307865623aaef76da9ade669b86e6f20a。
+------------------------------------------------
+向量库匹配结果：
+{'ids': [['Visor Finance-vVISR.sol', 'Visor Finance-IERC20Permit.sol', 'Visor Finance-ERC20Permit.sol', 'Visor Finance-ERC20.sol', 'Visor Finance-RewardsHypervisor.sol', 'Visor Finance-ECDSA.sol', 'Visor Finance-EIP712.sol', 'Visor Finance-IERC20.sol', 'Visor Finance-ERC20Snapshot.sol', 'Visor Finance-Arrays.sol', 'Visor Finance-SafeERC20.sol', 'Visor Finance-Address.sol', 'Visor Finance-IVisor.sol', 'Visor Finance-Counters.sol', 'Visor Finance-SafeMath.sol', 'Visor Finance-Math.sol', 'Visor Finance-Context.sol', 'Visor Finance-Ownable.sol']], 'embeddings': None, 'documents': [['vVISR 代币合约总结：该智能合约是基于 ERC20 标准扩展的代币合约，命名为 vVISR。其核心功能在 ERC20 代币基础上融合了许可授权机制（ERC20Permit）和余额快照功能（ERC20Snapshot），同时实现了代币铸造销毁的权限管控。合约采用所有权模式，仅允许持有者地址操作关键功能：通过 mint 函数为指定账户增发代币，通过 burn 函数销毁账户代币余额，使用 snapshot 函数记录链上余额快照。合约通过继承 ERC20Snapshot 实现了转账时自动触发快照记录，确保转账前后余额变化可追溯。所有权限函数均通过 onlyOwner 修饰器进行校验，所有权可通过 transferOwnership 函数转移。合约初始化时支持自定义代币名称、符号和小数精度。\n\n函数列表：1. mint(外部函数)：所有者向指定账户铸造代币。2. burn(外部函数)：所有者销毁指定账户代币。3. snapshot(外部函数)：所有者创建余额快照。4. transferOwnership(外部函数)：转移合约所有权。5. _beforeTokenTransfer(内部函数)：重写转账前逻辑，实现快照功能继承。6. 构造函数：初始化代币参数并设定所有者。', '智能合约名称：ERC20 Permit 接口合约（IERC20Permit）。该合约是基于 EIP-2612 标准设计的接口，定义了通过签名实现 ERC20 代币授权管理的功能。其核心目的是让用户无需直接发送交易即可完成代币授权操作，通过离线签名降低 Gas 消耗并提升交互效率。合约包含三个关键功能：1. permit 函数允许代币持有者通过数字签名授权第三方使用其代币额度，需验证签名有效性和时效性；2. nonces 函数提供地址的当前随机数以防止签名重放攻击；3. DOMAIN_SEPARATOR 函数生成 EIP-712 标准域分隔符，确保跨合约签名的唯一性。该接口为 ERC20 代币实现了免交易授权的标准化方案，主要应用于支持链下签名的去中心化交易所或钱包场景。\n\n函数列表：\n1. permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external：通过签名授权第三方操作代币，需验证签名有效性、有效期和随机数\n2. nonces(address owner) external view returns (uint256)：查询指定地址的当前授权随机数，用于签名防重放\n3. DOMAIN_SEPARATOR() external view returns (bytes32)：获取 EIP-712 域分隔符，用于签名数据结构验证', 'ERC20Permit 智能合约总结：该合约是基于 ERC20 标准实现的许可扩展功能，遵循 EIP-2612 标准实现了通过链下签名进行代币授权操作。合约核心功能允许用户通过数字签名方式授权第三方使用其代币，无需预先发起链上交易。关键机制包含：1. 使用 EIP-712 结构化数据签名标准构建验证框架；2. 通过地址 nonce 计数器防止签名重放攻击；3. 支持带截止时间的授权有效性验证。合约通过 _approve 方法继承 ERC20 基础授权逻辑，同时新增签名验证流程，在验证签名有效性时会严格匹配签名者地址与代币持有者地址，并校验交易时间戳是否在授权有效期内。\n\n函数列表：\n1. permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) - 核心授权函数，通过 ECDSA 签名验证实现离线授权，包含截止时间验证、签名恢复验证、nonce 自增等逻辑\n2. nonces(address owner) - 查询指定地址的当前 nonce 值，用于防止签名重放\n3. DOMAIN_SEPARATOR() - 获取 EIP-712 协议定义的域分隔符，用于区分不同合约的签名域', '智能合约名称：ERC20。该合约是一个符合ERC20标准的代币实现，提供了代币的基本功能包括转账、余额查询、授权管理以及供应量控制。合约使用SafeMath库进行安全的数学运算，避免溢出问题。核心功能包括允许用户之间转移代币，设置第三方操作账户的额度权限，并支持增发与销毁代币。合约通过构造函数初始化代币名称、符号和小数位数（默认18位），包含标准的元数据查询方法。转账和授权操作均包含地址有效性校验，关键函数通过事件记录状态变更。代币供应量通过内部_mint和_burn函数调节，但需注意这两个函数未直接暴露给外部调用，需在子合约中实现具体供应机制。合约预留了_beforeTokenTransfer钩子函数，可供扩展转账前后的自定义逻辑（如手续费扣除或暂停功能）。该实现遵循OpenZeppelin的ERC20模板，具备安全审计基础框架特性。\n\n函数列表：  \n- constructor：初始化代币名称和符号，设置小数位为18。  \n- name：返回代币名称。  \n- symbol：返回代币符号。  \n- decimals：返回代币小数位数。  \n- totalSupply：查询代币总供应量。  \n- balanceOf：查询指定地址余额。  \n- transfer：向指定地址转账。  \n- allowance：查询授权额度。  \n- approve：授权第三方账户使用指定数量的代币。  \n- transferFrom：从授权地址转账代币。  \n- increaseAllowance：增加授权额度。  \n- decreaseAllowance：减少授权额度。  \n- _transfer：内部转账逻辑，处理余额变更并触发转账事件。  \n- _mint：内部增发代币，增加总供应量。  \n- _burn：内部销毁代币，减少总供应量。  \n- _approve：内部处理授权逻辑，触发授权事件。  \n- _setupDecimals：内部设置小数位数（需在构造阶段调用）。  \n- _beforeTokenTransfer：转账前的钩子函数（可扩展逻辑的空实现）。', 'RewardsHypervisor 智能合约总结：该合约是一个奖励管理合约，旨在通过 vVISR 代币实现 VISR 代币的份额化托管。核心功能包含存款铸造份额、赎回代币、快照记录三大模块，允许用户存入 VISR 获得流动性代币 vVISR，并根据持有份额按比例提取代币。合约采用权限控制机制，仅允许所有者执行快照和转移所有权等管理操作，并通过 isContract 函数区分普通地址与合约地址的转账逻辑，当存款来源为智能合约时会校验调用者所有权。vVISR 代币合约被深度集成，承担份额铸造/销毁和快照功能。\n\n函数列表：\n1. deposit(visrDeposit, from, to)：接收 VISR 存款，铸造对应比例 vVISR 份额给指定地址，处理普通用户与合约账户两种转账方式\n2. withdraw(shares, to, from)：销毁指定数量的 vVISR 份额，按比例返还 VISR 给目标地址\n3. snapshot()：触发 vVISR 代币的快照功能（仅所有者）\n4. transferOwnership(newOwner)：转移本合约所有权（仅所有者）\n5. transferTokenOwnership(newOwner)：转移 vVISR 代币合约所有权（仅所有者）\n6. 构造函数(_visr, _vvisr)：初始化 VISR 和 vVISR 代币合约地址，设置初始所有者', '智能合约名称：ECDSA 库。该合约是一个用于处理椭圆曲线数字签名算法（ECDSA）操作的库，主要功能是通过签名验证恢复出签名者地址，并生成符合以太坊标准的签名消息哈希。合约核心逻辑围绕安全地解析签名参数、验证签名的合法性以及防止签名可延展性问题展开。关键点包括：1. 通过检查签名长度65字节确保格式正确；2. 使用内联汇编解析签名的r、s、v分量；3. 对s值实施严格范围检查（小于等于0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0）防止签名伪造；4. 强制v值必须为27或28；5. 调用ecrecover函数恢复地址并进行非空验证；6. 提供toEthSignedMessageHash方法为原始哈希添加以太坊签名前缀（\\x19Ethereum Signed Message:\\n32），确保消息符合标准签名格式防止重放攻击。该库通过严谨的参数验证和标准化处理，为智能合约提供安全的签名验证基础功能。\n\n函数列表：1. recover(bytes32 hash, bytes memory signature)：通过完整签名恢复地址，内部解析出v/r/s参数；2. recover(bytes32 hash, uint8 v, bytes32 r, bytes32 s)：通过独立v/r/s参数恢复地址，执行核心验证逻辑；3. toEthSignedMessageHash(bytes32 hash)：将原始哈希转换为以太坊标准签名消息格式。', '智能合约名称：EIP712 实现合约。该合约是基于 EIP-712 标准构建的域分隔符生成工具，主要用于支持结构化数据签名验证。合约通过缓存链ID和域分隔符实现高效验证，防止链分叉后的重放攻击。核心功能包含域分隔符生成和结构化数据哈希计算，通过构造函数初始化签名域名称、版本等不可变参数，采用链ID动态校验机制确保跨链兼容性。合约重点实现了 _domainSeparatorV4 域分隔符生成器，可根据当前链状态返回有效分隔符，并通过 _hashTypedDataV4 将数据结构哈希与域分隔符结合生成最终签名摘要。该合约作为抽象合约被继承使用，为ERC20 Permit等需要结构化签名的标准提供底层支持。\n\n函数列表：\n1. 构造函数(name, version)：初始化签名域名称和版本的哈希值，缓存初始链ID和域分隔符\n2. _domainSeparatorV4()：返回当前链对应的域分隔符，自动检测链ID变化更新缓存\n3. _buildDomainSeparator(typeHash, name, version)：私有方法，实际构建包含链ID和合约地址的域分隔符\n4. _hashTypedDataV4(structHash)：生成符合EIP-712标准的最终消息摘要，包含域分隔符和结构体哈希\n5. _getChainId()：私有视图函数，通过内联汇编获取当前链ID', '智能合约名称：ERC20标准接口合约（IERC20）。该合约是ERC20代币标准的接口定义，规定了实现ERC20代币必须包含的基础函数和事件。合约定义了代币转账、余额查询、授权额度管理等核心功能，作为其他ERC20代币合约的交互规范。关键功能包括查询总供应量、获取账户余额、执行代币转账、设置授权额度、基于授权的转账操作。合约通过Transfer和Approval事件记录代币转移与授权状态变更，为代币交易提供链上验证依据。此接口未包含具体实现逻辑，仅作为标准模板供具体代币合约继承实现。函数列表如下：totalSupply()：查询代币总供应量。balanceOf(address)：查询指定账户余额。transfer(address,uint256)：向目标地址转账。allowance(address,address)：查询授权剩余额度。approve(address,uint256)：设置授权额度。transferFrom(address,address,uint256)：使用授权额度进行转账。事件列表：Transfer(address,address,uint256)：代币转账事件。Approval(address,address,uint256)：授权额度变更事件。', '该智能合约名为 ERC20Snapshot，是基于 ERC20 标准扩展的代币合约，主要增加了余额快照功能。其核心功能是通过快照机制记录代币在特定区块时刻的账户余额与总供应量，防止双花攻击并支持信任机制（如分红、投票）。合约通过内部计数器生成递增的快照 ID，每次转账操作前自动更新相关账户的快照记录，提供查询历史余额和总供应量的接口。\n\n关键代码要点包括：1. 使用结构体 Snapshots 存储快照 ID 和对应数值的关联数组，通过二分查找优化查询效率。2. 在转账、铸币、销毁前触发 _beforeTokenTransfer 钩子函数更新快照数据。3. 快照生成逻辑仅允许新增更高 ID 的记录避免重复存储。4. 提供 balanceOfAt 和 totalSupplyAt 函数实现历史状态查询，支持链下验证场景。\n\n函数列表如下：\n- _snapshot() internal：生成新快照并返回 ID，触发 Snapshot 事件。\n- balanceOfAt(address account, uint256 snapshotId) public view：查询指定账户在特定快照 ID 的余额。\n- totalSupplyAt(uint256 snapshotId) public view：查询特定快照 ID 的代币总供应量。\n- _beforeTokenTransfer(address from, address to, uint256 amount) internal override：在转账前更新相关账户的快照数据。\n- _valueAt(uint256 snapshotId, Snapshots storage snapshots) private view：内部查询快照值，使用二分查找定位最近快照。\n- _updateAccountSnapshot(address account) private：更新单个账户的余额快照。\n- _updateTotalSupplySnapshot() private：更新总供应量快照。\n- _updateSnapshot(Snapshots storage snapshots, uint256 currentValue) private：向快照数组写入新数据。\n- _lastSnapshotId(uint256[] storage ids) private view：获取最新快照 ID。', '智能合约名称：Arrays库（数组操作工具库）该智能合约是一个提供数组相关操作的Solidity库，主要功能是实现针对有序数组的高效二分查找算法。核心功能是通过findUpperBound函数在已排序的升序数组中快速定位首个大于或等于目标元素的位置索引，当目标元素超过所有数组元素时返回数组长度。关键代码逻辑采用二分查找算法，时间复杂度控制在O(log n)，通过Math库的average方法计算中间索引，根据中间值与目标元素的比较结果动态调整搜索区间。合约特别强调输入数组必须满足严格升序且无重复元素的前提条件，返回结果会根据实际匹配情况调整最终索引值（当存在相等元素时返回精确匹配位置）。函数列表：1. findUpperBound(uint256[] storage array, uint256 element) internal view returns (uint256)：在有序数组中执行二分查找，返回第一个大于等于目标元素的索引位置，若未找到则返回数组长度。要求输入数组必须为严格升序排列且无重复元素。', 'SafeERC20 库总结：该智能合约是 OpenZeppelin 标准库中的 SafeERC20 安全操作库，主要用于安全地与 ERC20 标准代币进行交互。它通过封装 ERC20 代币的转账和授权操作，解决了部分代币合约不符合标准规范可能导致交易失败的问题。核心功能包含安全转账、安全授权及灵活调整授权额度，通过低阶调用和返回值验证机制，兼容处理正常返回布尔值的代币和异常回滚型代币。库内整合了 SafeMath 的溢出校验和 Address 的合约调用验证，重点防范了转账余额不足、授权额度越界等常见风险，并针对 ERC20 授权竞态条件问题提供了安全增量/减量授权函数。\n\n函数列表：\n1. safeTransfer(IERC20,address,uint256)：安全转账函数，执行 ERC20 代币转账并验证操作结果\n2. safeTransferFrom(IERC20,address,address,uint256)：安全跨账户转账函数，处理代币从指定地址转账的操作\n3. safeApprove(IERC20,address,uint256)：安全授权函数（已弃用），强制要求授权时从零值开始设置额度\n4. safeIncreaseAllowance(IERC20,address,uint256)：安全增加授权额度，采用数学累加方式避免授权竞态问题\n5. safeDecreaseAllowance(IERC20,address,uint256)：安全减少授权额度，执行带溢出检查的额度递减操作\n6. _callOptionalReturn(IERC20,bytes)：内部调用函数，执行底层代币合约调用并验证返回数据有效性', '智能合约名称：Address 实用函数库。该合约是一个提供地址类型相关功能的工具库，主要用于安全地进行以太坊地址操作和底层调用。核心功能包括检测地址是否为合约、替代 transfer 的 ETH 发送方法、以及支持多种调用方式的安全封装。关键代码要点包括：1. 通过 extcodesize 汇编指令检测合约地址，但需注意其在构造函数期间的局限性；2. 使用 call 方法实现 sendValue 函数规避 transfer 的 gas 限制；3. 提供 functionCall、functionCallWithValue、functionStaticCall、functionDelegateCall 四种调用方式，统一通过 _verifyCallResult 处理调用结果；4. 所有调用方法均包含合约地址验证和错误处理机制，有效防止常见安全漏洞。\n\n函数列表：isContract(检查地址是否为合约)、sendValue(安全发送ETH)、functionCall(执行底层调用)、functionCall带错误信息重载(执行带自定义错误信息的调用)、functionCallWithValue(带ETH转账的调用)、functionCallWithValue带错误信息重载(带ETH和自定义错误的调用)、functionStaticCall(执行静态调用)、functionStaticCall带错误信息重载(静态调用错误处理)、functionDelegateCall(委托调用)、functionDelegateCall带错误信息重载(委托调用错误处理)、_verifyCallResult(内部调用结果验证)。', 'IVisor 接口合约总结：该智能合约是一个名为 IVisor 的接口合约，主要用于定义其他合约需实现的标准化功能方法。合约核心功能聚焦于权限验证和资产委托操作，包含两个关键功能点：(1) 提供合约所有权查询功能，通过 owner() 方法获取合约所有者地址；(2) 定义代币委托转账机制，通过 delegatedTransferERC20() 方法实现 ERC20 代币的委托转移功能。该接口作为标准规范，为外部合约实现委托资产操作和权限控制提供了必要的方法定义，但未包含具体逻辑实现。\n\n函数列表：\n1. owner() - 获取合约所有者地址\n2. delegatedTransferERC20(address,address,uint256) - 执行 ERC20 代币的委托转账操作，需传入代币合约地址、接收方地址和转账数量', '智能合约名称：Counters 计数器库。该合约是一个提供安全递增/递减计数功能的工具库，主要用于需要可靠计数机制的场景如ERC721代币ID生成、映射元素追踪等。库通过封装计数器结构体避免直接访问内部值，实现安全操作。核心设计特点在于递增操作优化gas消耗，通过跳过SafeMath溢出检查（基于256位整数单步递增不会溢出的前提），而递减操作保留SafeMath的sub方法防止下溢。所有函数均采用internal可见性，确保仅限库内或继承合约调用。\n\n函数列表：1. current() 查看当前计数值；2. increment() 执行计数器加1操作；3. decrement() 执行计数器减1操作（带下溢保护）。', 'SafeMath 智能合约总结：该合约是一个提供安全算术运算的库合约，主要用于防止无符号整数运算时的溢出和下溢问题。作为 OpenZeppelin 标准库的一部分，其核心功能是通过封装加减乘除等基础运算，在执行前加入溢出检查机制，避免因数值越界导致的安全漏洞。合约适用于 Solidity 0.8.0 之前的版本（0.6.0 ≤ 版本 < 0.8.0），在后续版本中因语言原生支持溢出检查而逐步淘汰。\n\n关键功能分为两类：1) tryXXX 系列函数（如 tryAdd）通过返回布尔值标识运算是否成功，避免直接回滚交易；2) 传统安全函数（如 add）在检测到溢出时直接触发 require 回滚。所有函数均为 pure 类型且无状态修改，重点覆盖加法、减法、乘法、除法和取模运算，同时对除零错误提供防护。部分函数支持自定义错误信息，但注释标明其因内存消耗问题已被弃用。\n\n函数列表：\n- tryAdd(uint256 a, uint256 b)：尝试加法运算，返回成功状态及结果\n- trySub(uint256 a, uint256 b)：尝试减法运算，返回成功状态及结果\n- tryMul(uint256 a, uint256 b)：尝试乘法运算，返回成功状态及结果\n- tryDiv(uint256 a, uint256 b)：尝试除法运算，返回成功状态及结果\n- tryMod(uint256 a, uint256 b)：尝试取模运算，返回成功状态及结果\n- add(uint256 a, uint256 b)：执行加法，溢出时回滚\n- sub(uint256 a, uint256 b)：执行减法，下溢时回滚\n- mul(uint256 a, uint256 b)：执行乘法，溢出时回滚\n- div(uint256 a, uint256 b)：执行整除，除零时回滚\n- mod(uint256 a, uint256 b)：执行取模，除零时回滚\n- sub(uint256 a, uint256 b, string errorMessage)：带自定义错误信息的减法\n- div(uint256 a, uint256 b, string errorMessage)：带自定义错误信息的除法\n- mod(uint256 a, uint256 b, string errorMessage)：带自定义错误信息的取模', 'Math 数学工具库智能合约总结：该智能合约是一个提供基础数学运算功能的工具库，包含三个核心数学函数用于处理 uint256 类型数值。合约通过避免算术溢出优化计算安全性，所有函数均为 pure 纯函数且不涉及状态变量操作。关键代码要点包括：1. max() 函数采用三元运算符直接比较两数大小返回最大值，执行效率高；2. min() 函数使用小于判断返回最小值，逻辑简洁；3. average() 函数采用分段计算策略，先将两数分别除以2再相加，最后补充余数部分的平均值，通过 (a/2 + b/2) + ((a%2 + b%2)/2) 的结构有效防止两数相加时可能发生的溢出问题。\n\n函数列表：\n1. max(uint256 a, uint256 b) - 返回两个参数中的较大值\n2. min(uint256 a, uint256 b) - 返回两个参数中的较小值\n3. average(uint256 a, uint256 b) - 计算两个参数的平均值并向下取整，采用防溢出算法设计', 'Context 智能合约总结：该智能合约是一个基础上下文信息抽象合约，主要用于安全获取交易执行上下文信息。其核心功能是为继承合约提供标准化的消息发送者与调用数据获取方式，特别针对支持 GSN（Gas Station Network）元交易场景设计。合约通过封装 msg.sender 和 msg.data 的访问方式，解决在元交易场景中实际执行地址与原始发送者分离的问题，确保应用程序能正确识别交易源头。合约仅包含两个内部视图函数，通过虚函数设计允许子合约重写逻辑，适用于需要作为中间件或基础库的场景。该合约不可单独部署，需被其他合约继承使用，属于 OpenZeppelin 标准库中的常用基础组件。\n\n函数列表：\n1. _msgSender() - 内部视图函数，返回当前消息发送者地址（address payable 类型），直接读取 msg.sender 值\n2. _msgData() - 内部视图函数，返回完整的原始调用数据（bytes 类型），直接读取 msg.data 值', '智能合约命名为Ownable。该合约是一个提供基本权限控制的抽象合约，主要用于实现所有权管理机制，确保特定功能只能被合约所有者调用。合约通过继承Context合约来获取消息发送者信息，核心功能包括设定初始所有者、转移所有权、放弃所有权以及权限校验。合约部署时自动将部署者设为初始所有者，并通过事件OwnershipTransferred记录所有权变更。关键机制在于onlyOwner修饰器，该修饰器限制函数仅允许所有者地址调用，从而保护关键操作的安全性。放弃所有权功能会将所有者设为零地址，导致合约永久失去权限管理能力，需谨慎使用。\n\n函数列表如下：1. 构造函数constructor()：初始化合约，将部署者设为所有者并触发所有权转移事件。2. 函数owner()：查看当前所有者地址。3. 修饰器onlyOwner()：验证调用者是否为所有者。4. 函数renounceOwnership()：放弃所有权，将所有者置为零地址。5. 函数transferOwnership(address newOwner)：转移所有权至新地址，要求新地址非零地址。']], 'uris': None, 'data': None, 'metadatas': [[{'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}, {'address': '0xc9f27a50f82571c1c8423a42970613b8dbda14ef'}]], 'distances': [[0.361505389213562, 0.38850247859954834, 0.4072973132133484, 0.41416287422180176, 0.42775291204452515, 0.444566011428833, 0.4466947913169861, 0.46015071868896484, 0.49480104446411133, 0.5101089477539062, 0.5101848840713501, 0.5230481624603271, 0.5273151397705078, 0.5373480916023254, 0.5414741039276123, 0.5506866574287415, 0.5512372255325317, 0.6024801731109619]], 'included': [<IncludeEnum.distances: 'distances'>, <IncludeEnum.documents: 'documents'>, <IncludeEnum.metadatas: 'metadatas'>]}
+------------------------------------------------
+重排序结果：
+['Visor Finance-vVISR.sol', 'Visor Finance-ERC20.sol', 'Visor Finance-ERC20Snapshot.sol', 'Visor Finance-Ownable.sol', 'Visor Finance-SafeMath.sol', 'Visor Finance-Address.sol', 'Visor Finance-SafeERC20.sol', 'Visor Finance-Context.sol']
+------------------------------------------------
+函数切片：
+
+------------------------------------------------
+函数切片ID: Visor Finance-vVISR.sol-onlyOwner-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-vVISR.sol', 'is_fault': '', 'message': "{'name': 'onlyOwner', 'type': 'modifier', 'contract': 'Visor Finance-vVISR.sol', 'src': '11#14'}"}
+函数切片:
+    modifier onlyOwner {
+        require(msg.sender == owner, "only owner");
+        _;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-vVISR.sol-constructor-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-vVISR.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'name', 'type': 'string'}, {'name': 'symbol', 'type': 'string'}, {'name': 'decimals', 'type': 'uint8'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-vVISR.sol', 'external_calls': [], 'state_vars': {'read': ['owner'], 'written': []}, 'src': '16#23'}"}
+函数切片:
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint8 decimals
+    ) ERC20Permit(name) ERC20(name, symbol){
+      owner = msg.sender;
+      _setupDecimals(decimals);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-vVISR.sol-mint-2
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-vVISR.sol', 'is_fault': '', 'message': "{'name': 'mint', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-vVISR.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '25#27'}"}
+函数切片:
+    function mint(address account, uint256 amount) onlyOwner external {
+      _mint(account, amount);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-vVISR.sol-burn-3
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-vVISR.sol', 'is_fault': '', 'message': "{'name': 'burn', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-vVISR.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '29#31'}"}
+函数切片:
+    function burn(address account, uint256 amount) onlyOwner external {
+      _burn(account, amount);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-vVISR.sol-snapshot-4
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-vVISR.sol', 'is_fault': '', 'message': "{'name': 'snapshot', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-vVISR.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '33#35'}"}
+函数切片:
+    function snapshot() onlyOwner external {
+      _snapshot();
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-vVISR.sol-transferOwnership-5
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-vVISR.sol', 'is_fault': '', 'message': "{'name': 'transferOwnership', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'newOwner', 'type': 'address'}], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-vVISR.sol', 'external_calls': [], 'state_vars': {'read': ['owner'], 'written': []}, 'src': '37#39'}"}
+函数切片:
+    function transferOwnership(address newOwner) external onlyOwner {
+      owner = newOwner;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-vVISR.sol-_beforeTokenTransfer-6
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-vVISR.sol', 'is_fault': '', 'message': "{'name': '_beforeTokenTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-vVISR.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '41#43'}"}
+函数切片:
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal override(ERC20, ERC20Snapshot) {
+      super._beforeTokenTransfer(from, to, amount);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-constructor-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'name_', 'type': 'string'}, {'name': 'symbol_', 'type': 'string'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name', '_symbol', '_decimals'], 'written': []}, 'src': '55#59'}"}
+函数切片:
+    constructor (string memory name_, string memory symbol_) public {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = 18;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-name-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'name', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name'], 'written': []}, 'src': '64#66'}"}
+函数切片:
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-symbol-2
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'symbol', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_symbol'], 'written': []}, 'src': '72#74'}"}
+函数切片:
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-decimals-3
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'decimals', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint8'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_decimals'], 'written': []}, 'src': '89#91'}"}
+函数切片:
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-totalSupply-4
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'totalSupply', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply'], 'written': []}, 'src': '96#98'}"}
+函数切片:
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-balanceOf-5
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'balanceOf', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances'], 'written': []}, 'src': '103#105'}"}
+函数切片:
+    function balanceOf(address account) public view virtual override returns (uint256) {
+        return _balances[account];
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-transfer-6
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'transfer', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '115#118'}"}
+函数切片:
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-allowance-7
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'allowance', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '123#125'}"}
+函数切片:
+    function allowance(address owner, address spender) public view virtual override returns (uint256) {
+        return _allowances[owner][spender];
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-approve-8
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'approve', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '134#137'}"}
+函数切片:
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-transferFrom-9
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'transferFrom', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '152#156'}"}
+函数切片:
+    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-increaseAllowance-10
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'increaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'addedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '170#173'}"}
+函数切片:
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-decreaseAllowance-11
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': 'decreaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'subtractedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '189#192'}"}
+函数切片:
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-_transfer-12
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': '_transfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: transfer from the zero address', 'ERC20: transfer to the zero address'], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', '_balances', '_balances', '_balances'], 'written': []}, 'src': '208#217'}"}
+函数切片:
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+
+        _beforeTokenTransfer(sender, recipient, amount);
+
+        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+        _balances[recipient] = _balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-_mint-13
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': '_mint', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: mint to the zero address'], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply', '_totalSupply', '_balances', '_balances'], 'written': []}, 'src': '228#236'}"}
+函数切片:
+    function _mint(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: mint to the zero address");
+
+        _beforeTokenTransfer(address(0), account, amount);
+
+        _totalSupply = _totalSupply.add(amount);
+        _balances[account] = _balances[account].add(amount);
+        emit Transfer(address(0), account, amount);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-_burn-14
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': '_burn', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: burn from the zero address'], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', '_balances', '_totalSupply', '_totalSupply'], 'written': []}, 'src': '249#257'}"}
+函数切片:
+    function _burn(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address");
+
+        _beforeTokenTransfer(account, address(0), amount);
+
+        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
+        _totalSupply = _totalSupply.sub(amount);
+        emit Transfer(account, address(0), amount);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-_approve-15
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': '_approve', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: approve from the zero address', 'ERC20: approve to the zero address'], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '272#278'}"}
+函数切片:
+    function _approve(address owner, address spender, uint256 amount) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-_setupDecimals-16
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': '_setupDecimals', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'decimals_', 'type': 'uint8'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_decimals'], 'written': []}, 'src': '287#289'}"}
+函数切片:
+    function _setupDecimals(uint8 decimals_) internal virtual {
+        _decimals = decimals_;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20.sol-_beforeTokenTransfer-17
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20.sol', 'is_fault': '', 'message': "{'name': '_beforeTokenTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '305#305'}"}
+函数切片:
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-_snapshot-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': '_snapshot', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Snapshot'], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': ['_currentSnapshotId', '_currentSnapshotId'], 'written': []}, 'src': '81#87'}"}
+函数切片:
+    function _snapshot() internal virtual returns (uint256) {
+        _currentSnapshotId.increment();
+
+        uint256 currentId = _currentSnapshotId.current();
+        emit Snapshot(currentId);
+        return currentId;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-balanceOfAt-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': 'balanceOfAt', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'snapshotId', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': ['_accountBalanceSnapshots'], 'written': []}, 'src': '92#96'}"}
+函数切片:
+    function balanceOfAt(address account, uint256 snapshotId) public view virtual returns (uint256) {
+        (bool snapshotted, uint256 value) = _valueAt(snapshotId, _accountBalanceSnapshots[account]);
+
+        return snapshotted ? value : balanceOf(account);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-totalSupplyAt-2
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': 'totalSupplyAt', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'snapshotId', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupplySnapshots'], 'written': []}, 'src': '101#105'}"}
+函数切片:
+    function totalSupplyAt(uint256 snapshotId) public view virtual returns(uint256) {
+        (bool snapshotted, uint256 value) = _valueAt(snapshotId, _totalSupplySnapshots);
+
+        return snapshotted ? value : totalSupply();
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-_beforeTokenTransfer-3
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': '_beforeTokenTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '110#126'}"}
+函数切片:
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual override {
+      super._beforeTokenTransfer(from, to, amount);
+
+      if (from == address(0)) {
+        // mint
+        _updateAccountSnapshot(to);
+        _updateTotalSupplySnapshot();
+      } else if (to == address(0)) {
+        // burn
+        _updateAccountSnapshot(from);
+        _updateTotalSupplySnapshot();
+      } else {
+        // transfer
+        _updateAccountSnapshot(from);
+        _updateAccountSnapshot(to);
+      }
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-_valueAt-4
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': '_valueAt', 'visibility': 'private', 'stateMutability': 'view', 'parameters': [{'name': 'snapshotId', 'type': 'uint256'}, {'name': 'snapshots', 'type': 'struct ERC20Snapshot.Snapshots'}], 'returns': [{'name': '', 'type': 'bool'}, {'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['ERC20Snapshot: id is 0', 'ERC20Snapshot: nonexistent id'], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': ['_currentSnapshotId'], 'written': []}, 'src': '128#156'}"}
+函数切片:
+    function _valueAt(uint256 snapshotId, Snapshots storage snapshots)
+        private view returns (bool, uint256)
+    {
+        require(snapshotId > 0, "ERC20Snapshot: id is 0");
+        // solhint-disable-next-line max-line-length
+        require(snapshotId <= _currentSnapshotId.current(), "ERC20Snapshot: nonexistent id");
+
+        // When a valid snapshot is queried, there are three possibilities:
+        //  a) The queried value was not modified after the snapshot was taken. Therefore, a snapshot entry was never
+        //  created for this id, and all stored snapshot ids are smaller than the requested one. The value that corresponds
+        //  to this id is the current one.
+        //  b) The queried value was modified after the snapshot was taken. Therefore, there will be an entry with the
+        //  requested id, and its value is the one to return.
+        //  c) More snapshots were created after the requested one, and the queried value was later modified. There will be
+        //  no entry for the requested id: the value that corresponds to it is that of the smallest snapshot id that is
+        //  larger than the requested one.
+        //
+        // In summary, we need to find an element in an array, returning the index of the smallest value that is larger if
+        // it is not found, unless said value doesn't exist (e.g. when all values are smaller). Arrays.findUpperBound does
+        // exactly this.
+
+        uint256 index = snapshots.ids.findUpperBound(snapshotId);
+
+        if (index == snapshots.ids.length) {
+            return (false, 0);
+        } else {
+            return (true, snapshots.values[index]);
+        }
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-_updateAccountSnapshot-5
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': '_updateAccountSnapshot', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': ['_accountBalanceSnapshots'], 'written': []}, 'src': '158#160'}"}
+函数切片:
+    function _updateAccountSnapshot(address account) private {
+        _updateSnapshot(_accountBalanceSnapshots[account], balanceOf(account));
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-_updateTotalSupplySnapshot-6
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': '_updateTotalSupplySnapshot', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupplySnapshots'], 'written': []}, 'src': '162#164'}"}
+函数切片:
+    function _updateTotalSupplySnapshot() private {
+        _updateSnapshot(_totalSupplySnapshots, totalSupply());
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-_updateSnapshot-7
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': '_updateSnapshot', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'snapshots', 'type': 'struct ERC20Snapshot.Snapshots'}, {'name': 'currentValue', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': ['_currentSnapshotId'], 'written': []}, 'src': '166#172'}"}
+函数切片:
+    function _updateSnapshot(Snapshots storage snapshots, uint256 currentValue) private {
+        uint256 currentId = _currentSnapshotId.current();
+        if (_lastSnapshotId(snapshots.ids) < currentId) {
+            snapshots.ids.push(currentId);
+            snapshots.values.push(currentValue);
+        }
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-ERC20Snapshot.sol-_lastSnapshotId-8
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-ERC20Snapshot.sol', 'is_fault': '', 'message': "{'name': '_lastSnapshotId', 'visibility': 'private', 'stateMutability': 'view', 'parameters': [{'name': 'ids', 'type': 'uint256[]'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-ERC20Snapshot.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '174#180'}"}
+函数切片:
+    function _lastSnapshotId(uint256[] storage ids) private view returns (uint256) {
+        if (ids.length == 0) {
+            return 0;
+        } else {
+            return ids[ids.length - 1];
+        }
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Ownable.sol-constructor-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Ownable.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': [], 'contract': 'Visor Finance-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner'], 'written': []}, 'src': '26#30'}"}
+函数切片:
+    constructor () internal {
+        address msgSender = _msgSender();
+        _owner = msgSender;
+        emit OwnershipTransferred(address(0), msgSender);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Ownable.sol-owner-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Ownable.sol', 'is_fault': '', 'message': "{'name': 'owner', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner'], 'written': []}, 'src': '35#37'}"}
+函数切片:
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Ownable.sol-onlyOwner-2
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Ownable.sol', 'is_fault': '', 'message': "{'name': 'onlyOwner', 'type': 'modifier', 'contract': 'Visor Finance-Ownable.sol', 'src': '42#45'}"}
+函数切片:
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Ownable.sol-renounceOwnership-3
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Ownable.sol', 'is_fault': '', 'message': "{'name': 'renounceOwnership', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': [], 'contract': 'Visor Finance-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '54#57'}"}
+函数切片:
+    function renounceOwnership() public virtual onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Ownable.sol-transferOwnership-4
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Ownable.sol', 'is_fault': '', 'message': "{'name': 'transferOwnership', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'newOwner', 'type': 'address'}], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': ['Ownable: new owner is the zero address'], 'contract': 'Visor Finance-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '63#67'}"}
+函数切片:
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-tryAdd-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'tryAdd', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}, {'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '24#28'}"}
+函数切片:
+    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        uint256 c = a + b;
+        if (c < a) return (false, 0);
+        return (true, c);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-trySub-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'trySub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}, {'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '35#38'}"}
+函数切片:
+    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        if (b > a) return (false, 0);
+        return (true, a - b);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-tryMul-2
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'tryMul', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}, {'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '45#53'}"}
+函数切片:
+    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) return (true, 0);
+        uint256 c = a * b;
+        if (c / a != b) return (false, 0);
+        return (true, c);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-tryDiv-3
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'tryDiv', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}, {'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '60#63'}"}
+函数切片:
+    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        if (b == 0) return (false, 0);
+        return (true, a / b);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-tryMod-4
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'tryMod', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}, {'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '70#73'}"}
+函数切片:
+    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        if (b == 0) return (false, 0);
+        return (true, a % b);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-add-5
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'add', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: addition overflow'], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '85#89'}"}
+函数切片:
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+        return c;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-sub-6
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: subtraction overflow'], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '101#104'}"}
+函数切片:
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b <= a, "SafeMath: subtraction overflow");
+        return a - b;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-mul-7
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'mul', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: multiplication overflow'], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '116#121'}"}
+函数切片:
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) return 0;
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+        return c;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-div-8
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'div', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: division by zero'], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '135#138'}"}
+函数切片:
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b > 0, "SafeMath: division by zero");
+        return a / b;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-mod-9
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'mod', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: modulo by zero'], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '152#155'}"}
+函数切片:
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b > 0, "SafeMath: modulo by zero");
+        return a % b;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-sub-10
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '170#173'}"}
+函数切片:
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        return a - b;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-div-11
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'div', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '190#193'}"}
+函数切片:
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        return a / b;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeMath.sol-mod-12
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeMath.sol', 'is_fault': '', 'message': "{'name': 'mod', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '210#213'}"}
+函数切片:
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        return a % b;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-isContract-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'isContract', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#35'}"}
+函数切片:
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+
+        uint256 size;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { size := extcodesize(account) }
+        return size > 0;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-sendValue-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'sendValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address payable'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance', 'Address: unable to send value, recipient may have reverted'], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '53#59'}"}
+函数切片:
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionCall-2
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '79#81'}"}
+函数切片:
+    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
+      return functionCall(target, data, "Address: low-level call failed");
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionCall-3
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '89#91'}"}
+函数切片:
+    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, 0, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionCallWithValue-4
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '104#106'}"}
+函数切片:
+    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionCallWithValue-5
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance for call', 'Address: call to non-contract'], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '114#121'}"}
+函数切片:
+    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
+        require(address(this).balance >= value, "Address: insufficient balance for call");
+        require(isContract(target), "Address: call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.call{ value: value }(data);
+        return _verifyCallResult(success, returndata, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionStaticCall-6
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionStaticCall', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '129#131'}"}
+函数切片:
+    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
+        return functionStaticCall(target, data, "Address: low-level static call failed");
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionStaticCall-7
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionStaticCall', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: static call to non-contract'], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '139#145'}"}
+函数切片:
+    function functionStaticCall(address target, bytes memory data, string memory errorMessage) internal view returns (bytes memory) {
+        require(isContract(target), "Address: static call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.staticcall(data);
+        return _verifyCallResult(success, returndata, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionDelegateCall-8
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionDelegateCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '153#155'}"}
+函数切片:
+    function functionDelegateCall(address target, bytes memory data) internal returns (bytes memory) {
+        return functionDelegateCall(target, data, "Address: low-level delegate call failed");
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-functionDelegateCall-9
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': 'functionDelegateCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: delegate call to non-contract'], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '163#169'}"}
+函数切片:
+    function functionDelegateCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+        require(isContract(target), "Address: delegate call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.delegatecall(data);
+        return _verifyCallResult(success, returndata, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Address.sol-_verifyCallResult-10
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Address.sol', 'is_fault': '', 'message': "{'name': '_verifyCallResult', 'visibility': 'private', 'stateMutability': 'pure', 'parameters': [{'name': 'success', 'type': 'bool'}, {'name': 'returndata', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '171#188'}"}
+函数切片:
+    function _verifyCallResult(bool success, bytes memory returndata, string memory errorMessage) private pure returns(bytes memory) {
+        if (success) {
+            return returndata;
+        } else {
+            // Look for revert reason and bubble it up if present
+            if (returndata.length > 0) {
+                // The easiest way to bubble the revert reason is using memory via assembly
+
+                // solhint-disable-next-line no-inline-assembly
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert(errorMessage);
+            }
+        }
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeERC20.sol-safeTransfer-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '22#24'}"}
+函数切片:
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeERC20.sol-safeTransferFrom-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeTransferFrom', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#28'}"}
+函数切片:
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeERC20.sol-safeApprove-2
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeApprove', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeERC20: approve from non-zero to non-zero allowance'], 'contract': 'Visor Finance-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '37#46'}"}
+函数切片:
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+        // safeApprove should only be called when setting an initial allowance,
+        // or when resetting it to zero. To increase and decrease it, use
+        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+        // solhint-disable-next-line max-line-length
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeERC20.sol-safeIncreaseAllowance-3
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeIncreaseAllowance', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '48#51'}"}
+函数切片:
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeERC20.sol-safeDecreaseAllowance-4
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeDecreaseAllowance', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '53#56'}"}
+函数切片:
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-SafeERC20.sol-_callOptionalReturn-5
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-SafeERC20.sol', 'is_fault': '', 'message': "{'name': '_callOptionalReturn', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'data', 'type': 'bytes'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeERC20: ERC20 operation did not succeed'], 'contract': 'Visor Finance-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '64#74'}"}
+函数切片:
+    function _callOptionalReturn(IERC20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+        // the target address contains contract code and also asserts for success in the low-level call.
+
+        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+        if (returndata.length > 0) { // Return data is optional
+            // solhint-disable-next-line max-line-length
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        }
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Context.sol-_msgSender-0
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Context.sol', 'is_fault': '', 'message': "{'name': '_msgSender', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address payable'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Context.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#18'}"}
+函数切片:
+    function _msgSender() internal view virtual returns (address payable) {
+        return msg.sender;
+    }
+------------------------------------------------
+函数切片ID: Visor Finance-Context.sol-_msgData-1
+所属合约地址0xc9f27a50f82571c1c8423a42970613b8dbda14ef
+元数据:{'belong': 'Visor Finance-Context.sol', 'is_fault': '', 'message': "{'name': '_msgData', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Visor Finance-Context.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '20#23'}"}
+函数切片:
+    function _msgData() internal view virtual returns (bytes memory) {
+        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
+        return msg.data;
+    }
+------------------------------------------------
+故障定位结果：
+{
+    '攻击链条1': ['Visor Finance-Ownable.sol-transferOwnership-4', 'Visor Finance-vVISR.sol-mint-2'],
+    '攻击链条2': ['Visor Finance-ERC20Snapshot.sol-_beforeTokenTransfer-3', 'Visor Finance-ERC20.sol-_mint-13']
+}
+
+攻击链条分析解释:
+
+攻击链条1（权限控制失效直接攻击）：
+该攻击路径的核心在于所有权转移与铸造权限的结合利用。攻击者首先通过Visor Finance-Ownable.sol-transferOwnership-4函数将合约所有权转移至自身地址。该函数仅包含基础的onlyOwner校验，但缺乏时间锁、多签验证等防护措施，使得攻击者可在单笔交易中完成所有权劫持。在获得owner身份后，攻击者直接调用Visor Finance-vVISR.sol-mint-2函数进行代币铸造。由于该函数仅通过onlyOwner修饰符进行校验，且内部未设置铸造上限或频率限制，攻击者可无限制调用mint函数发起异常铸造。此路径的关键漏洞点在于所有权转移机制的设计缺陷与铸造函数的权限控制过于宽松。
+
+攻击链条2（跨合约重入组合攻击）：
+该攻击路径涉及ERC20Snapshot合约的状态更新机制与重入漏洞的组合利用。攻击者首先触发Visor Finance-ERC20Snapshot.sol-_beforeTokenTransfer-3函数，该函数在代币转账时会根据转账方向（mint/burn/transfer）更新账户快照。当转账操作为mint时，会通过_updateAccountSnapshot和_updateTotalSupplySnapshot更新快照状态。在此过程中，若攻击者构造恶意合约作为代币接收方，在快照更新的回调中（如通过重写ERC20的接收函数）再次调用mint函数，将触发Visor Finance-ERC20.sol-_mint-13函数的重复执行。由于_beforeTokenTransfer函数未设置重入锁，且快照更新逻辑与核心代币铸造操作未做原子性隔离，攻击者可利用跨合约调用实现重入攻击，从而导致单笔交易内多次铸造。
+
+根因函数列表：
+攻击链条1：
+1. Visor Finance-Ownable.sol-transferOwnership-4 （根本原因：允许未经延迟验证的所有权转移）
+2. Visor Finance-vVISR.sol-mint-2 （直接原因：未设置铸造量限制的权限函数）
+
+攻击链条2：
+1. Visor Finance-ERC20Snapshot.sol-_beforeTokenTransfer-3 （根本原因：快照更新机制引入重入入口）
+2. Visor Finance-ERC20.sol-_mint-13 （漏洞载体：实际执行铸造的核心函数）
+3. Visor Finance-vVISR.sol-onlyOwner-0 （间接原因：权限校验未覆盖重入场景）
+
+漏洞成因补充分析：
+在攻击链条2中，_beforeTokenTransfer函数通过override机制同时继承ERC20和ERC20Snapshot的逻辑，但未对可能的外部调用进行防护。当进行代币铸造（from==address(0)）时，会执行_updateAccountSnapshot(to)，而该函数通过balanceOf(to)读取攻击者合约余额。若攻击者在balanceOf函数中嵌入重入逻辑，将导致在快照更新过程中再次触发mint操作。由于快照ID(_currentSnapshotId)的递增操作与代币铸造操作处于不同事务边界，这种设计使得重入攻击可绕过快照状态的完整性校验，形成逻辑漏洞。
+------------------------------------
+运行时间:503.38771080970764seconds

@@ -1,0 +1,1318 @@
+------------------------------------------------
+交易故障分析：
+一、关键异常点  
+1. **异常大额代币转账与铸造**：故障交易中，合约地址 `0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5` 从代币合约 `0xce0e9e7a1163badb7ee79cfe96b5148e178cab73`（BPT）转出 **8.3e24** 单位代币，远超其总供应量（2.27e21），同时铸造合约 `0x5d8d9f5b96f4438195be9b99eee6118ed4304286`（COVER）向攻击者地址铸造 **2.9e21** 单位代币。  
+2. **自授权逻辑异常**：攻击者通过合约 `0xe0b94a...` 对自身授权 **1e26** 单位的 BPT 代币，远超实际余额，疑似绕过授权检查。  
+3. **代币合约权限失控**：合约 `0xe0b94a...` 可直接调用 BPT 和 COVER 合约的 `transfer` 和 `mint` 函数，表明其拥有特权角色（如 Owner 或 Minter），但未对调用者权限进行验证。  
+
+二、漏洞原因分析  
+1. **权限设计缺陷**：  
+   - 合约 `0xe0b94a...` 被赋予 BPT 和 COVER 代币合约的高权限角色（如 `owner` 或 `minter`），但未限制其外部调用逻辑，导致攻击者通过调用该合约的特定函数（如自定义事件触发）可绕过权限检查，直接操纵代币。  
+   - BPT 代币合约的 `transferFrom` 函数在调用时未验证 `msg.sender` 的实际权限，仅依赖合约 `0xe0b94a...` 的授权，形成权限代理漏洞。  
+2. **代币铸造漏洞利用**：  
+   - COVER 合约的 `mint` 函数未限制调用者身份，允许任意地址通过合约 `0xe0b94a...` 铸造代币，攻击者利用此漏洞增发代币并转移至自身地址。  
+3. **授权溢出风险**：  
+   - 攻击者在交易 `0xd721b0...` 中设置自授权超高额度（1e26），结合合约 `0xe0b94a...` 的权限缺陷，后续通过 `transferFrom` 操作转移超量代币。  
+
+三、攻击路径还原  
+1. **阶段一：权限准备**  
+   - 攻击者调用合约 `0xe0b94a...` 触发自授权，为后续操作铺路。  
+2. **阶段二：代币操纵**  
+   - 通过合约 `0xe0b94a...` 调用 COVER 合约的 `mint` 函数，铸造大量 COVER 代币至自身地址。  
+   - 利用 BPT 合约的权限漏洞，调用 `transferFrom` 将超供应量的 BPT 代币转移至攻击者地址。  
+3. **阶段三：资金套现**  
+   - 将异常铸造和转移的代币通过 DEX 抛售，完成资金变现。  
+
+四、trace调用链（故障交易）  
+1. **交易 0xd721b0ef2886f14b75548b70d2d1fd82bea085ca24f5de29b833a64cfd8f7a50**  
+   - `0xf05ca010d0bd620cc7c8e96e00855dde2c2943df` → `0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5` → `0xce0e9e7a1163badb7ee79cfe96b5148e178cab73`（BPT 转账）  
+2. **交易 0xadf27f5dd052482d46fdf69a5208a27cc7352522c7c19bbde5aee18f6ea4373b**  
+   - `0xf05ca010d0bd620cc7c8e96e00855dde2c2943df` → `0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5` → `0x5d8d9f5b96f4438195be9b99eee6118ed4304286`（COVER 铸造）  
+   - `0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5` → `0xce0e9e7a1163badb7ee79cfe96b5148e178cab73`（BPT 超量转账）
+------------------------------------------------
+向量库匹配结果：
+{'ids': [['Cover Protocol-COVER.sol', 'Cover Protocol-Migrator.sol', 'Cover Protocol-IBlacksmith.sol', 'Cover Protocol-IMigrator.sol', 'Cover Protocol-ICOVER.sol', 'Cover Protocol-Vesting.sol', 'Cover Protocol-ERC20.sol', 'Cover Protocol-Blacksmith.sol', 'Cover Protocol-MerkleProof.sol', 'Cover Protocol-SafeMath.sol', 'Cover Protocol-Address.sol', 'Cover Protocol-IERC20.sol', 'Cover Protocol-SafeERC20.sol', 'Cover Protocol-ReentrancyGuard.sol', 'Cover Protocol-Ownable.sol']], 'embeddings': None, 'documents': [['COVER 代币合约分析总结：该合约是基于 ERC20 标准构建的 Cover Protocol 代币合约，具备代币铸造、权限管理和一次性释放机制。代币名称设置为 "Cover Protocol"，符号为 "COVER"。合约核心功能包含三个关键部分：1. 初始部署时铸造 1 个代币到指定地址用于创建流动性池；2. 通过 release 函数实现项目启动后的代币释放，向财政部地址铸造 950 枚代币，向归属地址铸造 10,800 枚代币；3. 设置黑名单机制限制铸造权限，仅允许通过认证的迁移合约（migrator）和矿工合约（blacksmith）进行代币铸造。合约采用时间锁机制，设定 2020 年 11 月 20 日 UTC 时间为操作起始时间，通过 isReleased 状态变量控制代币系统激活状态。权限管理方面设置多级控制：所有者拥有 release 函数独家调用权，blacksmith 和 migrator 地址可通过专属函数更新自身合约地址，确保合约升级灵活性。\n\n函数列表：\n1. constructor()：初始化代币参数并向指定地址铸造初始代币\n2. mint(address _account, uint256 _amount)：授权合约铸造代币，需满足系统激活状态\n3. setBlacksmith(address _newBlacksmith)：更新矿工合约地址，仅当前矿工合约可调用\n4. setMigrator(address _newMigrator)：更新迁移合约地址，仅当前迁移合约可调用\n5. release(address _treasury, address _vestor, address _blacksmith, address _migrator)：一次性激活代币系统并分配初始代币，仅合约所有者可调用', 'Migrator 智能合约总结：该合约是用于 SAFE2 代币迁移至 COVER 代币的迁移器，主要功能包括 SAFE2 代币兑换、基于 Merkle 证明的申领机制和权限管理。合约通过销毁用户 SAFE2 代币并铸造等量 COVER 代币实现迁移，设置 54,850 COVER 的迁移总量上限和 2020 年 11 月 20 日的启动时间。核心机制包含：1. Merkle 树验证系统用于白名单申领，通过位图记录已申领索引防止重复操作；2. 迁移优先级机制确保 SAFE2 迁移优先于 Merkle 申领；3. 治理权限可转移铸造权，允许合约升级或终止迁移。合约设置了严格的安全检查，包括地址硬编码验证、时间锁和总量限制，并采用 SafeMath 防止算术溢出。\n\n函数列表：\n1. isSafeClaimed：检查指定索引是否已通过 Merkle 申领，使用位图存储状态\n2. migrateSafe2：执行 SAFE2 代币迁移，销毁用户代币并铸造 COVER\n3. claim：基于 Merkle 证明的代币申领功能，验证证明后铸造代币\n4. transferMintingRights：治理权限转移函数，可更改 COVER 的迁移器地址\n5. _setClaimed：内部函数，更新 Merkle 申领的位图状态', 'Blacksmith合约接口总结：该合约是COVER项目的shield mining机制核心接口，定义了流动性挖矿池管理、奖励计算与分配的基础逻辑。合约通过多池权重分配机制支持COVER代币挖矿，并可集成外部奖励代币（如CRV）。核心功能包括：1）矿工通过存款/取款LP代币参与挖矿 2）动态更新各池的COVER奖励累积 3）支持合作伙伴添加阶段性外部奖励 4）提供紧急提现和残留代币回收机制。合约采用分层权限控制，包含普通用户、合作伙伴、开发者和治理四类角色，其中治理角色负责全局参数调整，开发者管理池配置。\n\n函数列表：  \n视图函数：  \n- getPoolList：返回所有流动性池地址列表  \n- viewMined：查看指定矿工在特定池中已挖掘的COVER和外部奖励数量  \n\n用户操作函数：  \n- claimRewardsForPools：批量领取多个池的挖矿奖励  \n- claimRewards：领取单个池的奖励  \n- deposit：存入LP代币开始挖矿  \n- withdraw：提取LP代币并领取奖励  \n- emergencyWithdraw：紧急提取LP代币（不领取奖励）  \n\n合作伙伴操作函数：  \n- addBonusToken：为指定池添加外部奖励代币及其分配参数  \n\nCOVER挖矿操作函数：  \n- updatePool：更新单个池的奖励累积状态  \n- updatePools：批量更新多个池的奖励状态  \n- collectDust：回收残留的COVER代币  \n- collectBonusDust：回收残留的外部奖励代币  \n\n开发者专用函数：  \n- addPool：添加新流动性池并设置权重  \n- addPools：批量添加流动性池  \n- updateBonusTokenStatus：更新外部奖励代币状态  \n\n治理专用函数：  \n- updatePoolWeights：调整多个池的权重分配  \n- updateWeeklyTotal：更新每周COVER奖励总量  \n- transferMintingRights：转移代币铸造权限', 'COVER代币迁移接口（IMigrator）该智能合约定义了一个用于代币迁移功能的接口，主要围绕代币迁移、领取验证及权限管理提供核心函数。合约作为接口层，规范了代币迁移过程中必要的交互操作，包括通过Merkle证明验证用户领取资格、迁移流程触发、铸造权转移等机制。合约重点服务于治理控制的代币升级或迁移场景，允许用户根据链下验证数据领取代币，并赋予治理角色转移关键权限的能力。\n\n函数列表如下：\n1. isSafeClaimed(uint256 _index)：查询指定索引对应的SAFE代币是否已被领取，返回布尔值状态。\n2. migrateSafe2()：执行SAFE代币第二阶段迁移操作，无参数且需外部调用。\n3. claim(uint256 _index, uint256 _amount, bytes32[] calldata _merkleProof)：用户提交Merkle证明、索引和申领数量以领取代币，包含防重复领取验证。\n4. transferMintingRights(address _newAddress)：治理专属函数，用于将代币铸造权限转移到指定新地址。', '智能合约名称：ICOVER（ERC20代币扩展接口合约）。该合约是一个基于ERC20标准的扩展接口，定义了代币铸造（mint）与权限管理功能。作为接口合约，其核心作用是规范代币合约与其他外部合约（如铸币合约、迁移合约）的交互方式。合约继承自IERC20接口，保留ERC20标准函数的同时新增三个关键功能：1. 允许指定账户铸造代币；2. 设置黑匠合约地址（Blacksmith），推测用于控制代币铸造权限；3. 设置迁移器合约地址（Migrator），可能用于处理代币迁移场景。该接口未实现具体逻辑，主要用于定义多合约交互标准，为代币系统的模块化扩展提供基础规范。\n\n函数列表：\n1. mint(address _account, uint256 _amount)：向指定账户铸造特定数量的代币，需外部合约调用。\n2. setBlacksmith(address _newBlacksmith)：更新黑匠合约地址，返回操作是否成功的布尔值。\n3. setMigrator(address _newMigrator)：更新迁移器合约地址，返回操作是否成功的布尔值。\n4. 继承自IERC20的标准函数：包括transfer、approve、transferFrom等ERC20基础功能（接口未显式列出，但通过继承获得）。', 'Vesting 合约总结：该合约是一个基于时间锁的团队代币归属管理合约，主要用于分阶段释放预分配给团队成员的 ERC20 代币。合约通过三个固定时间节点（2020/11/20、2021/5/20、2021/11/20）将归属期划分为两个阶段：第一阶段线性释放总量的 2/3，第二阶段线性释放剩余 1/3。合约初始化时预置了 6 个团队地址及其对应的代币总量（总量分别为 2700/2700/2700/1620/720/360 ether），并留有注释地址供后续替换。用户可通过 vest 函数按时间进度提取已解锁的代币，合约采用 SafeMath 和 SafeERC20 库确保计算与转账安全。\n\n函数列表：\n1. vest(IERC20 token)：外部函数，允许团队成员提取已解锁的代币，需满足时间条件和账户有效性\n2. releasableAmount(address _addr)：视图函数，查询指定地址当前可提取的代币数量\n3. unlockedAmount(address _addr)：视图函数，计算指定地址基于时间进度已解锁的代币总量\n4. START_TIME/MIDDLE_TIME/END_TIME：公共常量，分别返回三个阶段的时间戳', '智能合约名称：ERC20 标准代币合约。该合约实现 ERC20 代币标准功能，提供代币发行、转账、余额查询及授权管理功能。合约使用 SafeMath 库确保算术运算安全，通过映射结构记录账户余额与授权额度。代币初始化时设置名称、符号并固定小数位为 18。核心功能包含代币转账的基础逻辑，支持第三方地址授权操作机制，允许通过 increaseAllowance/decreaseAllowance 安全调整授权额度。内部方法 _mint 实现代币铸造功能，_transfer 处理转账底层校验与余额变更，事件触发符合 ERC20 标准规范。该合约未实现代币销毁功能，未包含权限控制模块，属于基础版 ERC20 实现。\n\n函数列表：\n1. constructor - 初始化代币名称与符号\n2. name - 返回代币名称\n3. symbol - 返回代币符号\n4. decimals - 返回代币小数位(固定18)\n5. totalSupply - 查询代币总供应量\n6. balanceOf - 查询指定账户余额\n7. transfer - 执行代币转账\n8. allowance - 查询授权额度\n9. approve - 设置第三方操作授权\n10. transferFrom - 通过授权执行转账\n11. increaseAllowance - 增加授权额度\n12. decreaseAllowance - 减少授权额度\n13. _transfer(内部) - 处理转账底层逻辑\n14. _mint(内部) - 执行代币铸造\n15. _approve(内部) - 处理授权底层逻辑', 'Blacksmith 智能合约总结：该合约是一个针对 COVER 代币的质押挖矿平台，用户可通过质押流动性代币（LP）获取 COVER 和额外奖励代币。核心功能包括：1. 质押管理（存款、取款、紧急提取）；2. 动态奖励计算（基于时间与权重分配每周 654 COVER）；3. 多池管理（支持添加/调整多个质押池）；4. 双奖励机制（主奖励 COVER + 第三方设置的 BonusToken 奖励）；5. 治理控制（治理地址可调整参数，所有者管理资金池）。合约采用防重入保护和权限分级机制，通过累积每 Token 奖励算法实现精准收益分配，并提供奖励代币回收功能防止残留。\n\n函数列表：  \n- getPoolList：返回所有质押池地址列表  \n- viewMined：查看用户已挖取的 COVER 和奖励代币数量  \n- updatePool：更新指定池的奖励计算参数  \n- claimRewards：领取单个池的奖励  \n- claimRewardsForPools：批量领取多个池的奖励  \n- deposit：质押 LP 代币  \n- withdraw：提取 LP 代币并领取奖励  \n- emergencyWithdraw：紧急提取 LP 代币（放弃奖励）  \n- updatePoolWeights：治理调整池权重  \n- addPool/addPools：所有者添加新质押池  \n- updateBonusTokenStatus：设置奖励代币白名单  \n- addBonusToken：为池添加第三方奖励代币计划  \n- collectDust/collectBonusDust：回收残留代币至金库  \n- updateWeeklyTotal：治理调整周奖励总量  \n- updatePools：批量更新多个池状态  \n- transferMintingRights：转移 COVER 铸币权  \n- 构造函数：初始化核心参数  \n- 内部函数：_calculateCoverRewardsForPeriod（计算周期奖励）、_calculateBonusForPeriod（计算额外奖励）、_safeTransfer（安全转账）、_claimCoverRewards/_claimBonus（奖励发放逻辑）', 'MerkleProof库合约总结：该智能合约是一个用于验证Merkle树的工具库，主要功能是通过提供的Merkle证明路径验证指定叶子节点是否属于给定Merkle树根。合约通过遍历证明数组中的每个哈希节点，按照排序规则动态计算组合哈希值，最终将计算结果与目标树根进行比对验证。其核心特点是采用有序哈希拼接机制（根据当前计算哈希与证明元素的大小关系决定拼接顺序），确保哈希计算的准确性。该库适用于需要Merkle树验证的场景，如空投资格验证、白名单校验等区块链常见业务逻辑。\n\n函数列表：1. verify函数：验证指定叶子节点是否属于给定Merkle树根，接收三个参数（proof证明路径数组、root目标树根哈希、leaf待验证叶子哈希），返回布尔型验证结果。', '智能合约名称：SafeMath。该合约为一个数学运算安全库，提供基础的算术运算函数并防止整数溢出/下溢问题。主要功能是通过安全检查包装Solidity原生的加减乘除和取模运算，当发生溢出、除零等异常情况时自动回滚交易。代码基于Solidity 0.7.4版本实现，通过require语句验证运算结果有效性，例如在加法运算中检查结果是否大于等于被加数，在乘法运算中通过反向除法验证乘积的正确性。该库所有函数均为pure类型且内部可见(internal)，可被其他合约引入以避免算术运算相关的安全隐患。\n\n函数列表如下：\nadd(uint256 a, uint256 b) 执行加法运算，若结果溢出则回滚\nsub(uint256 a, uint256 b) 执行减法运算，若结果为负数则回滚\nsub(uint256 a, uint256 b, string memory errorMessage) 带自定义错误信息的减法运算\nmul(uint256 a, uint256 b) 执行乘法运算，包含零值优化和溢出检查\ndiv(uint256 a, uint256 b) 执行整数除法，防止除零错误\ndiv(uint256 a, uint256 b, string memory errorMessage) 带自定义错误信息的整数除法\nmod(uint256 a, uint256 b) 取模运算，检查除数非零\nmod(uint256 a, uint256 b, string memory errorMessage) 带自定义错误信息的取模运算', '智能合约命名为Address库，提供安全地址操作相关的实用函数。该库主要用于检测地址类型、安全发送以太币及进行底层合约调用，解决传统transfer方法限制并增强调用安全性。核心功能包括通过extcodehash准确识别合约账户、使用call方法绕过2300gas限制的ETH转账、封装带错误处理的合约间调用方法。关键点在于规避EOA账户误判风险，提供更灵活的value传递方式，并通过汇编处理回滚数据实现透明错误反馈。\n\n函数列表如下：  \n1. isContract(address)：检查给定地址是否为合约账户，通过extcodehash实现精确判断。  \n2. sendValue(address payable, uint256)：安全发送ETH到指定地址，突破transfer的gas限制。  \n3. functionCall(address, bytes)：执行无value的合约调用，自动附加错误处理。  \n4. functionCall(address, bytes, string)：带自定义错误信息的无value合约调用。  \n5. functionCallWithValue(address, bytes, uint256)：携带ETH执行合约调用。  \n6. functionCallWithValue(address, bytes, uint256, string)：携带ETH且自定义错误信息的合约调用。  \n7. _functionCallWithValue(address, bytes, uint256, string)：内部处理带value的调用逻辑，验证合约状态并解析回滚信息。', '智能合约名称：IERC20接口合约。该合约定义了ERC20代币标准的接口规范，遵循EIP（以太坊改进提案）中规定的核心功能。作为接口合约，它不包含具体实现逻辑，而是为其他ERC20代币合约提供必须遵守的函数签名和事件定义。主要包含转账功能、余额查询、代币授权管理三大核心模块，通过6个函数和2个事件完整覆盖ERC20标准要求的功能要素。该接口要求实现合约必须具有代币转账、账户余额读取、授权额度审批等基础能力，并为外部合约提供标准的交互方法。合约中特别定义了transferFrom函数以实现第三方托管转账场景，通过allowance机制控制授权额度。事件系统包含Transfer和Approval两类，分别用于记录代币转移与授权操作日志。\n\n函数列表：\n1. balanceOf(address account) 查询指定账户的代币余额\n2. transfer(address recipient, uint256 amount) 向指定地址转账代币\n3. approve(address spender, uint256 amount) 授权第三方账户可使用额度\n4. allowance(address owner, address spender) 查询剩余授权额度\n5. transferFrom(address sender, address recipient, uint256 amount) 从授权账户执行代币划转\n6. totalSupply() 获取代币总发行量\n事件列表：\n1. Transfer(address from, address to, uint256 value) 代币转账事件\n2. Approval(address owner, address spender, uint256 value) 授权额度变更事件', '智能合约名称：SafeERC20 库。该合约是用于安全执行 ERC20 标准代币操作的封装库，通过增强调用稳定性来防止常见安全隐患。核心功能为处理 ERC20 代币转账、授权等操作时的异常情况，兼容返回布尔值或直接回滚的代币合约。其关键实现包括：1. 使用低阶调用函数检查合约存在性；2. 强制验证代币操作返回值，若返回数据存在则必须为 true；3. 提供增量式授权修改方法避免竞态风险。重点特性体现在安全授权处理机制——safeApprove 函数要求授权值必须从零开始修改或重置为零，而 safeIncreaseAllowance/safeDecreaseAllowance 通过算术运算实现无风险授权调整。该库通过_callOptionalReturn 内部函数统一处理代币调用，自动验证底层调用结果并解码返回值，确保所有代币操作的成功状态。函数列表如下：safeTransfer：安全执行 ERC20 转账操作，接收方地址与转账金额为参数；safeTransferFrom：安全执行 ERC20 代扣转账，需提供发送方、接收方和金额；safeApprove（已弃用）：设置 ERC20 授权额度，要求当前授权必须为零值或目标值为零；safeIncreaseAllowance：通过加法增加 ERC20 授权额度；safeDecreaseAllowance：通过减法减少 ERC20 授权额度，防止额度下溢；_callOptionalReturn：内部函数，执行底层代币合约调用并验证返回结果。', '智能合约名称：ReentrancyGuard（重入保护合约）。该合约是用于防止可重入攻击的安全模块，通过状态锁机制确保同一时刻不能重复进入受保护的函数。核心功能通过nonReentrant修饰器实现，利用_STATUS状态变量跟踪合约调用状态，设置_NOT_ENTERED(1)和_ENTERED(2)两个状态常量。当函数被nonReentrant修饰时，会先检查当前状态是否为非进入状态，执行前将状态设为已进入，函数执行完毕后再恢复初始状态。该合约采用抽象合约形式需被继承使用，特别注意事项包括：nonReentrant修饰的函数不能相互调用，建议通过external暴露入口调用private函数的方式规避限制。函数列表包含：1. 构造函数()：初始化_STATUS为未进入状态。2. nonReentrant修饰器：实现重入锁的核心逻辑，在函数执行前后自动切换状态，并内置require检查防止重复调用。', '智能合约名称：Ownable（可拥有权限管理合约）。该合约提供基本的所有权访问控制机制，用于管理合约的函数权限。核心功能包括：1. 在部署时通过构造函数自动设置部署者为初始所有者；2. 提供所有权查询功能；3. 允许当前所有者将权限转移给新地址；4. 通过onlyOwner修饰器实现函数调用权限控制。关键代码要点：合约通过_owner状态变量存储当前所有者地址，在构造函数中完成初始化。使用transferOwnership函数实现所有权转移，转移时需满足新地址非零且仅当前所有者可操作。每次所有权变更都会触发OwnershipTransferred事件记录交易日志。该合约采用继承设计模式，通过onlyOwner修饰器限制关键函数仅允许所有者调用，可作为其他合约的基类实现权限管理功能。\n\n函数列表：\nconstructor()：构造函数，设置合约部署者为初始所有者，触发所有权转移事件。\nowner()：查询函数，返回当前所有者地址。\ntransferOwnership(address newOwner)：执行函数，将所有权转移到新地址，仅所有者可调用并需校验非零地址。\nonlyOwner：修饰器，验证调用者是否为所有者，用于限制函数访问权限。']], 'uris': None, 'data': None, 'metadatas': [[{'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}, {'address': '0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5'}]], 'distances': [[0.3517921566963196, 0.3828294277191162, 0.4148890972137451, 0.4263123869895935, 0.4443589448928833, 0.44785869121551514, 0.45815807580947876, 0.47428637742996216, 0.5304253101348877, 0.5441704988479614, 0.5728654861450195, 0.5873813033103943, 0.6075721383094788, 0.6439322233200073, 0.668786883354187]], 'included': [<IncludeEnum.distances: 'distances'>, <IncludeEnum.documents: 'documents'>, <IncludeEnum.metadatas: 'metadatas'>]}
+------------------------------------------------
+重排序结果：
+['Cover Protocol-COVER.sol', 'Cover Protocol-Migrator.sol', 'Cover Protocol-IBlacksmith.sol', 'Cover Protocol-IMigrator.sol', 'Cover Protocol-ICOVER.sol', 'Cover Protocol-Vesting.sol', 'Cover Protocol-ERC20.sol', 'Cover Protocol-Blacksmith.sol', 'Cover Protocol-MerkleProof.sol', 'Cover Protocol-SafeMath.sol', 'Cover Protocol-Address.sol', 'Cover Protocol-IERC20.sol', 'Cover Protocol-SafeERC20.sol', 'Cover Protocol-ReentrancyGuard.sol', 'Cover Protocol-Ownable.sol']
+------------------------------------------------
+函数切片：
+
+------------------------------------------------
+函数切片ID: Cover Protocol-COVER.sol-constructor-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-COVER.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-COVER.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '21#24'}"}
+函数切片:
+  constructor () ERC20("Cover Protocol", "COVER") {
+    // mint 1 token to create pool2
+    _mint(0x2f80E5163A7A774038753593010173322eA6f9fe, 1e18);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-COVER.sol-mint-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-COVER.sol', 'is_fault': False, 'message': "{'name': 'mint', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_account', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['$COVER: not released', '$COVER: caller not migrator or Blacksmith'], 'contract': 'Cover Protocol-COVER.sol', 'external_calls': [], 'state_vars': {'read': ['isReleased', 'migrator', 'blacksmith'], 'written': []}, 'src': '26#31'}"}
+函数切片:
+  function mint(address _account, uint256 _amount) public {
+    require(isReleased, "$COVER: not released");
+    require(msg.sender == migrator || msg.sender == blacksmith, "$COVER: caller not migrator or Blacksmith");
+
+    _mint(_account, _amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-COVER.sol-setBlacksmith-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-COVER.sol', 'is_fault': False, 'message': "{'name': 'setBlacksmith', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newBlacksmith', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['$COVER: caller not blacksmith'], 'contract': 'Cover Protocol-COVER.sol', 'external_calls': [], 'state_vars': {'read': ['blacksmith', 'blacksmith'], 'written': []}, 'src': '33#38'}"}
+函数切片:
+  function setBlacksmith(address _newBlacksmith) external returns (bool) {
+    require(msg.sender == blacksmith, "$COVER: caller not blacksmith");
+
+    blacksmith = _newBlacksmith;
+    return true;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-COVER.sol-setMigrator-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-COVER.sol', 'is_fault': False, 'message': "{'name': 'setMigrator', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newMigrator', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['$COVER: caller not migrator'], 'contract': 'Cover Protocol-COVER.sol', 'external_calls': [], 'state_vars': {'read': ['migrator', 'migrator'], 'written': []}, 'src': '40#45'}"}
+函数切片:
+  function setMigrator(address _newMigrator) external returns (bool) {
+    require(msg.sender == migrator, "$COVER: caller not migrator");
+
+    migrator = _newMigrator;
+    return true;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-COVER.sol-release-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-COVER.sol', 'is_fault': False, 'message': "{'name': 'release', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_treasury', 'type': 'address'}, {'name': '_vestor', 'type': 'address'}, {'name': '_blacksmith', 'type': 'address'}, {'name': '_migrator', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['$COVER: not started', '$COVER: already released'], 'contract': 'Cover Protocol-COVER.sol', 'external_calls': [], 'state_vars': {'read': ['START_TIME', 'isReleased', 'isReleased', 'blacksmith', 'migrator'], 'written': []}, 'src': '48#58'}"}
+函数切片:
+  function release(address _treasury, address _vestor, address _blacksmith, address _migrator) external onlyOwner {
+    require(block.timestamp >= START_TIME, "$COVER: not started");
+    require(isReleased == false, "$COVER: already released");
+
+    isReleased = true;
+
+    blacksmith = _blacksmith;
+    migrator = _migrator;
+    _mint(_treasury, 950e18);
+    _mint(_vestor, 10800e18);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Migrator.sol-constructor-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Migrator.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_governance', 'type': 'address'}, {'name': '_coverAddress', 'type': 'address'}, {'name': '_safe2', 'type': 'address'}, {'name': '_merkleRoot', 'type': 'bytes32'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Migrator: safe2 address not match'], 'contract': 'Cover Protocol-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['governance', 'cover', 'safe2', 'merkleRoot'], 'written': []}, 'src': '31#39'}"}
+函数切片:
+  constructor (address _governance, address _coverAddress, address _safe2, bytes32 _merkleRoot) {
+    governance = _governance;
+    cover = ICOVER(_coverAddress);
+
+    require(_safe2 == 0x250a3500f48666561386832f1F1f1019b89a2699, "Migrator: safe2 address not match");
+    safe2 = IERC20(_safe2);
+
+    merkleRoot = _merkleRoot;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Migrator.sol-isSafeClaimed-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Migrator.sol', 'is_fault': False, 'message': "{'name': 'isSafeClaimed', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_index', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['claimedBitMap'], 'written': []}, 'src': '41#47'}"}
+函数切片:
+  function isSafeClaimed(uint256 _index) public view override returns (bool) {
+    uint256 claimedWordIndex = _index / 256;	
+    uint256 claimedBitIndex = _index % 256;	
+    uint256 claimedWord = claimedBitMap[claimedWordIndex];	
+    uint256 mask = (1 << claimedBitIndex);	
+    return claimedWord & mask == mask;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Migrator.sol-migrateSafe2-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Migrator.sol', 'is_fault': False, 'message': "{'name': 'migrateSafe2', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Migrator: not started', 'Migrator: no safe2 balance'], 'contract': 'Cover Protocol-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['START_TIME', 'safe2', 'safe2', 'cover', 'safe2Migrated', 'safe2Migrated'], 'written': []}, 'src': '49#57'}"}
+函数切片:
+  function migrateSafe2() external override {
+    require(block.timestamp >= START_TIME, "Migrator: not started");
+    uint256 safe2Balance = safe2.balanceOf(msg.sender);
+
+    require(safe2Balance > 0, "Migrator: no safe2 balance");
+    safe2.transferFrom(msg.sender, 0x000000000000000000000000000000000000dEaD, safe2Balance);
+    cover.mint(msg.sender, safe2Balance);
+    safe2Migrated = safe2Migrated.add(safe2Balance);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Migrator.sol-claim-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Migrator.sol', 'is_fault': False, 'message': "{'name': 'claim', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_index', 'type': 'uint256'}, {'name': '_amount', 'type': 'uint256'}, {'name': '_merkleProof', 'type': 'bytes32[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Migrator: not started', 'Migrator: amount is 0', 'Migrator: already claimed', 'Migrator: cap exceeded', 'Migrator: invalid proof'], 'contract': 'Cover Protocol-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['START_TIME', 'safeClaimed', 'safe2Migrated', 'migrationCap', 'merkleRoot', 'safeClaimed', 'safeClaimed', 'cover'], 'written': []}, 'src': '59#73'}"}
+函数切片:
+  function claim(uint256 _index, uint256 _amount, bytes32[] calldata _merkleProof) external override {
+    require(block.timestamp >= START_TIME, "Migrator: not started");
+    require(_amount > 0, "Migrator: amount is 0");
+    require(!isSafeClaimed(_index), 'Migrator: already claimed');
+    require(safe2Migrated.add(safeClaimed).add(_amount) <= migrationCap, "Migrator: cap exceeded"); // SAFE2 take priority first
+
+    // Verify the merkle proof.
+    bytes32 node = keccak256(abi.encodePacked(_index, msg.sender, _amount));
+    require(MerkleProof.verify(_merkleProof, merkleRoot, node), 'Migrator: invalid proof');
+
+    // Mark it claimed and send the token.
+    _setClaimed(_index);
+    safeClaimed = safeClaimed.add(_amount);
+    cover.mint(msg.sender, _amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Migrator.sol-transferMintingRights-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Migrator.sol', 'is_fault': False, 'message': "{'name': 'transferMintingRights', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newAddress', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Migrator: caller not governance'], 'contract': 'Cover Protocol-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['governance', 'cover'], 'written': []}, 'src': '76#79'}"}
+函数切片:
+  function transferMintingRights(address _newAddress) external override {
+    require(msg.sender == governance, "Migrator: caller not governance");
+    cover.setMigrator(_newAddress);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Migrator.sol-_setClaimed-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Migrator.sol', 'is_fault': False, 'message': "{'name': '_setClaimed', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_index', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Migrator.sol', 'external_calls': [], 'state_vars': {'read': ['claimedBitMap', 'claimedBitMap'], 'written': []}, 'src': '81#85'}"}
+函数切片:
+  function _setClaimed(uint256 _index) private {	
+    uint256 claimedWordIndex = _index / 256;	
+    uint256 claimedBitIndex = _index % 256;	
+    claimedBitMap[claimedWordIndex] = claimedBitMap[claimedWordIndex] | (1 << claimedBitIndex);	
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-getPoolList-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'getPoolList', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '35#35'}"}
+函数切片:
+  function getPoolList() external view returns (address[] memory);
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-viewMined-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'viewMined', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_miner', 'type': 'address'}], 'returns': [{'name': '_minedCOVER', 'type': 'uint256'}, {'name': '_minedBonus', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '36#36'}"}
+函数切片:
+  function viewMined(address _lpToken, address _miner) external view returns (uint256 _minedCOVER, uint256 _minedBonus);
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-claimRewardsForPools-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'claimRewardsForPools', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpTokens', 'type': 'address[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '41#41'}"}
+函数切片:
+  function claimRewardsForPools(address[] calldata _lpTokens) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-claimRewards-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'claimRewards', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '42#42'}"}
+函数切片:
+  function claimRewards(address _lpToken) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-deposit-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'deposit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '43#43'}"}
+函数切片:
+  function deposit(address _lpToken, uint256 _amount) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-withdraw-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'withdraw', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '44#44'}"}
+函数切片:
+  function withdraw(address _lpToken, uint256 _amount) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-emergencyWithdraw-6
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'emergencyWithdraw', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '45#45'}"}
+函数切片:
+  function emergencyWithdraw(address _lpToken) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-addBonusToken-7
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'addBonusToken', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_bonusToken', 'type': 'address'}, {'name': '_startTime', 'type': 'uint256'}, {'name': '_endTime', 'type': 'uint256'}, {'name': '_totalBonus', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '48#48'}"}
+函数切片:
+  function addBonusToken(address _lpToken, address _bonusToken, uint256 _startTime, uint256 _endTime, uint256 _totalBonus) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-updatePool-8
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'updatePool', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '51#51'}"}
+函数切片:
+  function updatePool(address _lpToken) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-updatePools-9
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'updatePools', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_start', 'type': 'uint256'}, {'name': '_end', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '52#52'}"}
+函数切片:
+  function updatePools(uint256 _start, uint256 _end) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-collectDust-10
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'collectDust', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_token', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '54#54'}"}
+函数切片:
+  function collectDust(address _token) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-collectBonusDust-11
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'collectBonusDust', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '55#55'}"}
+函数切片:
+  function collectBonusDust(address _lpToken) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-addPool-12
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'addPool', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_weight', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '58#58'}"}
+函数切片:
+  function addPool(address _lpToken, uint256 _weight) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-addPools-13
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'addPools', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpTokens', 'type': 'address[]'}, {'name': '_weights', 'type': 'uint256[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '59#59'}"}
+函数切片:
+  function addPools(address[] calldata _lpTokens, uint256[] calldata _weights) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-updateBonusTokenStatus-14
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'updateBonusTokenStatus', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_bonusToken', 'type': 'address'}, {'name': '_status', 'type': 'uint8'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '60#60'}"}
+函数切片:
+  function updateBonusTokenStatus(address _bonusToken, uint8 _status) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-updatePoolWeights-15
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'updatePoolWeights', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpTokens', 'type': 'address[]'}, {'name': '_weights', 'type': 'uint256[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '63#63'}"}
+函数切片:
+  function updatePoolWeights(address[] calldata _lpTokens, uint256[] calldata _weights) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-updateWeeklyTotal-16
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'updateWeeklyTotal', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_weeklyTotal', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '64#64'}"}
+函数切片:
+  function updateWeeklyTotal(uint256 _weeklyTotal) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IBlacksmith.sol-transferMintingRights-17
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IBlacksmith.sol', 'is_fault': False, 'message': "{'name': 'transferMintingRights', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newAddress', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IBlacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '65#65'}"}
+函数切片:
+  function transferMintingRights(address _newAddress) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IMigrator.sol-isSafeClaimed-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IMigrator.sol', 'is_fault': False, 'message': "{'name': 'isSafeClaimed', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_index', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IMigrator.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '11#11'}"}
+函数切片:
+  function isSafeClaimed(uint256 _index) external view returns (bool);
+------------------------------------------------
+函数切片ID: Cover Protocol-IMigrator.sol-migrateSafe2-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IMigrator.sol', 'is_fault': False, 'message': "{'name': 'migrateSafe2', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IMigrator.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '12#12'}"}
+函数切片:
+  function migrateSafe2() external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IMigrator.sol-claim-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IMigrator.sol', 'is_fault': False, 'message': "{'name': 'claim', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_index', 'type': 'uint256'}, {'name': '_amount', 'type': 'uint256'}, {'name': '_merkleProof', 'type': 'bytes32[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IMigrator.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#13'}"}
+函数切片:
+  function claim(uint256 _index, uint256 _amount, bytes32[] calldata _merkleProof) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-IMigrator.sol-transferMintingRights-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IMigrator.sol', 'is_fault': False, 'message': "{'name': 'transferMintingRights', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newAddress', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IMigrator.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#16'}"}
+函数切片:
+  function transferMintingRights(address _newAddress) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-ICOVER.sol-mint-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ICOVER.sol', 'is_fault': False, 'message': "{'name': 'mint', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_account', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ICOVER.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '12#12'}"}
+函数切片:
+  function mint(address _account, uint256 _amount) external;
+------------------------------------------------
+函数切片ID: Cover Protocol-ICOVER.sol-setBlacksmith-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ICOVER.sol', 'is_fault': False, 'message': "{'name': 'setBlacksmith', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newBlacksmith', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ICOVER.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#13'}"}
+函数切片:
+  function setBlacksmith(address _newBlacksmith) external returns (bool);
+------------------------------------------------
+函数切片ID: Cover Protocol-ICOVER.sol-setMigrator-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ICOVER.sol', 'is_fault': False, 'message': "{'name': 'setMigrator', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newMigrator', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ICOVER.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '14#14'}"}
+函数切片:
+  function setMigrator(address _newMigrator) external returns (bool);
+------------------------------------------------
+函数切片ID: Cover Protocol-Vesting.sol-constructor-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Vesting.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Vesting.sol', 'external_calls': [], 'state_vars': {'read': ['_total', '_total', '_total', '_total', '_total', '_total'], 'written': []}, 'src': '22#36'}"}
+函数切片:
+    constructor() {
+        // TODO: change addresses to team addresses
+        _total[address(0x406a0c87A6bb25748252cb112a7a837e21aAcD98)] = 2700 ether;
+        _total[address(0x3e677718f8665A40AC0AB044D8c008b55f277c98)] = 2700 ether;
+        _total[address(0x094AD38fB69f27F6Eb0c515ad4a5BD4b9F9B2996)] = 2700 ether;
+        _total[address(0xD4C8127AF1dE3Ebf8AB7449aac0fd892b70f3b45)] = 1620 ether;
+        _total[address(0x82BBd2F08a59f5be1B4e719ff701e4D234c4F8db)] = 720 ether;
+        _total[address(0xF00Bf178E3372C4eF6E15A1676fd770DAD2aDdfB)] = 360 ether;
+        // _total[address(0x70997970C51812dc3A010C7d01b50e0d17dc79C8)] = 2700 ether;
+        // _total[address(0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC)] = 2700 ether;
+        // _total[address(0x90F79bf6EB2c4f870365E785982E1f101E93b906)] = 2700 ether;
+        // _total[address(0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65)] = 1620 ether;
+        // _total[address(0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc)] = 720 ether;
+        // _total[address(0x976EA74026E726554dB657fA54763abd0C3a0aa9)] = 360 ether;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Vesting.sol-vest-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Vesting.sol', 'is_fault': False, 'message': "{'name': 'vest', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Vesting: !started', 'Vesting: not team', 'Vesting: all vested'], 'contract': 'Cover Protocol-Vesting.sol', 'external_calls': [], 'state_vars': {'read': ['START_TIME', '_total', '_vested', '_vested'], 'written': []}, 'src': '38#47'}"}
+函数切片:
+    function vest(IERC20 token) external {
+        require(block.timestamp >= START_TIME, "Vesting: !started");
+        require(_total[msg.sender] > 0, "Vesting: not team");
+
+        uint256 toBeReleased = releasableAmount(msg.sender);
+        require(toBeReleased > 0, "Vesting: all vested");
+
+        _vested[msg.sender] = _vested[msg.sender].add(toBeReleased);
+        token.safeTransfer(msg.sender, toBeReleased);
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Vesting.sol-releasableAmount-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Vesting.sol', 'is_fault': False, 'message': "{'name': 'releasableAmount', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_addr', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Vesting.sol', 'external_calls': [], 'state_vars': {'read': ['_vested'], 'written': []}, 'src': '49#51'}"}
+函数切片:
+    function releasableAmount(address _addr) public view returns (uint256) {
+        return unlockedAmount(_addr).sub(_vested[_addr]);
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Vesting.sol-unlockedAmount-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Vesting.sol', 'is_fault': False, 'message': "{'name': 'unlockedAmount', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': '_addr', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Vesting.sol', 'external_calls': [], 'state_vars': {'read': ['MIDDLE_TIME', 'MIDDLE_TIME', 'END_TIME', '_total', 'MIDDLE_TIME', 'END_TIME', '_total', '_total', 'MIDDLE_TIME', 'START_TIME', 'MIDDLE_TIME', '_total', 'START_TIME'], 'written': []}, 'src': '53#68'}"}
+函数切片:
+    function unlockedAmount(address _addr) public view returns (uint256) {
+        if (block.timestamp <= MIDDLE_TIME) {
+            uint256 duration = MIDDLE_TIME.sub(START_TIME);
+            uint256 firstHalf = _total[_addr].mul(2).div(3);
+            uint256 timePassed = block.timestamp.sub(START_TIME);
+            return firstHalf.mul(timePassed).div(duration);
+        } else if (block.timestamp > MIDDLE_TIME && block.timestamp <= END_TIME) {
+            uint256 duration = END_TIME.sub(MIDDLE_TIME);
+            uint256 firstHalf = _total[_addr].mul(2).div(3);
+            uint256 secondHalf = _total[_addr].div(3);
+            uint256 timePassed = block.timestamp.sub(MIDDLE_TIME);
+            return firstHalf.add(secondHalf.mul(timePassed).div(duration));
+        } else {
+            return _total[_addr];
+        }
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-constructor-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'name_', 'type': 'string'}, {'name': 'symbol_', 'type': 'string'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name', '_symbol', '_decimals'], 'written': []}, 'src': '21#25'}"}
+函数切片:
+  constructor (string memory name_, string memory symbol_) {
+    _name = name_;
+    _symbol = symbol_;
+    _decimals = 18;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-name-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'name', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name'], 'written': []}, 'src': '27#29'}"}
+函数切片:
+  function name() public view returns (string memory) {
+    return _name;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-symbol-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'symbol', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_symbol'], 'written': []}, 'src': '31#33'}"}
+函数切片:
+  function symbol() public view returns (string memory) {
+    return _symbol;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-decimals-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'decimals', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint8'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_decimals'], 'written': []}, 'src': '35#37'}"}
+函数切片:
+  function decimals() public view returns (uint8) {
+    return _decimals;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-totalSupply-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'totalSupply', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply'], 'written': []}, 'src': '39#41'}"}
+函数切片:
+  function totalSupply() public view override returns (uint256) {
+    return _totalSupply;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-balanceOf-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'balanceOf', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances'], 'written': []}, 'src': '43#45'}"}
+函数切片:
+  function balanceOf(address account) public view override returns (uint256) {
+    return _balances[account];
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-transfer-6
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'transfer', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '47#50'}"}
+函数切片:
+  function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+    _transfer(msg.sender, recipient, amount);
+    return true;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-allowance-7
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'allowance', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '52#54'}"}
+函数切片:
+  function allowance(address owner, address spender) public view virtual override returns (uint256) {
+    return _allowances[owner][spender];
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-approve-8
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'approve', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '56#59'}"}
+函数切片:
+  function approve(address spender, uint256 amount) public virtual override returns (bool) {
+    _approve(msg.sender, spender, amount);
+    return true;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-transferFrom-9
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'transferFrom', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '61#65'}"}
+函数切片:
+  function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+    _transfer(sender, recipient, amount);
+    _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
+    return true;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-increaseAllowance-10
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'increaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'addedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '67#70'}"}
+函数切片:
+  function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+    _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
+    return true;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-decreaseAllowance-11
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': 'decreaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'subtractedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '72#75'}"}
+函数切片:
+  function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+    _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+    return true;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-_transfer-12
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': '_transfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: transfer from the zero address', 'ERC20: transfer to the zero address'], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', '_balances', '_balances', '_balances'], 'written': []}, 'src': '77#85'}"}
+函数切片:
+  function _transfer(address sender, address recipient, uint256 amount) internal virtual {
+    require(sender != address(0), "ERC20: transfer from the zero address");
+    require(recipient != address(0), "ERC20: transfer to the zero address");
+
+
+    _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+    _balances[recipient] = _balances[recipient].add(amount);
+    emit Transfer(sender, recipient, amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-_mint-13
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': '_mint', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: mint to the zero address'], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply', '_totalSupply', '_balances', '_balances'], 'written': []}, 'src': '87#93'}"}
+函数切片:
+  function _mint(address account, uint256 amount) internal virtual {
+    require(account != address(0), "ERC20: mint to the zero address");
+
+    _totalSupply = _totalSupply.add(amount);
+    _balances[account] = _balances[account].add(amount);
+    emit Transfer(address(0), account, amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-ERC20.sol-_approve-14
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ERC20.sol', 'is_fault': False, 'message': "{'name': '_approve', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: approve from the zero address', 'ERC20: approve to the zero address'], 'contract': 'Cover Protocol-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '95#101'}"}
+函数切片:
+  function _approve(address owner, address spender, uint256 amount) internal virtual {
+    require(owner != address(0), "ERC20: approve from the zero address");
+    require(spender != address(0), "ERC20: approve to the zero address");
+
+    _allowances[owner][spender] = amount;
+    emit Approval(owner, spender, amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-onlyGovernance-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'onlyGovernance', 'type': 'modifier', 'contract': 'Cover Protocol-Blacksmith.sol', 'src': '37#40'}"}
+函数切片:
+  modifier onlyGovernance() {
+    require(msg.sender == governance, "Blacksmith: caller not governance");
+    _;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-constructor-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_coverAddress', 'type': 'address'}, {'name': '_governance', 'type': 'address'}, {'name': '_treasury', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['cover', 'governance', 'treasury'], 'written': []}, 'src': '42#46'}"}
+函数切片:
+  constructor (address _coverAddress, address _governance, address _treasury) {
+    cover = ICOVER(_coverAddress);
+    governance = _governance;
+    treasury = _treasury;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-getPoolList-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'getPoolList', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address[]'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['poolList'], 'written': []}, 'src': '48#50'}"}
+函数切片:
+  function getPoolList() external view override returns (address[] memory) {
+    return poolList;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-viewMined-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'viewMined', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_miner', 'type': 'address'}], 'returns': [{'name': '_minedCOVER', 'type': 'uint256'}, {'name': '_minedBonus', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['pools', 'miners', 'CAL_MULTIPLIER', 'bonusTokens', 'CAL_MULTIPLIER'], 'written': []}, 'src': '52#71'}"}
+函数切片:
+  function viewMined(address _lpToken, address _miner)
+   external view override returns (uint256 _minedCOVER, uint256 _minedBonus)
+  {
+    Pool memory pool = pools[_lpToken];
+    Miner memory miner = miners[_lpToken][_miner];
+    uint256 lpTotal = IERC20(_lpToken).balanceOf(address(this));
+    if (miner.amount > 0 && lpTotal > 0) {
+      uint256 coverRewards = _calculateCoverRewardsForPeriod(pool);
+      uint256 accRewardsPerToken = pool.accRewardsPerToken.add(coverRewards.div(lpTotal));
+      _minedCOVER = miner.amount.mul(accRewardsPerToken).div(CAL_MULTIPLIER).sub(miner.rewardWriteoff);
+
+      BonusToken memory bonusToken = bonusTokens[_lpToken];
+      if (bonusToken.startTime < block.timestamp && bonusToken.totalBonus > 0) {
+        uint256 bonus = _calculateBonusForPeriod(bonusToken);
+        uint256 accBonusPerToken = bonusToken.accBonusPerToken.add(bonus.div(lpTotal));
+        _minedBonus = miner.amount.mul(accBonusPerToken).div(CAL_MULTIPLIER).sub(miner.bonusWriteoff);
+      }
+    }
+    return (_minedCOVER, _minedBonus);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-updatePool-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'updatePool', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['pools', 'bonusTokens'], 'written': []}, 'src': '74#93'}"}
+函数切片:
+  function updatePool(address _lpToken) public override {
+    Pool storage pool = pools[_lpToken];
+    if (block.timestamp <= pool.lastUpdatedAt) return;
+    uint256 lpTotal = IERC20(_lpToken).balanceOf(address(this));
+    if (lpTotal == 0) {
+      pool.lastUpdatedAt = block.timestamp;
+      return;
+    }
+    // update COVER rewards for pool
+    uint256 coverRewards = _calculateCoverRewardsForPeriod(pool);
+    pool.accRewardsPerToken = pool.accRewardsPerToken.add(coverRewards.div(lpTotal));
+    pool.lastUpdatedAt = block.timestamp;
+    // update bonus token rewards if exist for pool
+    BonusToken storage bonusToken = bonusTokens[_lpToken];
+    if (bonusToken.lastUpdatedAt < bonusToken.endTime && bonusToken.startTime < block.timestamp) {
+      uint256 bonus = _calculateBonusForPeriod(bonusToken);
+      bonusToken.accBonusPerToken = bonusToken.accBonusPerToken.add(bonus.div(lpTotal));
+      bonusToken.lastUpdatedAt = block.timestamp <= bonusToken.endTime ? block.timestamp : bonusToken.endTime;
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-claimRewards-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'claimRewards', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['pools', 'miners', 'bonusTokens', 'CAL_MULTIPLIER', 'CAL_MULTIPLIER'], 'written': []}, 'src': '95#107'}"}
+函数切片:
+  function claimRewards(address _lpToken) public override {
+    updatePool(_lpToken);
+
+    Pool memory pool = pools[_lpToken];
+    Miner storage miner = miners[_lpToken][msg.sender];
+    BonusToken memory bonusToken = bonusTokens[_lpToken];
+
+    _claimCoverRewards(pool, miner);
+    _claimBonus(bonusToken, miner);
+    // update writeoff to match current acc rewards & bonus per token
+    miner.rewardWriteoff = miner.amount.mul(pool.accRewardsPerToken).div(CAL_MULTIPLIER);
+    miner.bonusWriteoff = miner.amount.mul(bonusToken.accBonusPerToken).div(CAL_MULTIPLIER);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-claimRewardsForPools-6
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'claimRewardsForPools', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpTokens', 'type': 'address[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '109#113'}"}
+函数切片:
+  function claimRewardsForPools(address[] calldata _lpTokens) external override {
+    for (uint256 i = 0; i < _lpTokens.length; i++) {
+      claimRewards(_lpTokens[i]);
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-deposit-7
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': True, 'message': "{'name': 'deposit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['Blacksmith: not started', 'Blacksmith: amount is 0', 'Blacksmith: pool does not exists', 'Blacksmith: insufficient balance'], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['START_TIME', 'pools', 'miners', 'bonusTokens', 'CAL_MULTIPLIER', 'CAL_MULTIPLIER'], 'written': []}, 'src': '115#135'}"}
+函数切片:
+  function deposit(address _lpToken, uint256 _amount) external override {
+    require(block.timestamp >= START_TIME , "Blacksmith: not started");
+    require(_amount > 0, "Blacksmith: amount is 0");
+    Pool memory pool = pools[_lpToken];
+    require(pool.lastUpdatedAt > 0, "Blacksmith: pool does not exists");
+    require(IERC20(_lpToken).balanceOf(msg.sender) >= _amount, "Blacksmith: insufficient balance");
+    updatePool(_lpToken);
+
+    Miner storage miner = miners[_lpToken][msg.sender];
+    BonusToken memory bonusToken = bonusTokens[_lpToken];
+    _claimCoverRewards(pool, miner);
+    _claimBonus(bonusToken, miner);
+
+    miner.amount = miner.amount.add(_amount);
+    // update writeoff to match current acc rewards/bonus per token
+    miner.rewardWriteoff = miner.amount.mul(pool.accRewardsPerToken).div(CAL_MULTIPLIER);
+    miner.bonusWriteoff = miner.amount.mul(bonusToken.accBonusPerToken).div(CAL_MULTIPLIER);
+
+    IERC20(_lpToken).safeTransferFrom(msg.sender, address(this), _amount);
+    emit Deposit(msg.sender, _lpToken, _amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-withdraw-8
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'withdraw', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['Blacksmith: amount is 0', 'Blacksmith: insufficient balance'], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['miners', 'pools', 'bonusTokens', 'CAL_MULTIPLIER', 'CAL_MULTIPLIER'], 'written': []}, 'src': '137#155'}"}
+函数切片:
+  function withdraw(address _lpToken, uint256 _amount) external override {
+    require(_amount > 0, "Blacksmith: amount is 0");
+    Miner storage miner = miners[_lpToken][msg.sender];
+    require(miner.amount >= _amount, "Blacksmith: insufficient balance");
+    updatePool(_lpToken);
+
+    Pool memory pool = pools[_lpToken];
+    BonusToken memory bonusToken = bonusTokens[_lpToken];
+    _claimCoverRewards(pool, miner);
+    _claimBonus(bonusToken, miner);
+
+    miner.amount = miner.amount.sub(_amount);
+    // update writeoff to match current acc rewards/bonus per token
+    miner.rewardWriteoff = miner.amount.mul(pool.accRewardsPerToken).div(CAL_MULTIPLIER);
+    miner.bonusWriteoff = miner.amount.mul(bonusToken.accBonusPerToken).div(CAL_MULTIPLIER);
+
+    _safeTransfer(_lpToken, _amount);
+    emit Withdraw(msg.sender, _lpToken, _amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-emergencyWithdraw-9
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'emergencyWithdraw', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['Blacksmith: insufficient balance'], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['miners'], 'written': []}, 'src': '158#166'}"}
+函数切片:
+  function emergencyWithdraw(address _lpToken) external override {
+    Miner storage miner = miners[_lpToken][msg.sender];
+    uint256 amount = miner.amount;
+    require(miner.amount > 0, "Blacksmith: insufficient balance");
+    miner.amount = 0;
+    miner.rewardWriteoff = 0;
+    _safeTransfer(_lpToken, amount);
+    emit Withdraw(msg.sender, _lpToken, amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-updatePoolWeights-10
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'updatePoolWeights', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpTokens', 'type': 'address[]'}, {'name': '_weights', 'type': 'uint256[]'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['pools', 'totalWeight', 'totalWeight'], 'written': []}, 'src': '169#177'}"}
+函数切片:
+  function updatePoolWeights(address[] calldata _lpTokens, uint256[] calldata _weights) public override onlyGovernance {
+    for (uint256 i = 0; i < _lpTokens.length; i++) {
+      Pool storage pool = pools[_lpTokens[i]];
+      if (pool.lastUpdatedAt > 0) {
+        totalWeight = totalWeight.add(_weights[i]).sub(pool.weight);
+        pool.weight = _weights[i];
+      }
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-addPool-11
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'addPool', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}, {'name': '_weight', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Blacksmith: pool exists'], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['pools', 'pools', 'totalWeight', 'totalWeight', 'poolList'], 'written': []}, 'src': '180#190'}"}
+函数切片:
+  function addPool(address _lpToken, uint256 _weight) public override onlyOwner {
+    Pool memory pool = pools[_lpToken];
+    require(pool.lastUpdatedAt == 0, "Blacksmith: pool exists");
+    pools[_lpToken] = Pool({
+      weight: _weight,
+      accRewardsPerToken: 0,
+      lastUpdatedAt: block.timestamp
+    });
+    totalWeight = totalWeight.add(_weight);
+    poolList.push(_lpToken);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-addPools-12
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': '{\'name\': \'addPools\', \'visibility\': \'external\', \'stateMutability\': \'nonpayable\', \'parameters\': [{\'name\': \'_lpTokens\', \'type\': \'address[]\'}, {\'name\': \'_weights\', \'type\': \'uint256[]\'}], \'returns\': [], \'permission_check\': False, \'reentrancy_guard\': False, \'events\': [], \'errors\': ["Blacksmith: size don\'t match"], \'contract\': \'Cover Protocol-Blacksmith.sol\', \'external_calls\': [], \'state_vars\': {\'read\': [], \'written\': []}, \'src\': \'193#198\'}'}
+函数切片:
+  function addPools(address[] calldata _lpTokens, uint256[] calldata _weights) external override onlyOwner {
+    require(_lpTokens.length == _weights.length, "Blacksmith: size don't match");
+    for (uint256 i = 0; i < _lpTokens.length; i++) {
+     addPool(_lpTokens[i], _weights[i]);
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-updateBonusTokenStatus-13
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'updateBonusTokenStatus', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_bonusToken', 'type': 'address'}, {'name': '_status', 'type': 'uint8'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Blacksmith: status cannot be 0', 'Blacksmith: lpToken is not allowed'], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['pools', 'allowBonusTokens'], 'written': []}, 'src': '201#205'}"}
+函数切片:
+  function updateBonusTokenStatus(address _bonusToken, uint8 _status) external override onlyOwner {
+    require(_status != 0, "Blacksmith: status cannot be 0");
+    require(pools[_bonusToken].lastUpdatedAt == 0, "Blacksmith: lpToken is not allowed");
+    allowBonusTokens[_bonusToken] = _status;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-addBonusToken-14
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': '{\'name\': \'addBonusToken\', \'visibility\': \'external\', \'stateMutability\': \'nonpayable\', \'parameters\': [{\'name\': \'_lpToken\', \'type\': \'address\'}, {\'name\': \'_bonusToken\', \'type\': \'address\'}, {\'name\': \'_startTime\', \'type\': \'uint256\'}, {\'name\': \'_endTime\', \'type\': \'uint256\'}, {\'name\': \'_totalBonus\', \'type\': \'uint256\'}], \'returns\': [], \'permission_check\': False, \'reentrancy_guard\': False, \'events\': [], \'errors\': [\'Blacksmith: pool does NOT exist\', \'Blacksmith: bonusToken not allowed\', "Blacksmith: last bonus period hasn\'t ended", \'Blacksmith: last bonus not all claimed\', \'Blacksmith: messed up timeline\', \'Blacksmith: incorrect total rewards\', \'Blacksmith: incorrect total rewards\'], \'contract\': \'Cover Protocol-Blacksmith.sol\', \'external_calls\': [], \'state_vars\': {\'read\': [\'pools\', \'allowBonusTokens\', \'bonusTokens\', \'WEEK\', \'bonusTokens\'], \'written\': []}, \'src\': \'208#241\'}'}
+函数切片:
+  function addBonusToken(
+    address _lpToken,
+    address _bonusToken,
+    uint256 _startTime,
+    uint256 _endTime,
+    uint256 _totalBonus
+  ) external override {
+    IERC20 bonusToken = IERC20(_bonusToken);
+    require(pools[_lpToken].lastUpdatedAt != 0, "Blacksmith: pool does NOT exist");
+    require(allowBonusTokens[_bonusToken] == 1, "Blacksmith: bonusToken not allowed");
+
+    BonusToken memory currentBonusToken = bonusTokens[_lpToken];
+    if (currentBonusToken.totalBonus != 0) {
+      require(currentBonusToken.endTime.add(WEEK) < block.timestamp, "Blacksmith: last bonus period hasn't ended");
+      require(IERC20(currentBonusToken.addr).balanceOf(address(this)) == 0, "Blacksmith: last bonus not all claimed");
+    }
+
+    require(_startTime >= block.timestamp && _endTime > _startTime, "Blacksmith: messed up timeline");
+    require(_totalBonus > 0 && bonusToken.balanceOf(msg.sender) >= _totalBonus, "Blacksmith: incorrect total rewards");
+
+    uint256 balanceBefore = bonusToken.balanceOf(address(this));
+    bonusToken.safeTransferFrom(msg.sender, address(this), _totalBonus);
+    uint256 balanceAfter = bonusToken.balanceOf(address(this));
+    require(balanceAfter > balanceBefore, "Blacksmith: incorrect total rewards");
+
+    bonusTokens[_lpToken] = BonusToken({
+      addr: _bonusToken,
+      startTime: _startTime,
+      endTime: _endTime,
+      totalBonus: balanceAfter.sub(balanceBefore),
+      accBonusPerToken: 0,
+      lastUpdatedAt: _startTime
+    });
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-collectDust-15
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'collectDust', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_token', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Blacksmith: lpToken, not allowed', 'Blacksmith: bonusToken, not allowed', 'Blacksmith: 0 to collect'], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['pools', 'allowBonusTokens', 'treasury', 'treasury'], 'written': []}, 'src': '244#258'}"}
+函数切片:
+  function collectDust(address _token) external override {
+    Pool memory pool = pools[_token];
+    require(pool.lastUpdatedAt == 0, "Blacksmith: lpToken, not allowed");
+    require(allowBonusTokens[_token] == 0, "Blacksmith: bonusToken, not allowed");
+
+    IERC20 token = IERC20(_token);
+    uint256 amount = token.balanceOf(address(this));
+    require(amount > 0, "Blacksmith: 0 to collect");
+
+    if (_token == address(0)) { // token address(0) == ETH
+      payable(treasury).transfer(amount);
+    } else {
+      token.safeTransfer(treasury, amount);
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-collectBonusDust-16
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'collectBonusDust', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_lpToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Blacksmith: bonusToken, not ready', 'Blacksmith: 0 to collect'], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['bonusTokens', 'WEEK', 'treasury'], 'written': []}, 'src': '261#269'}"}
+函数切片:
+  function collectBonusDust(address _lpToken) external override {
+    BonusToken memory bonusToken = bonusTokens[_lpToken];
+    require(bonusToken.endTime.add(WEEK) < block.timestamp, "Blacksmith: bonusToken, not ready");
+
+    IERC20 token = IERC20(bonusToken.addr);
+    uint256 amount = token.balanceOf(address(this));
+    require(amount > 0, "Blacksmith: 0 to collect");
+    token.safeTransfer(treasury, amount);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-updateWeeklyTotal-17
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'updateWeeklyTotal', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_weeklyTotal', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['weeklyTotal'], 'written': []}, 'src': '272#274'}"}
+函数切片:
+  function updateWeeklyTotal(uint256 _weeklyTotal) external override onlyGovernance {
+    weeklyTotal = _weeklyTotal;
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-updatePools-18
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'updatePools', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_start', 'type': 'uint256'}, {'name': '_end', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['poolList'], 'written': []}, 'src': '277#282'}"}
+函数切片:
+  function updatePools(uint256 _start, uint256 _end) external override {
+    address[] memory poolListCopy = poolList;
+    for (uint256 i = _start; i < _end; i++) {
+      updatePool(poolListCopy[i]);
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-transferMintingRights-19
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': 'transferMintingRights', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_newAddress', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['cover'], 'written': []}, 'src': '285#287'}"}
+函数切片:
+  function transferMintingRights(address _newAddress) external override onlyGovernance {
+    cover.setBlacksmith(_newAddress);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-_calculateCoverRewardsForPeriod-20
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': '_calculateCoverRewardsForPeriod', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': '_pool', 'type': 'struct IBlacksmith.Pool'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['WEEK', 'totalWeight', 'CAL_MULTIPLIER', 'weeklyTotal'], 'written': []}, 'src': '289#292'}"}
+函数切片:
+  function _calculateCoverRewardsForPeriod(Pool memory _pool) internal view returns (uint256) {
+    uint256 timePassed = block.timestamp.sub(_pool.lastUpdatedAt);
+    return weeklyTotal.mul(CAL_MULTIPLIER).mul(timePassed).mul(_pool.weight).div(totalWeight).div(WEEK);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-_calculateBonusForPeriod-21
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': '_calculateBonusForPeriod', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': '_bonusToken', 'type': 'struct IBlacksmith.BonusToken'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['CAL_MULTIPLIER'], 'written': []}, 'src': '294#301'}"}
+函数切片:
+  function _calculateBonusForPeriod(BonusToken memory _bonusToken) internal view returns (uint256) {
+    if (_bonusToken.endTime == _bonusToken.lastUpdatedAt) return 0;
+
+    uint256 calTime = block.timestamp > _bonusToken.endTime ? _bonusToken.endTime : block.timestamp;
+    uint256 timePassed = calTime.sub(_bonusToken.lastUpdatedAt);
+    uint256 totalDuration = _bonusToken.endTime.sub(_bonusToken.startTime);
+    return _bonusToken.totalBonus.mul(CAL_MULTIPLIER).mul(timePassed).div(totalDuration);
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-_safeTransfer-22
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': '_safeTransfer', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_token', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '304#312'}"}
+函数切片:
+  function _safeTransfer(address _token, uint256 _amount) private nonReentrant {
+    IERC20 token = IERC20(_token);
+    uint256 balance = token.balanceOf(address(this));
+    if (balance > _amount) {
+      token.safeTransfer(msg.sender, _amount);
+    } else if (balance > 0) {
+      token.safeTransfer(msg.sender, balance);
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-_claimCoverRewards-23
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': '_claimCoverRewards', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'pool', 'type': 'struct IBlacksmith.Pool'}, {'name': 'miner', 'type': 'struct IBlacksmith.Miner'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['CAL_MULTIPLIER', 'cover'], 'written': []}, 'src': '314#321'}"}
+函数切片:
+  function _claimCoverRewards(Pool memory pool, Miner memory miner) private nonReentrant {
+    if (miner.amount > 0) {
+      uint256 minedSinceLastUpdate = miner.amount.mul(pool.accRewardsPerToken).div(CAL_MULTIPLIER).sub(miner.rewardWriteoff);
+      if (minedSinceLastUpdate > 0) {
+        cover.mint(msg.sender, minedSinceLastUpdate); // mint COVER tokens to miner
+      }
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-Blacksmith.sol-_claimBonus-24
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Blacksmith.sol', 'is_fault': False, 'message': "{'name': '_claimBonus', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'bonusToken', 'type': 'struct IBlacksmith.BonusToken'}, {'name': 'miner', 'type': 'struct IBlacksmith.Miner'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Blacksmith.sol', 'external_calls': [], 'state_vars': {'read': ['CAL_MULTIPLIER'], 'written': []}, 'src': '323#330'}"}
+函数切片:
+  function _claimBonus(BonusToken memory bonusToken, Miner memory miner) private {
+    if (bonusToken.totalBonus > 0 && miner.amount > 0 && bonusToken.startTime < block.timestamp) {
+      uint256 bonusSinceLastUpdate = miner.amount.mul(bonusToken.accBonusPerToken).div(CAL_MULTIPLIER).sub(miner.bonusWriteoff);
+      if (bonusSinceLastUpdate > 0) {
+        _safeTransfer(bonusToken.addr, bonusSinceLastUpdate); // transfer bonus tokens to miner
+      }
+    }
+  }
+------------------------------------------------
+函数切片ID: Cover Protocol-MerkleProof.sol-verify-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-MerkleProof.sol', 'is_fault': False, 'message': "{'name': 'verify', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'proof', 'type': 'bytes32[]'}, {'name': 'root', 'type': 'bytes32'}, {'name': 'leaf', 'type': 'bytes32'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-MerkleProof.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '15#32'}"}
+函数切片:
+    function verify(bytes32[] memory proof, bytes32 root, bytes32 leaf) internal pure returns (bool) {
+        bytes32 computedHash = leaf;
+
+        for (uint256 i = 0; i < proof.length; i++) {
+            bytes32 proofElement = proof[i];
+
+            if (computedHash <= proofElement) {
+                // Hash(current computed hash + current element of the proof)
+                computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
+            } else {
+                // Hash(current element of the proof + current computed hash)
+                computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
+            }
+        }
+
+        // Check if the computed hash (root) is equal to the provided root
+        return computedHash == root;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-add-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'add', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: addition overflow'], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '29#34'}"}
+函数切片:
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-sub-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '46#48'}"}
+函数切片:
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-sub-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'sub', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '60#65'}"}
+函数切片:
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-mul-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'mul', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeMath: multiplication overflow'], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '77#89'}"}
+函数切片:
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-div-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'div', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '103#105'}"}
+函数切片:
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-div-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'div', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '119#125'}"}
+函数切片:
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-mod-6
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'mod', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '139#141'}"}
+函数切片:
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeMath.sol-mod-7
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeMath.sol', 'is_fault': False, 'message': "{'name': 'mod', 'visibility': 'internal', 'stateMutability': 'pure', 'parameters': [{'name': 'a', 'type': 'uint256'}, {'name': 'b', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeMath.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '155#158'}"}
+函数切片:
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Address.sol-isContract-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Address.sol', 'is_fault': False, 'message': "{'name': 'isContract', 'visibility': 'internal', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '23#32'}"}
+函数切片:
+    function isContract(address account) internal view returns (bool) {
+        // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
+        // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
+        // for accounts without code, i.e. `keccak256('')`
+        bytes32 codehash;
+        bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { codehash := extcodehash(account) }
+        return (codehash != accountHash && codehash != 0x0);
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Address.sol-sendValue-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Address.sol', 'is_fault': False, 'message': "{'name': 'sendValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address payable'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance', 'Address: unable to send value, recipient may have reverted'], 'contract': 'Cover Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '50#56'}"}
+函数切片:
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Address.sol-functionCall-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '76#78'}"}
+函数切片:
+    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
+      return functionCall(target, data, "Address: low-level call failed");
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Address.sol-functionCall-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCall', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '86#88'}"}
+函数切片:
+    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+        return _functionCallWithValue(target, data, 0, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Address.sol-functionCallWithValue-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '101#103'}"}
+函数切片:
+    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Address.sol-functionCallWithValue-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Address.sol', 'is_fault': False, 'message': "{'name': 'functionCallWithValue', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'value', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: insufficient balance for call'], 'contract': 'Cover Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '111#114'}"}
+函数切片:
+    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
+        require(address(this).balance >= value, "Address: insufficient balance for call");
+        return _functionCallWithValue(target, data, value, errorMessage);
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Address.sol-_functionCallWithValue-6
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Address.sol', 'is_fault': False, 'message': "{'name': '_functionCallWithValue', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'target', 'type': 'address'}, {'name': 'data', 'type': 'bytes'}, {'name': 'weiValue', 'type': 'uint256'}, {'name': 'errorMessage', 'type': 'string'}], 'returns': [{'name': '', 'type': 'bytes'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Address: call to non-contract'], 'contract': 'Cover Protocol-Address.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '116#137'}"}
+函数切片:
+    function _functionCallWithValue(address target, bytes memory data, uint256 weiValue, string memory errorMessage) private returns (bytes memory) {
+        require(isContract(target), "Address: call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.call{ value: weiValue }(data);
+        if (success) {
+            return returndata;
+        } else {
+            // Look for revert reason and bubble it up if present
+            if (returndata.length > 0) {
+                // The easiest way to bubble the revert reason is using memory via assembly
+
+                // solhint-disable-next-line no-inline-assembly
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert(errorMessage);
+            }
+        }
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-IERC20.sol-balanceOf-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IERC20.sol', 'is_fault': False, 'message': "{'name': 'balanceOf', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '12#12'}"}
+函数切片:
+    function balanceOf(address account) external view returns (uint256);
+------------------------------------------------
+函数切片ID: Cover Protocol-IERC20.sol-transfer-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IERC20.sol', 'is_fault': False, 'message': "{'name': 'transfer', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#13'}"}
+函数切片:
+    function transfer(address recipient, uint256 amount) external returns (bool);
+------------------------------------------------
+函数切片ID: Cover Protocol-IERC20.sol-approve-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IERC20.sol', 'is_fault': False, 'message': "{'name': 'approve', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '14#14'}"}
+函数切片:
+    function approve(address spender, uint256 amount) external returns (bool);
+------------------------------------------------
+函数切片ID: Cover Protocol-IERC20.sol-allowance-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IERC20.sol', 'is_fault': False, 'message': "{'name': 'allowance', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '15#15'}"}
+函数切片:
+    function allowance(address owner, address spender) external view returns (uint256);
+------------------------------------------------
+函数切片ID: Cover Protocol-IERC20.sol-transferFrom-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IERC20.sol', 'is_fault': False, 'message': "{'name': 'transferFrom', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '16#16'}"}
+函数切片:
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+------------------------------------------------
+函数切片ID: Cover Protocol-IERC20.sol-totalSupply-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-IERC20.sol', 'is_fault': False, 'message': "{'name': 'totalSupply', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-IERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '17#17'}"}
+函数切片:
+    function totalSupply() external view returns (uint256);
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeERC20.sol-safeTransfer-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeERC20.sol', 'is_fault': False, 'message': "{'name': 'safeTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '22#24'}"}
+函数切片:
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeERC20.sol-safeTransferFrom-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeERC20.sol', 'is_fault': False, 'message': "{'name': 'safeTransferFrom', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#28'}"}
+函数切片:
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeERC20.sol-safeApprove-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeERC20.sol', 'is_fault': False, 'message': "{'name': 'safeApprove', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeERC20: approve from non-zero to non-zero allowance'], 'contract': 'Cover Protocol-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '37#46'}"}
+函数切片:
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+        // safeApprove should only be called when setting an initial allowance,
+        // or when resetting it to zero. To increase and decrease it, use
+        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+        // solhint-disable-next-line max-line-length
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeERC20.sol-safeIncreaseAllowance-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeERC20.sol', 'is_fault': False, 'message': "{'name': 'safeIncreaseAllowance', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '48#51'}"}
+函数切片:
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeERC20.sol-safeDecreaseAllowance-4
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeERC20.sol', 'is_fault': False, 'message': "{'name': 'safeDecreaseAllowance', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '53#56'}"}
+函数切片:
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-SafeERC20.sol-_callOptionalReturn-5
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-SafeERC20.sol', 'is_fault': False, 'message': "{'name': '_callOptionalReturn', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'data', 'type': 'bytes'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeERC20: ERC20 operation did not succeed'], 'contract': 'Cover Protocol-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '64#74'}"}
+函数切片:
+    function _callOptionalReturn(IERC20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+        // the target address contains contract code and also asserts for success in the low-level call.
+
+        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+        if (returndata.length > 0) { // Return data is optional
+            // solhint-disable-next-line max-line-length
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        }
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-ReentrancyGuard.sol-constructor-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ReentrancyGuard.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-ReentrancyGuard.sol', 'external_calls': [], 'state_vars': {'read': ['_status', '_NOT_ENTERED'], 'written': []}, 'src': '38#40'}"}
+函数切片:
+    constructor () {
+        _status = _NOT_ENTERED;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-ReentrancyGuard.sol-nonReentrant-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-ReentrancyGuard.sol', 'is_fault': False, 'message': "{'name': 'nonReentrant', 'type': 'modifier', 'contract': 'Cover Protocol-ReentrancyGuard.sol', 'src': '49#61'}"}
+函数切片:
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+
+        _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Ownable.sol-constructor-0
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Ownable.sol', 'is_fault': False, 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': [], 'contract': 'Cover Protocol-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '26#29'}"}
+函数切片:
+    constructor () {
+        _owner = msg.sender;
+        emit OwnershipTransferred(address(0), _owner);
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Ownable.sol-owner-1
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Ownable.sol', 'is_fault': False, 'message': "{'name': 'owner', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Cover Protocol-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner'], 'written': []}, 'src': '34#36'}"}
+函数切片:
+    function owner() public view returns (address) {
+        return _owner;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Ownable.sol-onlyOwner-2
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Ownable.sol', 'is_fault': False, 'message': "{'name': 'onlyOwner', 'type': 'modifier', 'contract': 'Cover Protocol-Ownable.sol', 'src': '41#44'}"}
+函数切片:
+    modifier onlyOwner() {
+        require(_owner == msg.sender, "Ownable: caller is not the owner");
+        _;
+    }
+------------------------------------------------
+函数切片ID: Cover Protocol-Ownable.sol-transferOwnership-3
+所属合约地址0xe0b94a7bb45dd905c79bb1992c9879f40f1caed5
+元数据:{'belong': 'Cover Protocol-Ownable.sol', 'is_fault': False, 'message': "{'name': 'transferOwnership', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'newOwner', 'type': 'address'}], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': ['Ownable: new owner is the zero address'], 'contract': 'Cover Protocol-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '50#54'}"}
+函数切片:
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
+    }
+------------------------------------------------
+故障定位结果：
+{
+    '攻击链条1': ['Cover Protocol-Migrator.sol-transferMintingRights-4', 'Cover Protocol-COVER.sol-setMigrator-3', 'Cover Protocol-COVER.sol-mint-1', 'Cover Protocol-ERC20.sol-_mint-13'],
+    '攻击链条2': ['Cover Protocol-Blacksmith.sol-deposit-7', 'Cover Protocol-Blacksmith.sol-_claimCoverRewards-23', 'Cover Protocol-ICOVER.sol-mint-0', 'Cover Protocol-ERC20.sol-_mint-13'],
+    '攻击链条3': ['Cover Protocol-Migrator.sol-claim-3', 'Cover Protocol-COVER.sol-mint-1', 'Cover Protocol-ERC20.sol-_mint-13']
+}
+
+攻击链条分析解释:
+
+**攻击链条1（权限转移+铸造攻击）**
+1. 攻击者首先调用`Cover Protocol-Migrator.sol-transferMintingRights-4`函数，将铸造权限转移到攻击者控制的地址。该函数仅需governance权限，若攻击者已控制governance账户或存在权限绕过漏洞即可操作。
+2. 转移权限后，攻击者调用`Cover Protocol-COVER.sol-setMigrator-3`函数，将COVER合约的migrator设置为攻击者地址，绕过原始权限检查。
+3. 攻击者通过新的migrator身份调用`Cover Protocol-COVER.sol-mint-1`函数，触发代币铸造逻辑。
+4. 最终通过ERC20的`_mint`函数完成超额铸造，该链条利用了权限控制漏洞和铸造函数缺乏调用者身份验证。
+
+**攻击链条2（Blacksmith奖励漏洞攻击）**
+1. 攻击者调用存在漏洞标记的`Cover Protocol-Blacksmith.sol-deposit-7`函数，通过操纵LP代币存款量触发奖励计算。
+2. deposit函数内部调用`_claimCoverRewards`函数，该函数通过`cover.mint`直接铸造COVER代币。
+3. 由于Blacksmith合约被设置为COVER的合法铸造者（blacksmith角色），且奖励计算可能存在数学溢出或权限缺陷，攻击者可伪造高额奖励。
+4. 最终通过ERC20底层函数完成代币铸造，该链条利用了Blacksmith合约的数学逻辑缺陷和铸造权限滥用。
+
+**攻击链条3（Merkle证明伪造攻击）**
+1. 攻击者调用`Cover Protocol-Migrator.sol-claim-3`函数，提供伪造的Merkle证明（_merkleProof参数）来声明未分配的代币。
+2. 通过构造虚假的_index和_amount参数，绕过`MerkleProof.verify`的验证（可能因Merkle树根未正确设置或验证逻辑缺陷）。
+3. 验证通过后，调用COVER的mint函数完成代币铸造。
+4. 该链条利用了Merkle证明验证机制的设计缺陷或初始化参数配置错误。
+
+根因函数列表：
+攻击链条1：
+[Cover Protocol-COVER.sol-mint-1, Cover Protocol-Migrator.sol-transferMintingRights-4, Cover Protocol-COVER.sol-setMigrator-3]
+
+攻击链条2：
+[Cover Protocol-Blacksmith.sol-deposit-7, Cover Protocol-Blacksmith.sol-_claimCoverRewards-23]
+
+攻击链条3：
+[Cover Protocol-Migrator.sol-claim-3, Cover Protocol-COVER.sol-mint-1]
+
+**根本原因排序依据：**
+1. `Cover Protocol-COVER.sol-mint-1`：作为所有攻击链条的最终执行点，其缺乏对调用者身份的有效验证（仅依赖migrator/blacksmith角色而未检查合约内部状态）是漏洞核心。
+2. `Cover Protocol-Migrator.sol-transferMintingRights-4`：权限转移函数若未正确限制governance权限，导致攻击者获取铸造权限。
+3. `Cover Protocol-Blacksmith.sol-deposit-7`：标记为is_fault的函数，存在未验证存款来源或奖励计算缺陷的直接漏洞点。
+4. `Cover Protocol-Migrator.sol-claim-3`：Merkle证明验证缺陷可能因merkleRoot初始化错误或验证逻辑不严谨。
+------------------------------------
+运行时间:556.2211854457855seconds

@@ -27,6 +27,9 @@ if __name__ == '__main__':
     contract = local_contract_collection.get(ids=contract_name)
     address = contract['metadatas'][0]['address']
 
+    function_ = local_function_collection.get(where={"belong": {"$eq": "SushiSwap-SushiMaker.sol"}})
+    print(function_)
+
     fault = local_function_collection.get(where={"is_fault": {"$eq": True}})
     print(fault['ids'])
     can_test_list = ['Alchemix', 'Cover Protocol',
