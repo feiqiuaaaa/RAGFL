@@ -2373,3 +2373,29 @@
     function sub(uint128 a, uint128 b) internal pure returns (uint128 c) {require((c = a - b) <= a, "BoringMath: Underflow");}
 ------------------------------------------------
 故障定位结果：
+{
+    '攻击链条1': ['SushiSwap-SushiMaker.sol-convert-4', 'SushiSwap-SushiMaker.sol-_convert-6', 'SushiSwap-UniswapV2Pair.sol-burn-9', 'SushiSwap-UniswapV2Pair.sol-_update-6', 'SushiSwap-UniswapV2Router02.sol-_swap-12'],
+    '攻击链条2': ['SushiSwap-SushiMaker.sol-_convertStep-7', 'SushiSwap-SushiMaker.sol-_swap-8', 'SushiSwap-UniswapV2Pair.sol-swap-10', 'SushiSwap-UniswapV2Pair.sol-sync-12', 'SushiSwap-IUniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-2']
+}
+
+攻击链条分析解释:
+
+攻击链条1分析：
+该链条展现了从流动性操作到价格操纵的核心路径。攻击者首先调用SushiMaker的convert函数（ID: SushiSwap-SushiMaker.sol-convert-4），该函数通过onlyEOA修饰符限制调用者为外部账户，但实际攻击可能通过合约伪装绕过。convert函数进一步调用内部_convert函数（ID: SushiSwap-SushiMaker.sol-_convert-6），其中通过pair.burn操作销毁流动性代币，获取底层代币。关键点在于burn操作会触发_update函数（ID: SushiSwap-UniswapV2Pair.sol-_update-6），该函数在更新储备量时未进行K值校验，允许攻击者在单区块内通过自转账（如SLP合约的自转账销毁）人为改变储备量。随后通过路由合约的_swap函数（ID: SushiSwap-UniswapV2Router02.sol-_swap-12）执行跨池兑换，利用失真的价格数据进行套利。
+
+攻击链条2分析：
+该链条聚焦于价格操纵后的兑换获利阶段。_convertStep函数（ID: SushiSwap-SushiMaker.sol-_convertStep-7）内部递归调用_swap函数（ID: SushiSwap-SushiMaker.sol-_swap-8），后者通过UniswapV2Pair的swap函数（ID: SushiSwap-UniswapV2Pair.sol-swap-10）执行实际代币兑换。swap函数中虽然包含K值检查（require(balance0Adjusted.mul(balance1Adjusted) >= ...)），但在同一区块内多次操作时，由于_update函数未记录时间加权价格，导致getReserves返回瞬时值。sync函数（ID: SushiSwap-UniswapV2Pair.sol-sync-12）强制更新储备量为当前余额，进一步放大价格偏差。最终通过支持转账费的路由函数（ID: SushiSwap-IUniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-2）完成异常数量级的SUSHI兑换。
+
+根因函数列表：
+攻击链条1：
+[SushiSwap-UniswapV2Pair.sol-_update-6, SushiSwap-UniswapV2Pair.sol-burn-9, SushiSwap-SushiMaker.sol-_convert-6]
+
+攻击链条2：
+[SushiSwap-UniswapV2Pair.sol-swap-10, SushiSwap-UniswapV2Pair.sol-sync-12, SushiSwap-SushiMaker.sol-_swap-8]
+
+根本原因排序：
+1. SushiSwap-UniswapV2Pair.sol-_update-6：直接负责储备量更新但未实施K值校验，允许单区块内流动性操作导致价格失真。
+2. SushiSwap-UniswapV2Pair.sol-swap-10：执行代币兑换时依赖瞬时储备量，且K值检查仅基于当前区块状态。
+3. SushiSwap-SushiMaker.sol-_convert-6：作为流动性操作入口，未限制单交易内的添加/移除流动性组合操作。
+4. SushiSwap-UniswapV2Pair.sol-sync-12：允许强制同步储备量为当前余额，加剧价格操纵效果。
+5. SushiSwap-UniswapV2Router02.sol-_swap-12：跨池兑换的核心执行函数，依赖被操纵的价格数据。

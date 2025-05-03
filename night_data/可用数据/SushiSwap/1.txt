@@ -2583,31 +2583,51 @@
         return msg.data;
     }
 
---- 异常信息 ---
-Traceback (most recent call last):
-  File "D:\python\PycharmCodes\RAG\online_search.py", line 262, in <module>
-    searcher.process(fault_hash, faultless_hash, file, "Ethereum")
-  File "D:\python\PycharmCodes\RAG\online_search.py", line 168, in process
-    location_result = llm.get_summary_from_llm(system_prompt, user_prompt)
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\python\PycharmCodes\RAG\llm.py", line 21, in get_summary_from_llm
-    response = call_deepseek_reasoner(client, system_prompt, user_prompt)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\python\PycharmCodes\RAG\llm.py", line 37, in call_deepseek_reasoner
-    return client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
-    return func(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\resources\chat\completions\completions.py", line 879, in create
-    return self._post(
-           ^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 1290, in post
-    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 967, in request
-    return self._request(
-           ^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 1071, in _request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': "This model's maximum context length is 65536 tokens. However, you requested 68767 tokens (68767 in the messages, 0 in the completion). Please reduce the length of the messages or completion.", 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}}
+------------------------------------------------
+故障定位结果：
+{
+    '攻击链条1': ['SushiSwap-UniswapV2Pair.sol-swap-10', 'SushiSwap-UniswapV2Pair.sol-_update-6', 'SushiSwap-SushiToken.sol-mint-0', 'SushiSwap-UniswapV2Router02.sol-_swapSupportingFeeOnTransferTokens-19', 'SushiSwap-MasterChef.sol-deposit-11'],
+    '攻击链条2': ['SushiSwap-UniswapV2Pair.sol-mint-8', 'SushiSwap-UniswapV2Pair.sol-burn-9', 'SushiSwap-MasterChef.sol-updatePool-10', 'SushiSwap-SushiMaker.sol-_convertStep-7', 'SushiSwap-SushiBar.sol-enter-1']
+}
+
+攻击链条分析解释:
+
+攻击链条1分析:
+1. 攻击者首先调用UniswapV2Pair的swap函数(SushiSwap-UniswapV2Pair.sol-swap-10)，利用该函数的两个关键漏洞：
+   - 在完成代币转账后执行了IUniswapV2Callee(to).uniswapV2Call回调（代码第188行），这创造了重入攻击的机会
+   - 计算amount0In/amount1In时使用balanceOf差值法（代码194-195行），但未考虑不同代币的精度差异
+2. _update函数(SushiSwap-UniswapV2Pair.sol-_update-6)在精度处理上存在缺陷：
+   - 直接将balance0/balance1转换为uint112（代码89行），未对不同精度代币进行标准化处理
+   - 价格累积计算使用原始储备值（代码84-87行），未应用精度调整系数
+3. SushiToken的mint函数(SushiSwap-SushiToken.sol-mint-0)缺乏铸造量验证：
+   - 仅通过onlyOwner权限控制，但未验证实际抵押资产与铸造量的对应关系
+4. 路由器的_swapSupportingFeeOnTransferTokens函数(SushiSwap-UniswapV2Router02.sol-_swapSupportingFeeOnTransferTokens-19)：
+   - 在循环兑换时直接使用实时余额计算兑换量（代码331-333行），跨精度代币兑换时会产生指数级误差
+5. 最终通过MasterChef的deposit函数(SushiSwap-MasterChef.sol-deposit-11)质押异常数量的LP代币：
+   - 第212行直接使用pool.lpToken.balanceOf获取余额，未验证代币精度差异
+
+攻击链条2分析:
+1. 通过mint函数(SushiSwap-UniswapV2Pair.sol-mint-8)创建初始流动性时：
+   - 当_totalSupply=0时（代码130行），使用sqrt(amount0.mul(amount1))计算流动性，但amount0/amount1未进行精度标准化
+2. burn函数(SushiSwap-UniswapV2Pair.sol-burn-9)销毁流动性时：
+   - 计算amount0/amount1时（代码160-161行）直接使用当前余额比例分配，未考虑历史精度差异
+3. MasterChef的updatePool函数(SushiSwap-MasterChef.sol-updatePool-10)：
+   - 计算sushiReward时（代码196行）使用pool.allocPoint乘以未调整精度的lpSupply
+4. SushiMaker的_convertStep函数(SushiSwap-SushiMaker.sol-_convertStep-7)：
+   - 在多级兑换路径处理中（代码125-162行）未对中间代币进行精度补偿
+5. 最终通过SushiBar的enter函数(SushiSwap-SushiBar.sol-enter-1)：
+   - 计算xSUSHI铸造量时（代码31行）使用原始balance比值，未考虑WETH/SUSHI的精度差异
+
+根因函数列表：
+攻击链条1：
+[SushiSwap-UniswapV2Pair.sol-swap-10, SushiSwap-UniswapV2Pair.sol-_update-6, SushiSwap-UniswapV2Router02.sol-_swapSupportingFeeOnTransferTokens-19]
+
+攻击链条2：
+[SushiSwap-UniswapV2Pair.sol-mint-8, SushiSwap-MasterChef.sol-updatePool-10, SushiSwap-SushiMaker.sol-_convertStep-7]
+
+根本原因排序依据：
+1. swap函数(SushiSwap-UniswapV2Pair.sol-swap-10)直接导致重入攻击和精度计算错误
+2. _update函数(SushiSwap-UniswapV2Pair.sol-_update-6)的储备更新机制缺陷是价格操纵的基础
+3. mint函数(SushiSwap-UniswapV2Pair.sol-mint-8)的初始流动性计算错误形成套利空间
+4. _swapSupportingFeeOnTransferTokens函数实现跨精度兑换时未做标准化处理
+5. _convertStep函数的多级兑换路径未考虑中间代币精度转换

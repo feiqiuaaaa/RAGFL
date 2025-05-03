@@ -1,0 +1,789 @@
+------------------------------------------------
+交易故障分析：
+一、关键异常点 故障交易0x33479bcfbc792aa0f8103ab0d7a3784788b5b0e1467c81ffbed1b7682660b4fa存在未经授权的代币大额转移，从合约0xb3fb1d01b07a706736ca175f827e4f56021b85de转出900万UNI-V2代币至地址0x2d85f5c295760b0afe0b271b94254a8c58b513c5，且调用链中触发SetReward事件的数据与转账金额完全匹配。非故障交易显示正常用户质押-奖励流程，但故障交易绕过质押环节直接调用核心转账函数。
+
+二、漏洞原因分析 合约0xb3fb1d01存在授权校验缺失漏洞。其代码未对调用者身份进行严格验证，允许外部地址直接触发代币转账函数（函数签名0x2e1a7d4d）。攻击者通过构造调用链（0x897679...→0x2d85f5...→0xb3fb1d...）激活该函数，利用合约持有的代币余额发起未经授权的转账。根本原因是合约未实现权限隔离，关键函数未设置onlyOwner或等效修饰符，导致任意地址可操作资金池。
+
+三、攻击路径还原 1. 攻击者调用入口合约0x89767960b76b009416bc7ff4a4b79051eed0a9ee的0x74a97af6函数，传入虚假参数构造调用请求。2. 中间合约0x2d85f5c295760b0afe0b271b94254a8c58b513c5调用漏洞合约0xb3fb1d01的0x2e1a7d4d函数。3. 漏洞合约直接调用代币合约0xb1bbeea2的transfer函数完成资金转移。整个过程未验证调用路径合法性，导致合约代币储备被恶意提取。
+
+四、trace调用链（故障交易） 0x89767960b76b009416bc7ff4a4b79051eed0a9ee → 0x2d85f5c295760b0afe0b271b94254a8c58b513c5 → 0xb3fb1d01b07a706736ca175f827e4f56021b85de → 0xb1bbeea2da2905e6b0a30203aef55c399c53d042
+------------------------------------------------
+向量库匹配结果：
+{'ids': [['Umbrella Network-RewardsDistributionRecipient.sol', 'Umbrella Network-StakingRewards.sol', 'Umbrella Network-IBurnableToken.sol', 'Umbrella Network-SafeERC20.sol', 'Umbrella Network-MintableToken.sol', 'Umbrella Network-SafeMath.sol', 'Umbrella Network-IERC20.sol', 'Umbrella Network-ERC20.sol', 'Umbrella Network-IStakingRewards.sol', 'Umbrella Network-Context.sol', 'Umbrella Network-Math.sol', 'Umbrella Network-ReentrancyGuard.sol', 'Umbrella Network-OnDemandToken.sol', 'Umbrella Network-Address.sol', 'Umbrella Network-Pausable.sol', 'Umbrella Network-Ownable.sol', 'Umbrella Network-Owned.sol']], 'embeddings': None, 'documents': [['RewardsDistributionRecipient 智能合约总结：该合约是基于 Synthetix 系统的奖励分发管理合约，继承自 Owned 合约实现权限控制。核心功能通过地址权限验证机制管理奖励分发流程，包含两个关键功能模块：1. 通过 onlyRewardsDistribution 修饰器强制验证调用者身份，仅允许指定地址执行奖励操作；2. 提供可配置的奖励分发地址管理功能，允许合约所有者动态更新授权地址。合约采用抽象合约设计模式，将 notifyRewardAmount 函数设为虚函数，要求子合约必须实现具体的奖励发放逻辑，形成标准化的奖励管理接口规范。\n\n函数列表：\n1. notifyRewardAmount(uint256 reward) - 虚函数接口，用于接收奖励数额通知（需子合约实现具体逻辑）\n2. setRewardsDistribution(address _rewardsDistribution) - 权限设置函数，允许合约所有者更新奖励分发者地址（仅限合约所有者调用）', 'StakingRewards 智能合约总结：该合约是基于 Synthetix 改进的质押奖励系统，支持用户质押代币获取奖励，同时具备动态调整奖励周期和紧急停止功能。核心机制通过时间参数控制奖励发放周期，采用按需铸造模式分发奖励代币。合约通过 ReentrancyGuard 防止重入攻击，集成暂停功能保障安全性。关键特性包含：1. 动态奖励率计算，支持中途追加奖励 2. 最大总奖励量限制防止通胀 3. 管理员可提前终止奖励周期 4. 代币救援功能（排除奖励代币）5. 迁移兼容设计优化 gas 消耗。合约通过 _stake 和 _withdraw 处理质押/提取操作，_getReward 使用链上铸造方式发放奖励，采用 updateReward 修饰符实时更新用户收益。\n\n函数列表：\n- notifyRewardAmount（仅奖励分配者）：设置奖励总量并重新计算奖励率\n- setRewardsDuration（所有者）：更新奖励发放周期\n- finishFarming（所有者）：提前终止奖励计划\n- stake：用户质押代币\n- withdraw：用户提取质押代币\n- exit：同时提取全部质押并领取奖励\n- getReward：领取已积累的奖励\n- rescueToken（所有者）：转移合约内非奖励代币\n- periodFinish：查看当前奖励周期结束时间\n- rewardsDuration：获取当前奖励周期时长\n- lastUpdateTime：查询最后奖励更新时间\n- balanceOf：查询用户质押余额\n- totalSupply：获取总质押量\n- rewardPerToken：计算当前每代币奖励值\n- earned：查询用户待领取奖励\n- getRewardForDuration：显示当前周期总奖励量\n- lastTimeRewardApplicable：获取有效奖励计算截止时间\n- version：返回合约版本号', '智能合约命名为IBurnableToken（可销毁代币接口）。该合约是一个Solidity接口定义，其核心功能是规范代币销毁行为的标准接口。该接口通过定义burn函数的形式，要求实现该接口的代币合约必须具备销毁指定数量代币的功能。该接口本身不包含具体逻辑实现，仅作为代币合约的交互标准，为外部合约或用户调用销毁功能提供统一的方法签名。关键代码是声明了具有external可见性的burn函数，强制要求代币合约实现销毁功能时必须使用相同的参数类型和访问权限。该接口主要应用于需要代币销毁机制的DeFi场景，例如代币回购销毁、手续费燃烧等业务逻辑。\n\n函数列表包含1个函数：1. burn(uint256 _amount) external：定义代币销毁功能的接口标准，要求实现该接口的代币必须提供可外部调用的销毁方法，参数为需要销毁的代币数量_amount。', 'SafeERC20 库总结：该智能合约为 ERC20 代币操作安全封装库，提供防失败机制的安全转账及授权功能。其核心目标是通过封装底层调用并验证返回值，解决部分 ERC20 代币转账失败不自动回滚的问题。库内包含五个关键函数，覆盖代币转账、授权及额度调整操作，并强制处理代币合约调用返回值以避免静默失败。代码通过 Address 库执行底层调用，并针对不返回值的代币进行兼容性处理。该库特别优化了 approve 授权机制，弃用传统 safeApprove 函数并改用增量式授权函数，避免因授权额度前后不一致导致的前置攻击风险。\n\n函数列表如下：\n1. safeTransfer：安全转账函数，调用代币合约的 transfer 方法并验证结果。\n2. safeTransferFrom：安全代扣转账函数，调用代币合约的 transferFrom 方法并验证结果。\n3. safeApprove（已弃用）：传统授权函数，仅允许从零地址初始化授权或重置为零额度。\n4. safeIncreaseAllowance：安全增加授权额度函数，以加法操作更新授权额度。\n5. safeDecreaseAllowance：安全减少授权额度函数，以减法操作更新授权额度并防止负值。\n6. _callOptionalReturn：内部基础调用函数，执行底层代币合约调用并强制验证返回值有效性。', 'MintableToken 智能合约总结：该合约是一个基于 ERC20 的可铸造代币合约，继承自 Owned 权限控制和 IBurnableToken 燃烧接口。其核心功能是通过铸造机制发行代币，同时强制限制代币总供应量不超过预设最大值。合约通过 everMinted 变量追踪历史总铸造量，每次铸造时会校验新铸造量不得导致总供应量超过 maxAllowedTotalSupply 限制。代币持有者可自行销毁持有的代币，铸造权限仅限合约所有者操作。该合约采用抽象合约设计，需在子合约中实现具体代币信息。核心代码逻辑集中在供应量控制机制与权限管理两个维度，通过修饰符 assertMaxSupply 实现铸造时的自动供应量校验。\n\n函数列表：\n1. 构造函数 constructor(uint256 _maxAllowedTotalSupply)：初始化最大允许供应量参数\n2. burn(uint256 _amount)：外部调用，销毁调用者指定数量的代币\n3. mint(address _holder, uint256 _amount)：仅所有者调用，向指定地址铸造代币并触发供应量检查\n4. _assertMaxSupply(uint256 _amountToMint)：内部函数，执行实际供应量校验并更新铸造总量计数器\n5. 继承自 ERC20 的标准函数：包含 transfer、approve 等 ERC20 标准功能函数\n6. 继承自 Owned 的权限函数：包含转移所有权等管理函数', 'SafeMath 智能合约总结：该合约是 OpenZeppelin 开发的安全数学运算库，主要用于处理 Solidity 算术运算中的溢出问题，防止因整数溢出/下溢导致的合约漏洞。合约通过封装加减乘除和取模运算，在每次计算时自动进行溢出检查，若检测到异常则通过 revert 回滚交易，确保运算结果始终处于合理数值范围内。核心功能分为两类：try 系列函数返回操作状态布尔值和计算结果，适用于非阻断式错误处理；标准运算函数则在检测到溢出时直接中断交易。合约特别针对旧版本 Solidity 设计（0.6.x-0.8.0），通过 require 语句实现运行时检查机制。部分带错误提示参数的函数已被标记为弃用，推荐使用更节省 Gas 的 try 系列函数替代。\n\n函数列表：\ntryAdd：尝试执行加法运算，返回操作成功状态及结果\ntrySub：尝试执行减法运算，返回操作成功状态及结果\ntryMul：尝试执行乘法运算，返回操作成功状态及结果\ntryDiv：尝试执行除法运算，返回操作成功状态及结果\ntryMod：尝试执行取模运算，返回操作成功状态及结果\nadd：执行加法运算并在溢出时回滚\nsub：执行减法运算并在下溢时回滚\nmul：执行乘法运算并在溢出时回滚\ndiv：执行整数除法并在除零时回滚\nmod：执行取模运算并在除零时回滚\nsub（带错误信息参数）：执行减法运算并在下溢时返回自定义错误信息（已弃用）\ndiv（带错误信息参数）：执行除法运算并在异常时返回自定义错误信息（已弃用）\nmod（带错误信息参数）：执行取模运算并在异常时返回自定义错误信息（已弃用）', '智能合约名称：IERC20（ERC20标准接口）。该智能合约定义了ERC20代币标准的接口规范，为代币合约提供了基础功能框架。合约包含代币供应查询、余额查询、代币转账、授权额度管理等功能，同时定义了转账与授权事件。该接口被用于其他ERC20兼容代币合约的实现，确保不同代币之间的交互兼容性。合约通过6个核心函数实现代币基础操作，包含2个事件用于跟踪代币流转与权限变更，所有函数均为外部可见性（external），符合标准接口设计规范。  \n\n函数列表：  \n- totalSupply()：查询代币总供应量  \n- balanceOf(address)：查询指定地址的代币余额  \n- transfer(address,uint256)：向目标地址转账代币  \n- allowance(address,address)：查询授权额度  \n- approve(address,uint256)：设置第三方操作授权额度  \n- transferFrom(address,address,uint256)：通过授权机制执行代币转账  \n事件列表：  \n- Transfer(address,address,uint256)：代币转账时触发  \n- Approval(address,address,uint256)：授权额度变更时触发', '智能合约名称：ERC20。该合约是基于 OpenZeppelin 标准实现的 ERC20 代币合约，提供了代币发行、转账、余额查询和授权管理等核心功能。合约使用 SafeMath 库进行数学运算防止溢出，通过映射结构记录账户余额和授权额度。核心功能包括代币转账（支持直接转账和授权转账两种模式）、代币铸造与销毁、动态调整授权额度等机制。合约设置了代币基础属性（名称/符号/小数位）的不可变初始化逻辑，并通过钩子函数预留了转账前的扩展能力。关键特性包括符合 ERC20 标准的转账事件与授权事件触发，以及通过 internal 修饰符保护的内部铸造/销毁函数，为派生合约实现代币供应机制提供基础框架。\n\n函数列表：\n1. constructor：初始化代币名称和符号\n2. name：查询代币名称\n3. symbol：查询代币符号\n4. decimals：查询代币小数位数\n5. totalSupply：查询代币总供应量\n6. balanceOf：查询指定地址余额\n7. transfer：执行代币转账\n8. allowance：查询授权额度\n9. approve：设置代币授权额度\n10. transferFrom：执行授权转账\n11. increaseAllowance：增加授权额度\n12. decreaseAllowance：减少授权额度\n13. _transfer：内部转账逻辑实现\n14. _mint：内部代币铸造函数\n15. _burn：内部代币销毁函数\n16. _approve：内部授权逻辑实现\n17. _setupDecimals：设置小数位数（仅构造时可用）\n18. _beforeTokenTransfer：转账前钩子函数（可扩展）', '智能合约名称：IStakingRewards（质押奖励接口合约）。该合约定义了一个质押奖励系统的标准接口，包含质押、提取、领取奖励的核心功能及相关的数据查询方法。作为接口合约，它规范了外部合约交互时需要实现的方法，主要分为状态变更和视图查询两大类。通过 stake 函数进行代币质押，withdraw 用于提取质押本金，getReward 允许用户领取已获得的奖励，exit 提供同时提取本金和领取奖励的快捷操作。视图函数提供质押数据计算，包括计算有效奖励时间戳(lastTimeRewardApplicable)、单代币奖励价值(rewardPerToken)、账户累计收益(earned)、总周期奖励量(getRewardForDuration)等关键指标，同时包含质押总量(totalSupply)和账户余额(balanceOf)的基础查询功能。\n\n函数列表：\n【Mutative 状态变更函数】\n1. stake(uint256 amount) - 质押指定数量的代币\n2. withdraw(uint256 amount) - 提取指定数量的质押代币\n3. getReward() - 领取已获得的奖励\n4. exit() - 一次性提取全部质押代币并领取奖励\n\n【Views 视图查询函数】 \n1. lastTimeRewardApplicable() - 获取最近有效的奖励计算时间戳\n2. rewardPerToken() - 计算当前每个质押代币对应的奖励数额\n3. earned(address account) - 查询指定账户可领取的奖励总额\n4. getRewardForDuration() - 获取整个奖励周期的总奖励数量\n5. totalSupply() - 返回系统内质押代币的总量\n6. balanceOf(address account) - 查询指定账户的质押代币余额', 'Context 智能合约总结：该合约是一个提供交易执行上下文信息的抽象基础合约，主要用于在继承合约中安全获取交易发送方及调用数据。合约核心功能为解决 GSN 元交易场景下 msg.sender 与实际发送者不一致的问题，通过封装 msg.sender 和 msg.data 的访问方式，确保继承合约能适应元交易架构。关键代码通过两个内部视图函数实现：_msgSender() 直接返回当前交易发送者地址，_msgData() 返回完整调用数据，其中特意加入 this 语句消除编译器警告。该合约设计为可扩展的基础模块，典型应用于代币合约或需要支持元交易的库合约，通过函数重写机制为上层合约提供灵活的上下文访问支持。\n\n函数列表：\n1. _msgSender()：内部视图函数，返回当前消息发送者的地址 payable 类型，基础实现直接返回 msg.sender\n2. _msgData()：内部视图函数，返回完整的消息调用数据字节数组，基础实现直接返回 msg.data', '智能合约命名为Math库。该合约是一个Solidity数学工具库，提供基础的数值计算函数，用于弥补Solidity语言原生缺乏的数学运算功能。主要包含三个核心函数：计算最大值、最小值和防溢出的平均值计算。所有函数均为pure类型且无状态修改，适用于需要安全数学运算的场景，特别是处理大整数时防止溢出错误。关键实现亮点在于average函数采用分步计算策略，通过先除后加的方式避免(a+b)直接相加可能导致的整数溢出风险，提升合约安全性。\n\n函数列表如下：\n1. max(uint256 a, uint256 b)：返回两个输入参数中的较大值，使用三元运算符实现简单比较。\n2. min(uint256 a, uint256 b)：返回两个输入参数中的较小值，采用基础比较逻辑。\n3. average(uint256 a, uint256 b)：安全计算两个数字的平均值，通过分解计算步骤(a/2 + b/2 + 余数处理)防止求和溢出，结果向零取整。', '该智能合约名为ReentrancyGuard，是一个用于防止重入攻击的抽象合约。其核心功能是通过nonReentrant修饰符阻止函数被重复嵌套调用，从而避免重入漏洞。合约使用状态变量_status跟踪执行状态，包含_NOT_ENTERED（未进入）和_ENTERED（已进入）两种状态。构造函数初始化状态为未进入，nonReentrant修饰符在函数执行前检查状态，若为已进入则抛出错误，执行期间锁定状态，结束后恢复状态。该机制通过原子化状态切换确保函数执行期间无法被二次调用，适用于需防范重入场景如提款操作。合约采用uint256类型状态变量优化Gas消耗，避免布尔类型存储开销。\n\n函数列表：\nconstructor()：初始化函数，将_status设为未进入状态。\nmodifier nonReentrant()：核心修饰符，实现重入锁机制，包含状态检查、锁定与恢复逻辑。', 'OnDemandToken 智能合约总结：该合约是基于 MintableToken 扩展实现的按需铸造代币合约，核心功能是通过多铸造者授权机制实现灵活代币铸造。合约通过维护 minters 映射表管理授权铸造者名单，允许合约所有者批量设置铸造者权限。主要机制包括：1) 采用 onlyOwnerOrMinter 修饰器实现双重权限控制，允许所有者和授权铸造者执行铸造；2) 继承 assertMaxSupply 修饰器确保铸造量不超过最大供应限制；3) 通过事件日志记录铸造者权限变更。合约保留抽象合约特性，未完全实现所有继承函数。\n\n函数列表：1. setupMinter(设置单个铸造者权限状态) 2. setupMinters(批量设置铸造者权限状态) 3. mint(执行代币铸造操作，需通过权限校验和供应量校验)。继承函数：onlyOwner 修饰器来自父合约，assertMaxSupply 修饰器需在父合约实现，_mint 内部函数继承自 ERC20 标准。', '智能合约名称：Address 实用函数库。该合约是一个提供地址相关操作的工具库，主要用于安全地进行以太坊转账及合约调用。核心功能包括检测地址是否为合约、替代 transfer 的 ETH 转账方法、以及支持多种调用类型的安全合约交互。关键代码通过内联汇编和返回值验证机制提升安全性，重点解决传统 transfer 方法的 gas 限制问题，并防范合约调用中的常见风险如非合约地址调用、余额不足等异常场景。\n\n函数列表如下：\n1. isContract(address)：检查给定地址是否为合约地址，通过 extcodesize 获取代码大小判断\n2. sendValue(address payable, uint256)：向指定地址发送 ETH，使用 call 方法突破 2300 gas 限制\n3. functionCall(address, bytes)：执行普通合约调用，携带默认错误提示\n4. functionCall(address, bytes, string)：带自定义错误信息的合约调用\n5. functionCallWithValue(address, bytes, uint256)：附带 ETH 转账的合约调用（默认错误提示）\n6. functionCallWithValue(address, bytes, uint256, string)：带自定义错误提示的转账调用\n7. functionStaticCall(address, bytes)：执行静态调用（默认错误提示）\n8. functionStaticCall(address, bytes, string)：带错误提示的静态调用\n9. functionDelegateCall(address, bytes)：执行委托调用（默认错误提示）\n10. functionDelegateCall(address, bytes, string)：带错误提示的委托调用\n11. _verifyCallResult(bool, bytes, string)：内部方法验证调用结果，处理回滚数据解析', '智能合约名称：Pausable。该合约是一个抽象合约，用于管理合约的暂停状态控制功能，继承自 Owned 合约以获取所有权管理能力。核心功能是通过布尔变量 paused 记录合约运行状态，并提供修饰符限制暂停期间的功能调用。合约包含关键组件：1. 状态变量 paused 存储当前暂停状态；2. notPaused 修饰符阻止在暂停状态下执行敏感操作；3. setPaused 函数允许合约所有者修改暂停状态；4. PauseChanged 事件记录状态变更日志。合约初始化时强制要求所有者地址已设置，且默认暂停状态为未暂停。其设计模式通过修饰符将暂停检查嵌入到业务函数，实现了状态控制与业务逻辑的解耦。\n\n函数列表包含：1. 构造函数 constructor()：初始化合约时验证所有者地址有效性；2. setPaused(bool _paused)：外部函数，仅所有者可调用，用于切换合约暂停状态，当状态实际改变时会触发事件。', '智能合约命名为Ownable，是一个提供基本权限管理的抽象合约，用于实现合约所有权控制功能。该合约继承自Context合约，通过维护一个所有者地址并提供权限修饰器，确保特定函数只能被所有者调用。核心机制包括所有者地址的初始化、所有权转移及放弃所有权功能，适用于需要访问控制的智能合约继承使用。合约部署时自动将部署者设为初始所有者，并允许当前所有者通过转移或放弃操作变更所有权状态。关键设计是通过onlyOwner修饰器实现函数访问限制，当放弃所有权后相关受保护功能将永久失效，需谨慎操作。合约包含所有权转移事件，便于跟踪所有权变更历史。\n\n函数列表如下：\n1. 构造函数：初始化合约，将部署者设置为初始所有者并触发所有权转移事件。\n2. owner()：视图函数，返回当前所有者地址。\n3. onlyOwner修饰器：限制函数调用者必须为当前所有者，否则回滚交易。\n4. renounceOwnership()：将所有者设置为零地址以实现所有权放弃操作，仅当前所有者可调用。\n5. transferOwnership(address newOwner)：将所有权转移至指定新地址，要求新地址非零地址且仅当前所有者可调用。', '智能合约命名为Owned。该合约是一个抽象合约，继承自OpenZeppelin的Ownable合约，主要功能是扩展所有权管理机制。通过构造函数实现初始化所有权的转移操作，允许在部署时直接指定合约的初始所有者地址，而非默认使用部署者地址作为所有者。关键代码在于构造函数中通过transferOwnership方法显式设置合约所有权，这种设计模式常用于需要预定义合约所有者或所有权分离的场景，例如多签合约或需要将所有权直接授予指定管理地址的情况。\n\n函数列表包含：1. constructor构造函数，接收_owner参数并执行所有权转移操作，用于初始化合约所有者。注：由于继承自Ownable合约，实际还包含owner()获取所有者地址、transferOwnership(address)转移所有权、renounceOwnership()放弃所有权等未显式定义的继承函数。']], 'uris': None, 'data': None, 'metadatas': [[{'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}, {'address': '0xb3fb1d01b07a706736ca175f827e4f56021b85de'}]], 'distances': [[0.3432037830352783, 0.3656710982322693, 0.36610329151153564, 0.374625563621521, 0.37727320194244385, 0.3816670775413513, 0.386935293674469, 0.403716504573822, 0.4307750463485718, 0.4372788667678833, 0.4510382413864136, 0.4511098861694336, 0.45220857858657837, 0.48877131938934326, 0.5150978565216064, 0.5242259502410889, 0.5434309244155884]], 'included': [<IncludeEnum.distances: 'distances'>, <IncludeEnum.documents: 'documents'>, <IncludeEnum.metadatas: 'metadatas'>]}
+------------------------------------------------
+重排序结果：
+['Umbrella Network-RewardsDistributionRecipient.sol', 'Umbrella Network-StakingRewards.sol', 'Umbrella Network-SafeERC20.sol', 'Umbrella Network-ERC20.sol', 'Umbrella Network-IStakingRewards.sol', 'Umbrella Network-Ownable.sol', 'Umbrella Network-Owned.sol', 'Umbrella Network-Pausable.sol']
+------------------------------------------------
+函数切片：
+
+------------------------------------------------
+函数切片ID: Umbrella Network-RewardsDistributionRecipient.sol-onlyRewardsDistribution-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-RewardsDistributionRecipient.sol', 'is_fault': '', 'message': "{'name': 'onlyRewardsDistribution', 'type': 'modifier', 'contract': 'Umbrella Network-RewardsDistributionRecipient.sol', 'src': '12#15'}"}
+函数切片:
+    modifier onlyRewardsDistribution() {
+        require(msg.sender == rewardsDistribution, "Caller is not RewardsDistributor");
+        _;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-RewardsDistributionRecipient.sol-notifyRewardAmount-1
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-RewardsDistributionRecipient.sol', 'is_fault': '', 'message': "{'name': 'notifyRewardAmount', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'reward', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-RewardsDistributionRecipient.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '17#17'}"}
+函数切片:
+    function notifyRewardAmount(uint256 reward) virtual external;
+------------------------------------------------
+函数切片ID: Umbrella Network-RewardsDistributionRecipient.sol-setRewardsDistribution-2
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-RewardsDistributionRecipient.sol', 'is_fault': '', 'message': "{'name': 'setRewardsDistribution', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_rewardsDistribution', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-RewardsDistributionRecipient.sol', 'external_calls': [], 'state_vars': {'read': ['rewardsDistribution'], 'written': []}, 'src': '19#21'}"}
+函数切片:
+    function setRewardsDistribution(address _rewardsDistribution) external onlyOwner {
+        rewardsDistribution = _rewardsDistribution;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-whenActive-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'whenActive', 'type': 'modifier', 'contract': 'Umbrella Network-StakingRewards.sol', 'src': '57#60'}"}
+函数切片:
+    modifier whenActive() {
+        require(!stopped, "farming is stopped");
+        _;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-updateReward-1
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'updateReward', 'type': 'modifier', 'contract': 'Umbrella Network-StakingRewards.sol', 'src': '62#73'}"}
+函数切片:
+    modifier updateReward(address account) virtual {
+        uint256 newRewardPerTokenStored = rewardPerToken();
+        rewardPerTokenStored = newRewardPerTokenStored;
+        timeData.lastUpdateTime = uint32(lastTimeRewardApplicable());
+
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = newRewardPerTokenStored;
+        }
+
+        _;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-constructor-2
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_owner', 'type': 'address'}, {'name': '_rewardsDistribution', 'type': 'address'}, {'name': '_stakingToken', 'type': 'address'}, {'name': '_rewardsToken', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['rewardsToken must be OnDemandToken'], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['stakingToken', 'rewardsToken', 'timeData', 'maxEverTotalRewards'], 'written': []}, 'src': '77#91'}"}
+函数切片:
+    constructor(
+        address _owner,
+        address _rewardsDistribution,
+        address _stakingToken,
+        address _rewardsToken
+    ) Owned(_owner) {
+        require(OnDemandToken(_rewardsToken).ON_DEMAND_TOKEN(), "rewardsToken must be OnDemandToken");
+
+        stakingToken = IERC20(_stakingToken);
+        rewardsToken = IERC20(_rewardsToken);
+        rewardsDistribution = _rewardsDistribution;
+
+        timeData.rewardsDuration = 2592000; // 30 days
+        maxEverTotalRewards = MintableToken(_rewardsToken).maxAllowedTotalSupply();
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-notifyRewardAmount-3
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'notifyRewardAmount', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_reward', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['RewardAdded'], 'errors': ['invalid rewardRate', 'rewards overflow'], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['timeData', 'rewardRate', 'rewardRate', 'timeData', 'maxEverTotalRewards', 'timeData', 'timeData', 'timeData'], 'written': []}, 'src': '95#123'}"}
+函数切片:
+    function notifyRewardAmount(
+        uint256 _reward
+    ) override virtual external whenActive onlyRewardsDistribution updateReward(address(0)) {
+        Times memory t = timeData;
+        uint256 newRewardRate;
+
+        if (block.timestamp >= t.periodFinish) {
+            newRewardRate = _reward / t.rewardsDuration;
+        } else {
+            uint256 remaining = t.periodFinish - block.timestamp;
+            uint256 leftover = remaining * rewardRate;
+            newRewardRate = (_reward + leftover) / t.rewardsDuration;
+        }
+
+        require(newRewardRate != 0, "invalid rewardRate");
+
+        rewardRate = newRewardRate;
+
+        // always increasing by _reward even if notification is in a middle of period
+        // because leftover is included
+        uint256 totalRewardsSupply = timeData.totalRewardsSupply + _reward;
+        require(totalRewardsSupply <= maxEverTotalRewards, "rewards overflow");
+
+        timeData.totalRewardsSupply = uint96(totalRewardsSupply);
+        timeData.lastUpdateTime = uint32(block.timestamp);
+        timeData.periodFinish = uint32(block.timestamp + t.rewardsDuration);
+
+        emit RewardAdded(_reward);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-setRewardsDuration-4
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'setRewardsDuration', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_rewardsDuration', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['RewardsDurationUpdated'], 'errors': ['empty _rewardsDuration', 'Previous period must be complete before changing the duration'], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['timeData', 'timeData'], 'written': []}, 'src': '125#135'}"}
+函数切片:
+    function setRewardsDuration(uint256 _rewardsDuration) external whenActive onlyOwner {
+        require(_rewardsDuration != 0, "empty _rewardsDuration");
+
+        require(
+            block.timestamp > timeData.periodFinish,
+            "Previous period must be complete before changing the duration"
+        );
+
+        timeData.rewardsDuration = uint32(_rewardsDuration);
+        emit RewardsDurationUpdated(_rewardsDuration);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-finishFarming-5
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': '{\'name\': \'finishFarming\', \'visibility\': \'external\', \'stateMutability\': \'nonpayable\', \'parameters\': [], \'returns\': [], \'permission_check\': False, \'reentrancy_guard\': False, \'events\': [\'FarmingFinished\'], \'errors\': ["can\'t stop if not started or already finished"], \'contract\': \'Umbrella Network-StakingRewards.sol\', \'external_calls\': [], \'state_vars\': {\'read\': [\'timeData\', \'stopped\', \'_totalSupply\', \'timeData\', \'timeData\'], \'written\': []}, \'src\': \'140#154\'}'}
+函数切片:
+    function finishFarming() virtual external whenActive onlyOwner {
+        Times memory t = timeData;
+        require(block.timestamp < t.periodFinish, "can't stop if not started or already finished");
+
+        stopped = true;
+
+        if (_totalSupply != 0) {
+            uint256 remaining = t.periodFinish - block.timestamp;
+            timeData.rewardsDuration = uint32(t.rewardsDuration - remaining);
+        }
+
+        timeData.periodFinish = uint32(block.timestamp);
+
+        emit FarmingFinished();
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-exit-6
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'exit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['_balances'], 'written': []}, 'src': '158#161'}"}
+函数切片:
+    function exit() override external {
+        withdraw(_balances[msg.sender]);
+        getReward();
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-stake-7
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'stake', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '163#165'}"}
+函数切片:
+    function stake(uint256 amount) override external {
+        _stake(msg.sender, amount, false);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-rescueToken-8
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'rescueToken', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_token', 'type': 'contract ERC20'}, {'name': '_recipient', 'type': 'address'}, {'name': '_amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['amount is too big to rescue'], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['stakingToken', 'rewardsToken', '_totalSupply', 'stakingToken'], 'written': []}, 'src': '167#175'}"}
+函数切片:
+    function rescueToken(ERC20 _token, address _recipient, uint256 _amount) external onlyOwner() {
+        if (address(_token) == address(stakingToken)) {
+            require(_totalSupply <= stakingToken.balanceOf(address(this)) - _amount, "amount is too big to rescue");
+        } else if (address(_token) == address(rewardsToken)) {
+            revert("reward token can not be rescued");
+        }
+
+        _token.transfer(_recipient, _amount);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-periodFinish-9
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'periodFinish', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['timeData'], 'written': []}, 'src': '177#179'}"}
+函数切片:
+    function periodFinish() external view returns (uint256) {
+        return timeData.periodFinish;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-rewardsDuration-10
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'rewardsDuration', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['timeData'], 'written': []}, 'src': '181#183'}"}
+函数切片:
+    function rewardsDuration() external view returns (uint256) {
+        return timeData.rewardsDuration;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-lastUpdateTime-11
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'lastUpdateTime', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['timeData'], 'written': []}, 'src': '185#187'}"}
+函数切片:
+    function lastUpdateTime() external view returns (uint256) {
+        return timeData.lastUpdateTime;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-balanceOf-12
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'balanceOf', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['_balances'], 'written': []}, 'src': '189#191'}"}
+函数切片:
+    function balanceOf(address account) override external view returns (uint256) {
+        return _balances[account];
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-getRewardForDuration-13
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'getRewardForDuration', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['rewardRate', 'timeData'], 'written': []}, 'src': '193#195'}"}
+函数切片:
+    function getRewardForDuration() override external view returns (uint256) {
+        return rewardRate * timeData.rewardsDuration;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-version-14
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'version', 'visibility': 'external', 'stateMutability': 'pure', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '197#199'}"}
+函数切片:
+    function version() external pure virtual returns (uint256) {
+        return 1;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-withdraw-15
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'withdraw', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '201#203'}"}
+函数切片:
+    function withdraw(uint256 amount) override public {
+        _withdraw(amount, msg.sender, msg.sender);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-getReward-16
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'getReward', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '205#207'}"}
+函数切片:
+    function getReward() override public {
+        _getReward(msg.sender, msg.sender);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-totalSupply-17
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'totalSupply', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply'], 'written': []}, 'src': '211#213'}"}
+函数切片:
+    function totalSupply() override public view returns (uint256) {
+        return _totalSupply;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-lastTimeRewardApplicable-18
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'lastTimeRewardApplicable', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['timeData'], 'written': []}, 'src': '215#217'}"}
+函数切片:
+    function lastTimeRewardApplicable() override public view returns (uint256) {
+        return Math.min(block.timestamp, timeData.periodFinish);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-rewardPerToken-19
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'rewardPerToken', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply', 'rewardPerTokenStored', 'rewardPerTokenStored', 'timeData', 'rewardRate', '_totalSupply'], 'written': []}, 'src': '219#227'}"}
+函数切片:
+    function rewardPerToken() override public view returns (uint256) {
+        if (_totalSupply == 0) {
+            return rewardPerTokenStored;
+        }
+
+        return rewardPerTokenStored + (
+            (lastTimeRewardApplicable() - timeData.lastUpdateTime) * rewardRate * 1e18 / _totalSupply
+        );
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-earned-20
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': 'earned', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', 'userRewardPerTokenPaid', 'rewards'], 'written': []}, 'src': '229#231'}"}
+函数切片:
+    function earned(address account) override virtual public view returns (uint256) {
+        return (_balances[account] * (rewardPerToken() - userRewardPerTokenPaid[account]) / 1e18) + rewards[account];
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-_stake-21
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': '_stake', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'user', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}, {'name': 'migration', 'type': 'bool'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Staked'], 'errors': ['Stake period not started yet', 'Cannot stake 0', 'token transfer failed'], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['timeData', '_totalSupply', '_totalSupply', '_balances', '_balances', 'stakingToken'], 'written': []}, 'src': '233#253'}"}
+函数切片:
+    function _stake(address user, uint256 amount, bool migration)
+        internal
+        nonReentrant
+        notPaused
+        updateReward(user)
+    {
+        require(timeData.periodFinish != 0, "Stake period not started yet");
+        require(amount != 0, "Cannot stake 0");
+
+        _totalSupply = _totalSupply + amount;
+        _balances[user] = _balances[user] + amount;
+
+        if (migration) {
+            // other contract will send tokens to us, this will save ~13K gas
+        } else {
+            // not using safe transfer, because we working with trusted tokens
+            require(stakingToken.transferFrom(user, address(this), amount), "token transfer failed");
+        }
+
+        emit Staked(user, amount);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-_withdraw-22
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': '_withdraw', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amount', 'type': 'uint256'}, {'name': 'user', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Withdrawn'], 'errors': ['Cannot withdraw 0', 'token transfer failed'], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply', '_totalSupply', '_balances', '_balances', 'stakingToken'], 'written': []}, 'src': '258#268'}"}
+函数切片:
+    function _withdraw(uint256 amount, address user, address recipient) internal nonReentrant updateReward(user) {
+        require(amount != 0, "Cannot withdraw 0");
+
+        // not using safe math, because there is no way to overflow if stake tokens not overflow
+        _totalSupply = _totalSupply - amount;
+        _balances[user] = _balances[user] - amount;
+        // not using safe transfer, because we working with trusted tokens
+        require(stakingToken.transfer(recipient, amount), "token transfer failed");
+
+        emit Withdrawn(user, amount);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-StakingRewards.sol-_getReward-23
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-StakingRewards.sol', 'is_fault': '', 'message': "{'name': '_getReward', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'user', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}], 'returns': [{'name': 'reward', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': ['RewardPaid'], 'errors': [], 'contract': 'Umbrella Network-StakingRewards.sol', 'external_calls': [], 'state_vars': {'read': ['rewards', 'rewards', 'rewardsToken'], 'written': []}, 'src': '272#286'}"}
+函数切片:
+    function _getReward(address user, address recipient)
+        internal
+        virtual
+        nonReentrant
+        updateReward(user)
+        returns (uint256 reward)
+    {
+        reward = rewards[user];
+
+        if (reward != 0) {
+            rewards[user] = 0;
+            OnDemandToken(address(rewardsToken)).mint(recipient, reward);
+            emit RewardPaid(user, reward);
+        }
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-SafeERC20.sol-safeTransfer-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '22#24'}"}
+函数切片:
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-SafeERC20.sol-safeTransferFrom-1
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeTransferFrom', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '26#28'}"}
+函数切片:
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-SafeERC20.sol-safeApprove-2
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeApprove', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeERC20: approve from non-zero to non-zero allowance'], 'contract': 'Umbrella Network-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '37#46'}"}
+函数切片:
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+        // safeApprove should only be called when setting an initial allowance,
+        // or when resetting it to zero. To increase and decrease it, use
+        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+        // solhint-disable-next-line max-line-length
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-SafeERC20.sol-safeIncreaseAllowance-3
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeIncreaseAllowance', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '48#51'}"}
+函数切片:
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-SafeERC20.sol-safeDecreaseAllowance-4
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-SafeERC20.sol', 'is_fault': '', 'message': "{'name': 'safeDecreaseAllowance', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'spender', 'type': 'address'}, {'name': 'value', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '53#56'}"}
+函数切片:
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-SafeERC20.sol-_callOptionalReturn-5
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-SafeERC20.sol', 'is_fault': '', 'message': "{'name': '_callOptionalReturn', 'visibility': 'private', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'token', 'type': 'contract IERC20'}, {'name': 'data', 'type': 'bytes'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['SafeERC20: ERC20 operation did not succeed'], 'contract': 'Umbrella Network-SafeERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '64#74'}"}
+函数切片:
+    function _callOptionalReturn(IERC20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+        // the target address contains contract code and also asserts for success in the low-level call.
+
+        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+        if (returndata.length > 0) { // Return data is optional
+            // solhint-disable-next-line max-line-length
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        }
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-constructor-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'name_', 'type': 'string'}, {'name': 'symbol_', 'type': 'string'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name', '_symbol', '_decimals'], 'written': []}, 'src': '55#59'}"}
+函数切片:
+    constructor (string memory name_, string memory symbol_) public {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = 18;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-name-1
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'name', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_name'], 'written': []}, 'src': '64#66'}"}
+函数切片:
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-symbol-2
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'symbol', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'string'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_symbol'], 'written': []}, 'src': '72#74'}"}
+函数切片:
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-decimals-3
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'decimals', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint8'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_decimals'], 'written': []}, 'src': '89#91'}"}
+函数切片:
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-totalSupply-4
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'totalSupply', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply'], 'written': []}, 'src': '96#98'}"}
+函数切片:
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-balanceOf-5
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'balanceOf', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances'], 'written': []}, 'src': '103#105'}"}
+函数切片:
+    function balanceOf(address account) public view virtual override returns (uint256) {
+        return _balances[account];
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-transfer-6
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'transfer', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '115#118'}"}
+函数切片:
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-allowance-7
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'allowance', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '123#125'}"}
+函数切片:
+    function allowance(address owner, address spender) public view virtual override returns (uint256) {
+        return _allowances[owner][spender];
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-approve-8
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'approve', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '134#137'}"}
+函数切片:
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-transferFrom-9
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'transferFrom', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '152#156'}"}
+函数切片:
+    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-increaseAllowance-10
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'increaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'addedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '170#173'}"}
+函数切片:
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-decreaseAllowance-11
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': 'decreaseAllowance', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'spender', 'type': 'address'}, {'name': 'subtractedValue', 'type': 'uint256'}], 'returns': [{'name': '', 'type': 'bool'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '189#192'}"}
+函数切片:
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        return true;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-_transfer-12
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': '_transfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'sender', 'type': 'address'}, {'name': 'recipient', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: transfer from the zero address', 'ERC20: transfer to the zero address'], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', '_balances', '_balances', '_balances'], 'written': []}, 'src': '208#217'}"}
+函数切片:
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+
+        _beforeTokenTransfer(sender, recipient, amount);
+
+        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+        _balances[recipient] = _balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-_mint-13
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': '_mint', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: mint to the zero address'], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_totalSupply', '_totalSupply', '_balances', '_balances'], 'written': []}, 'src': '228#236'}"}
+函数切片:
+    function _mint(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: mint to the zero address");
+
+        _beforeTokenTransfer(address(0), account, amount);
+
+        _totalSupply = _totalSupply.add(amount);
+        _balances[account] = _balances[account].add(amount);
+        emit Transfer(address(0), account, amount);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-_burn-14
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': '_burn', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'account', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: burn from the zero address'], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_balances', '_balances', '_totalSupply', '_totalSupply'], 'written': []}, 'src': '249#257'}"}
+函数切片:
+    function _burn(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address");
+
+        _beforeTokenTransfer(account, address(0), amount);
+
+        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
+        _totalSupply = _totalSupply.sub(amount);
+        emit Transfer(account, address(0), amount);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-_approve-15
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': '_approve', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'owner', 'type': 'address'}, {'name': 'spender', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['Unknown'], 'errors': ['ERC20: approve from the zero address', 'ERC20: approve to the zero address'], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_allowances'], 'written': []}, 'src': '272#278'}"}
+函数切片:
+    function _approve(address owner, address spender, uint256 amount) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-_setupDecimals-16
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': '_setupDecimals', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'decimals_', 'type': 'uint8'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': ['_decimals'], 'written': []}, 'src': '287#289'}"}
+函数切片:
+    function _setupDecimals(uint8 decimals_) internal virtual {
+        _decimals = decimals_;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-ERC20.sol-_beforeTokenTransfer-17
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-ERC20.sol', 'is_fault': '', 'message': "{'name': '_beforeTokenTransfer', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'from', 'type': 'address'}, {'name': 'to', 'type': 'address'}, {'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-ERC20.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '305#305'}"}
+函数切片:
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-stake-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'stake', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '7#7'}"}
+函数切片:
+    function stake(uint256 amount) external;
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-withdraw-1
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'withdraw', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'amount', 'type': 'uint256'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '9#9'}"}
+函数切片:
+    function withdraw(uint256 amount) external;
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-getReward-2
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'getReward', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '11#11'}"}
+函数切片:
+    function getReward() external;
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-exit-3
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'exit', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '13#13'}"}
+函数切片:
+    function exit() external;
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-lastTimeRewardApplicable-4
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'lastTimeRewardApplicable', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '15#15'}"}
+函数切片:
+    function lastTimeRewardApplicable() external view returns (uint256);
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-rewardPerToken-5
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'rewardPerToken', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '17#17'}"}
+函数切片:
+    function rewardPerToken() external view returns (uint256);
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-earned-6
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'earned', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '19#19'}"}
+函数切片:
+    function earned(address account) external view returns (uint256);
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-getRewardForDuration-7
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'getRewardForDuration', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '21#21'}"}
+函数切片:
+    function getRewardForDuration() external view returns (uint256);
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-totalSupply-8
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'totalSupply', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '23#23'}"}
+函数切片:
+    function totalSupply() external view returns (uint256);
+------------------------------------------------
+函数切片ID: Umbrella Network-IStakingRewards.sol-balanceOf-9
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-IStakingRewards.sol', 'is_fault': '', 'message': "{'name': 'balanceOf', 'visibility': 'external', 'stateMutability': 'view', 'parameters': [{'name': 'account', 'type': 'address'}], 'returns': [{'name': '', 'type': 'uint256'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-IStakingRewards.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '25#25'}"}
+函数切片:
+    function balanceOf(address account) external view returns (uint256);
+------------------------------------------------
+函数切片ID: Umbrella Network-Ownable.sol-constructor-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Ownable.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': [], 'contract': 'Umbrella Network-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner'], 'written': []}, 'src': '26#30'}"}
+函数切片:
+    constructor () internal {
+        address msgSender = _msgSender();
+        _owner = msgSender;
+        emit OwnershipTransferred(address(0), msgSender);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Ownable.sol-owner-1
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Ownable.sol', 'is_fault': '', 'message': "{'name': 'owner', 'visibility': 'public', 'stateMutability': 'view', 'parameters': [], 'returns': [{'name': '', 'type': 'address'}], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner'], 'written': []}, 'src': '35#37'}"}
+函数切片:
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Ownable.sol-onlyOwner-2
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Ownable.sol', 'is_fault': '', 'message': "{'name': 'onlyOwner', 'type': 'modifier', 'contract': 'Umbrella Network-Ownable.sol', 'src': '42#45'}"}
+函数切片:
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Ownable.sol-renounceOwnership-3
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Ownable.sol', 'is_fault': '', 'message': "{'name': 'renounceOwnership', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': [], 'contract': 'Umbrella Network-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '54#57'}"}
+函数切片:
+    function renounceOwnership() public virtual onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Ownable.sol-transferOwnership-4
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Ownable.sol', 'is_fault': '', 'message': "{'name': 'transferOwnership', 'visibility': 'public', 'stateMutability': 'nonpayable', 'parameters': [{'name': 'newOwner', 'type': 'address'}], 'returns': [], 'permission_check': True, 'reentrancy_guard': False, 'events': ['OwnershipTransferred'], 'errors': ['Ownable: new owner is the zero address'], 'contract': 'Umbrella Network-Ownable.sol', 'external_calls': [], 'state_vars': {'read': ['_owner', '_owner'], 'written': []}, 'src': '63#67'}"}
+函数切片:
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Owned.sol-constructor-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Owned.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_owner', 'type': 'address'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': [], 'contract': 'Umbrella Network-Owned.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '7#9'}"}
+函数切片:
+    constructor(address _owner) {
+        transferOwnership(_owner);
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Pausable.sol-notPaused-0
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Pausable.sol', 'is_fault': '', 'message': "{'name': 'notPaused', 'type': 'modifier', 'contract': 'Umbrella Network-Pausable.sol', 'src': '13#16'}"}
+函数切片:
+    modifier notPaused {
+        require(!paused, "This action cannot be performed while the contract is paused");
+        _;
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Pausable.sol-constructor-1
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Pausable.sol', 'is_fault': '', 'message': "{'name': 'constructor', 'visibility': 'internal', 'stateMutability': 'nonpayable', 'parameters': [], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': [], 'errors': ['Owner must be set'], 'contract': 'Umbrella Network-Pausable.sol', 'external_calls': [], 'state_vars': {'read': [], 'written': []}, 'src': '18#22'}"}
+函数切片:
+    constructor() {
+        // This contract is abstract, and thus cannot be instantiated directly
+        require(owner() != address(0), "Owner must be set");
+        // Paused will be false
+    }
+------------------------------------------------
+函数切片ID: Umbrella Network-Pausable.sol-setPaused-2
+所属合约地址0xb3fb1d01b07a706736ca175f827e4f56021b85de
+元数据:{'belong': 'Umbrella Network-Pausable.sol', 'is_fault': '', 'message': "{'name': 'setPaused', 'visibility': 'external', 'stateMutability': 'nonpayable', 'parameters': [{'name': '_paused', 'type': 'bool'}], 'returns': [], 'permission_check': False, 'reentrancy_guard': False, 'events': ['PauseChanged'], 'errors': [], 'contract': 'Umbrella Network-Pausable.sol', 'external_calls': [], 'state_vars': {'read': ['paused', 'paused', 'paused'], 'written': []}, 'src': '28#39'}"}
+函数切片:
+    function setPaused(bool _paused) external onlyOwner {
+        // Ensure we're actually changing the state before we do anything
+        if (_paused == paused) {
+            return;
+        }
+
+        // Set our paused state.
+        paused = _paused;
+
+        // Let everyone know that our pause state has changed.
+        emit PauseChanged(paused);
+    }
+------------------------------------------------
+故障定位结果：
+{
+    '攻击链条1': ['Umbrella Network-StakingRewards.sol-rescueToken-8', 'Umbrella Network-SafeERC20.sol-safeTransfer-0', 'Umbrella Network-ERC20.sol-transfer-6'],
+    '攻击链条2': ['Umbrella Network-StakingRewards.sol-notifyRewardAmount-3', 'Umbrella Network-StakingRewards.sol-_getReward-23', 'Umbrella Network-ERC20.sol-_mint-13'],
+    '攻击链条3': ['Umbrella Network-StakingRewards.sol-withdraw-15', 'Umbrella Network-StakingRewards.sol-_withdraw-22', 'Umbrella Network-SafeERC20.sol-safeTransfer-0']
+}
+
+攻击链条分析解释:
+### 攻击链条1：直接调用rescueToken函数提取质押代币
+1. **入口点**：攻击者通过中间合约调用漏洞合约的rescueToken函数（函数ID：Umbrella Network-StakingRewards.sol-rescueToken-8）。该函数的设计意图是允许合约所有者紧急提取非奖励代币，但其权限校验存在致命缺陷。
+   
+2. **权限绕过**：虽然函数表面声明了`onlyOwner`修饰符，但元数据显示`permission_check`为False，表明实际合约代码中可能存在修饰符缺失或校验逻辑错误。攻击者通过构造特定参数（将_token参数设置为stakingToken地址）绕过权限检查。
+
+3. **余额校验绕过**：当提取质押代币时，函数要求`_totalSupply <= stakingToken.balanceOf(address(this)) - _amount`。若合约处于未质押状态（_totalSupply=0），该条件将自动满足，允许提取全部stakingToken余额。攻击者利用此逻辑缺陷转移900万UNI-V2代币。
+
+4. **代币转移**：通过调用SafeERC20的safeTransfer（函数ID：Umbrella Network-SafeERC20.sol-safeTransfer-0）最终触发ERC20的transfer函数（函数ID：Umbrella Network-ERC20.sol-transfer-6），完成资金转移。
+
+**可能性依据**：该路径直接对应trace调用链末端的代币转移操作，且故障交易中未涉及质押流程，与rescueToken的无质押提取特性高度吻合。元数据与代码的修饰符矛盾进一步增加其可疑性。
+
+### 攻击链条2：操纵奖励通知函数铸造代币
+1. **权限劫持**：攻击者通过社会工程或漏洞获取rewardsDistribution地址控制权，随后调用setRewardsDistribution（函数ID：Umbrella Network-RewardsDistributionRecipient.sol-setRewardsDistribution-2）将自身设为奖励分发者。
+
+2. **虚假奖励通知**：调用notifyRewardAmount（函数ID：Umbrella Network-StakingRewards.sol-notifyRewardAmount-3），注入高额_reward参数。由于该函数使用`onlyRewardsDistribution`修饰符且已劫持权限，攻击者可随意设置奖励率。
+
+3. **奖励提取**：通过getReward函数（函数ID：Umbrella Network-StakingRewards.sol-getReward-16）触发内部_getReward（函数ID：Umbrella Network-StakingRewards.sol-_getReward-23），利用OnDemandToken的mint函数（函数ID：Umbrella Network-ERC20.sol-_mint-13）铸造代币至攻击者地址。
+
+**可能性依据**：SetReward事件与转账金额匹配表明奖励机制被滥用，但该路径需要rewardsDistribution权限，相比链条1可能性次之。
+
+### 攻击链条3：利用提现函数重入攻击
+1. **质押伪造**：攻击者通过迁移功能或整数溢出漏洞在_stake（函数ID：Umbrella Network-StakingRewards.sol-_stake-21）中伪造质押记录，使得_balances[attacker]异常增加。
+
+2. **恶意提现**：调用withdraw（函数ID：Umbrella Network-StakingRewards.sol-withdraw-15）触发内部_withdraw（函数ID：Umbrella Network-StakingRewards.sol-_withdraw-22）。在stakingToken.transfer执行时，通过恶意代币合约的回调函数发起重入攻击，绕过余额校验。
+
+3. **重复提现**：利用重入漏洞多次提取超出实际余额的代币，最终通过ERC20 transfer（函数ID：Umbrella Network-ERC20.sol-transfer-6）完成资金转移。
+
+**可能性依据**：代码中未明确使用最新版SafeERC20标准，且_withdraw存在外部调用（transfer），但初步分析未提及重入特征，故可能性最低。
+
+根因函数列表：
+攻击链条1：
+[Umbrella Network-StakingRewards.sol-rescueToken-8, Umbrella Network-SafeERC20.sol-safeTransfer-0, Umbrella Network-ERC20.sol-transfer-6]
+
+攻击链条2：
+[Umbrella Network-StakingRewards.sol-notifyRewardAmount-3, Umbrella Network-StakingRewards.sol-_getReward-23]
+
+攻击链条3：
+[Umbrella Network-StakingRewards.sol-_stake-21, Umbrella Network-StakingRewards.sol-withdraw-15]
+------------------------------------
+运行时间:912.8680107593536seconds

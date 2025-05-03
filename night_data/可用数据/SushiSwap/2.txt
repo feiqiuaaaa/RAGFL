@@ -2607,31 +2607,55 @@
         return uint256(_at(set._inner, index));
     }
 
---- 异常信息 ---
-Traceback (most recent call last):
-  File "D:\python\PycharmCodes\RAG\online_search.py", line 262, in <module>
-    searcher.process(fault_hash, faultless_hash, file, "Ethereum")
-  File "D:\python\PycharmCodes\RAG\online_search.py", line 168, in process
-    location_result = llm.get_summary_from_llm(system_prompt, user_prompt)
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\python\PycharmCodes\RAG\llm.py", line 21, in get_summary_from_llm
-    response = call_deepseek_reasoner(client, system_prompt, user_prompt)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\python\PycharmCodes\RAG\llm.py", line 37, in call_deepseek_reasoner
-    return client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
-    return func(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\resources\chat\completions\completions.py", line 879, in create
-    return self._post(
-           ^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 1290, in post
-    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 967, in request
-    return self._request(
-           ^^^^^^^^^^^^^^
-  File "D:\anaconda3\envs\pytorch\Lib\site-packages\openai\_base_client.py", line 1071, in _request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': "This model's maximum context length is 65536 tokens. However, you requested 67731 tokens (67731 in the messages, 0 in the completion). Please reduce the length of the messages or completion.", 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}}
+------------------------------------------------
+故障定位结果：
+{
+    '攻击链条1': ['SushiSwap-SushiMaker.sol-convert-4', 'SushiSwap-SushiMaker.sol-_convert-6', 'SushiSwap-UniswapV2Pair.sol-burn-9', 'SushiSwap-SushiMaker.sol-_convertStep-7', 'SushiSwap-SushiMaker.sol-_swap-8'],
+    '攻击链条2': ['SushiSwap-SushiMaker.sol-convertMultiple-5', 'SushiSwap-SushiMaker.sol-_convert-6', 'SushiSwap-UniswapV2Pair.sol-burn-9', 'SushiSwap-SushiMaker.sol-_swap-8', 'SushiSwap-UniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-20'],
+    '攻击链条3': ['SushiSwap-SushiBar.sol-leave-2', 'SushiSwap-SushiMaker.sol-_toSUSHI-9', 'SushiSwap-SushiMaker.sol-_swap-8', 'SushiSwap-UniswapV2Pair.sol-swap-10', 'SushiSwap-UniswapV2Router02.sol-_swapSupportingFeeOnTransferTokens-19']
+}
+
+攻击链条分析解释:
+
+攻击链条1（最高可能性）:
+1. 攻击者通过convert函数触发核心合约操作，该函数仅受onlyEOA修饰符限制（未能阻止合约调用）
+2. _convert函数通过factory.getPair获取流动池地址后，执行pair.burn释放底层资产
+3. UniswapV2Pair的burn函数在销毁流动性时，未正确校验调用者权限（核心合约拥有LP代币即可操作）
+4. _convertStep处理资产转换时，通过桥接设置将非标准代币转换为WETH，形成价格操纵基础
+5. _swap函数基于被篡改的储备量计算兑换量，利用公式amountOut = (amountIn * 997 * reserveOut) / (reserveIn * 1000 + amountIn * 997)实现超额兑换
+
+攻击链条2（跨合约组合攻击）:
+1. 使用convertMultiple批量处理多个交易对，放大攻击效果
+2. 在burn操作后，通过_swap函数将释放的WBTC转换为WETH时，因储备量未同步产生错误价格
+3. swapExactTokensForTokensSupportingFeeOnTransferTokens绕过费用校验，将异常兑换所得转移至外部地址
+4. 该路径利用路由合约未校验中间代币所有权的漏洞，实现跨协议资产转移
+
+攻击链条3（LP代币操作结合重入）:
+1. 通过SushiBar的leave函数提取SUSHI时，sushi.transfer在前_burn在后，存在短暂重入窗口
+2. _toSUSHI函数在转换WETH时，通过_swap触发流动池的swap回调
+3. 在swap函数执行期间，通过data字段回调攻击合约，重复利用未更新的储备数据
+4. 支持费率的swap函数未正确校验实际到账金额，导致套利空间扩大
+
+根因函数列表：
+攻击链条1：
+['SushiSwap-SushiMaker.sol-_convert-6', 'SushiSwap-UniswapV2Pair.sol-burn-9', 'SushiSwap-SushiMaker.sol-_swap-8']
+
+攻击链条2：
+['SushiSwap-SushiMaker.sol-_convert-6', 'SushiSwap-UniswapV2Pair.sol-burn-9', 'SushiSwap-UniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-20']
+
+攻击链条3：
+['SushiSwap-SushiBar.sol-leave-2', 'SushiSwap-UniswapV2Pair.sol-swap-10']
+
+根本原因排序依据：
+1. SushiSwap-SushiMaker.sol-_convert-6（直接控制流动池代币销毁）
+2. SushiSwap-UniswapV2Pair.sol-burn-9（实际执行资产释放的核心操作）
+3. SushiSwap-SushiMaker.sol-_swap-8（价格操纵的直接实现点）
+4. SushiSwap-UniswapV2Router02.sol-swapExactTokensForTokensSupportingFeeOnTransferTokens-20（资金外流的关键出口）
+5. SushiSwap-UniswapV2Pair.sol-swap-10（重入攻击的潜在入口点）
+
+每个根因函数的具体缺陷：
+- _convert-6：未对pair.burn操作的代币流向进行权限控制，允许任意地址释放流动性
+- burn-9：未校验调用者是否实际拥有对应LP代币的所有权，仅通过transferFrom实现控制
+- _swap-8：依赖易被操控的瞬时储备量计算价格，未引入时间加权机制
+- swapExactTokensForTokensSupportingFeeOnTransferTokens-20：未验证最终到账金额与预期最小值的实时一致性
+- swap-10：在完成代币转账后执行回调，造成重入风险
