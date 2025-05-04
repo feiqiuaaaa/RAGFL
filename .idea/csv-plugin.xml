@@ -17,13 +17,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="\BlockchainSpider\data\Formation.Fi\Token20TransferItem.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="\BlockchainSpider\data\SushiSwap\Token20TransferItem.csv">
           <value>
             <Attribute>
